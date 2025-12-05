@@ -67,23 +67,17 @@ const ProductCard = ({ product, onOpenDetails }) => {
       switch (format) {
         case "pack":
           price = promo?.pack?.actif
-            ? calculateDiscountedPrice(produit.prixPack, promo.pack.pourcentage)
+            ? (promo.pack.prixPromo || calculateDiscountedPrice(produit.prixPack, promo.pack.pourcentage))
             : produit.prixPack;
           break;
         case "boite":
           price = promo?.boite?.actif
-            ? calculateDiscountedPrice(
-                produit.prixBoite,
-                promo.boite.pourcentage,
-              )
+            ? (promo.boite.prixPromo || calculateDiscountedPrice(produit.prixBoite, promo.boite.pourcentage))
             : produit.prixBoite;
           break;
         default:
           price = promo?.unitaire?.actif
-            ? calculateDiscountedPrice(
-                produit.prixUnitaire,
-                promo.unitaire.pourcentage,
-              )
+            ? (promo.unitaire.prixPromo || calculateDiscountedPrice(produit.prixUnitaire, promo.unitaire.pourcentage))
             : produit.prixUnitaire;
       }
     }
@@ -294,6 +288,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                     </span>
                     <span className="text-base font-bold text-destructive">
                       {formatPrice(
+                        produit.promotions.unitaire.prixPromo || 
                         calculateDiscountedPrice(
                           produit.prixUnitaire,
                           produit.promotions.unitaire.pourcentage,
@@ -325,10 +320,10 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 <span className="text-base font-semibold text-orange-800">
                   {formatPrice(
                     produit.promotions?.pack?.actif
-                      ? calculateDiscountedPrice(
+                      ? (produit.promotions.pack.prixPromo || calculateDiscountedPrice(
                           produit.prixPack,
                           produit.promotions.pack.pourcentage,
-                        )
+                        ))
                       : produit.prixPack,
                   )}
                 </span>
@@ -351,10 +346,10 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 <span className="text-base font-semibold text-orange-800">
                   {formatPrice(
                     produit.promotions?.boite?.actif
-                      ? calculateDiscountedPrice(
+                      ? (produit.promotions.boite.prixPromo || calculateDiscountedPrice(
                           produit.prixBoite,
                           produit.promotions.boite.pourcentage,
-                        )
+                        ))
                       : produit.prixBoite,
                   )}
                 </span>

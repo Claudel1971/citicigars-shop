@@ -55,12 +55,21 @@ const UpdatePricesExcel = () => {
           const rawPrixUnitaire = findValue(row, ['prix CitiCigar', 'prix CitiCigars', 'prixUnitaire', 'Prix_Unit']);
           const prixUnitaireReg = rawPrixUnitaire ? Math.round(Number(rawPrixUnitaire)) : null;
           
-          let rabaisPromoStr = findValue(row, ['Rabais promo', 'rabais', 'promo']) || '0%';
-          if (typeof rabaisPromoStr === 'string') {
-            rabaisPromoStr = rabaisPromoStr.replace('%', '').replace('-', '');
+          let rabaisPromoRaw = findValue(row, ['Rabais promo', 'rabais', 'promo']) || 0;
+          let rabaisPromo = 0;
+          if (typeof rabaisPromoRaw === 'string') {
+            rabaisPromoRaw = rabaisPromoRaw.replace('%', '').replace('-', '');
+            rabaisPromo = Math.abs(parseFloat(rabaisPromoRaw) || 0);
+          } else if (typeof rabaisPromoRaw === 'number') {
+            // Excel stores percentages as decimals (e.g., 5% = 0.05 or -0.05)
+            rabaisPromo = Math.abs(rabaisPromoRaw);
+            if (rabaisPromo < 1) {
+              rabaisPromo = rabaisPromo * 100; // Convert 0.05 to 5
+            }
           }
-          const rabaisPromo = Math.abs(parseFloat(rabaisPromoStr) || 0);
+          rabaisPromo = Math.round(rabaisPromo); // Round to whole number
           
+          // Use the EXACT promo price from Excel - no calculation!
           const rawPrixPromo = findValue(row, ['p.u. promo', 'prix promo', 'prixPromo']);
           const prixUnitairePromo = rawPrixPromo ? Math.round(Number(rawPrixPromo)) : null;
           
@@ -84,11 +93,12 @@ const UpdatePricesExcel = () => {
             hasPromo,
             promotions: hasPromo ? {
               unitaire: { 
-                actif: rabaisPromo > 0, 
-                pourcentage: rabaisPromo 
+                actif: true, 
+                pourcentage: rabaisPromo,
+                prixPromo: prixUnitairePromo // Store exact promo price!
               },
-              pack: { actif: false, pourcentage: 0 },
-              boite: { actif: false, pourcentage: 0 }
+              pack: { actif: false, pourcentage: 0, prixPromo: null },
+              boite: { actif: false, pourcentage: 0, prixPromo: null }
             } : null,
           };
         });
