@@ -1,34 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
-import dbService from "../services/indexedDBService";
-import { catalogueData } from "../data/catalogueData";
-import { bundlesData } from "../data/bundles";
+import apiService from "../services/apiService";
 
 const ProductContext = createContext();
 
 export const useProducts = () => useContext(ProductContext);
-
-const mapToDbType = (rawType) => {
-  const t = (rawType || "")
-    .toString()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-
-  if (t === "principale" || t.startsWith("open")) return "Principale (Défaut)";
-  if (t === "unit" || t === "unitaire" || t === "solo") return "Solo (Cigare)";
-  if (t === "pack" || t === "bundle") return "Pack";
-  if (t.startsWith("boite") || t.startsWith("boîte") || t.includes("closed"))
-    return "Boîte";
-
-  if (t.includes("principale")) return "Principale (Défaut)";
-  if (t.includes("solo")) return "Solo (Cigare)";
-  if (t === "pack") return "Pack";
-  if (t.includes("boite") || t.includes("boîte")) return "Boîte";
-
-  return "Principale (Défaut)";
-};
 
 export const ProductProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
@@ -36,78 +12,33 @@ export const ProductProvider = ({ children }) => {
   const [dbInitialized, setDbInitialized] = useState(false);
 
   useEffect(() => {
-    const initDB = async () => {
+    const initData = async () => {
       try {
-        await dbService.init();
-        console.log("✅ IndexedDB initialized");
+        // First, try to seed the database (will skip if already seeded)
+        await apiService.seedDatabase();
+        console.log("✅ Database seeded or already populated");
 
-        const existingProducts = await dbService.getAllProducts();
-
-        if (existingProducts.length === 0) {
-          console.log("🔄 Database empty, checking localStorage...");
-
-          const localData = localStorage.getItem("citicigars-products");
-          if (localData) {
-            await dbService.migrateFromLocalStorage();
-            toast.success("Données migrées vers IndexedDB");
-          } else {
-            console.log("🌱 Seeding database with initial data...");
-            const initialProducts = catalogueData.map((p) => ({
-              ...p,
-              promotions: {
-                unitaire: { actif: false, pourcentage: 0 },
-                pack: { actif: false, pourcentage: 0 },
-                boite: { actif: false, pourcentage: 0 },
-              },
-              badges: {
-                coty: p.rank === 1,
-                top25: p.top25,
-                top25Year: p.year,
-                top25Rang: p.rank,
-                rating: p.rating,
-              },
-              type: "standard",
-            }));
-
-            for (const product of initialProducts) {
-              await dbService.addProduct(product);
-            }
-
-            for (const bundle of bundlesData) {
-              await dbService.addProduct({ ...bundle, type: "bundle" });
-            }
-
-            console.log(
-              `✅ Seeded ${initialProducts.length} products + ${bundlesData.length} bundles`,
-            );
-          }
-        }
-
-        const loadedProducts = await dbService.getAllProductsWithImages();
+        // Then fetch all products
+        const loadedProducts = await apiService.getAllProducts();
         setProducts(loadedProducts);
         setDbInitialized(true);
         setLoading(false);
+        console.log(`✅ Loaded ${loadedProducts.length} products from server`);
       } catch (error) {
-        console.error("❌ Error initializing IndexedDB:", error);
-        toast.error("Erreur lors de l'initialisation de la base de données");
+        console.error("❌ Error initializing data:", error);
+        toast.error("Erreur lors du chargement des données");
         setLoading(false);
       }
     };
 
-    initDB();
+    initData();
   }, []);
 
   const updateProduct = async (sku, updates) => {
     try {
-      const product = await dbService.getProduct(sku);
-      if (!product) throw new Error("Product not found");
-
-      const updated = { ...product, ...updates };
-      await dbService.updateProduct(updated);
-
-      const loadedProducts = await dbService.getAllProductsWithImages();
+      await apiService.updateProduct(sku, updates);
+      const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
-
       toast.success("Produit mis à jour");
     } catch (error) {
       console.error("Error updating product:", error);
@@ -118,21 +49,9 @@ export const ProductProvider = ({ children }) => {
   const updateProductImages = async (sku, imagesData) => {
     try {
       console.log("updateProductImages →", sku, imagesData);
-
-      await dbService.deleteImagesBySku(sku);
-
-      if (Array.isArray(imagesData) && imagesData.length > 0) {
-        for (const imageObj of imagesData) {
-          await dbService.addImage({
-            sku: sku,
-            type: imageObj.type,
-            data: imageObj.data,
-          });
-          console.log(`✅ Image sauvegardée pour ${sku}: ${imageObj.type}`);
-        }
-      }
-
-      const loadedProducts = await dbService.getAllProductsWithImages();
+      await apiService.uploadImages(sku, imagesData);
+      
+      const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
       toast.success(`Images mises à jour pour ${sku}`);
     } catch (error) {
@@ -143,35 +62,13 @@ export const ProductProvider = ({ children }) => {
 
   const removeProduitImages = async (sku, type) => {
     try {
-      const normalizeType = (t) =>
-        (t || "")
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-
-      const images = await dbService.getImagesBySku(sku);
-      if (!images || images.length === 0) {
-        console.warn("Aucune image trouvée pour", sku);
-        return;
-      }
-
-      if (!type || normalizeType(type) === "all") {
-        await dbService.deleteImagesBySku(sku);
+      if (!type || type.toLowerCase() === "all") {
+        await apiService.deleteImages(sku);
       } else {
-        const targetType = normalizeType(type);
-        const toKeep = images.filter(
-          (img) => normalizeType(img.type) !== targetType,
-        );
-
-        await dbService.deleteImagesBySku(sku);
-
-        for (const img of toKeep) {
-          const { id, ...rest } = img;
-          await dbService.addImage(rest);
-        }
+        await apiService.deleteImageByType(sku, type);
       }
 
-      const loadedProducts = await dbService.getAllProductsWithImages();
+      const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
       toast.success("Images supprimées");
     } catch (error) {
@@ -182,12 +79,9 @@ export const ProductProvider = ({ children }) => {
 
   const deleteProduct = async (sku) => {
     try {
-      await dbService.deleteImagesBySku(sku);
-      await dbService.deleteProduct(sku);
-
-      const loadedProducts = await dbService.getAllProductsWithImages();
+      await apiService.deleteProduct(sku);
+      const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
-
       toast.success("Produit supprimé");
     } catch (error) {
       console.error("Error deleting product:", error);
@@ -204,7 +98,7 @@ export const ProductProvider = ({ children }) => {
     removeProduitImages,
     deleteProduct,
     refreshProducts: async () => {
-      const loadedProducts = await dbService.getAllProductsWithImages();
+      const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
     },
   };
