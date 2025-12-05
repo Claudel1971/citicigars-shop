@@ -165,13 +165,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
   return (
     <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden flex flex-col h-full">
       <div
-        className="relative h-48 bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
+        className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
         onClick={() => onOpenDetails && onOpenDetails(produit)}
       >
         <img
           src={currentImage}
           alt={produit.marque}
-          className="w-full h-full object-contain"
+          className="w-full h-64 object-contain bg-gray-50"
         />
 
         {(produit.badges?.coty ||
