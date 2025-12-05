@@ -32,13 +32,26 @@ class ApiService {
   }
 
   async uploadImages(sku, images) {
-    const response = await fetch(`${API_BASE}/products/${sku}/images`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images }),
-    });
-    if (!response.ok) throw new Error('Failed to upload images');
-    return response.json();
+    console.log(`📤 Uploading ${images.length} images for ${sku}...`);
+    try {
+      const response = await fetch(`${API_BASE}/products/${sku}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Upload failed for ${sku}: ${response.status} - ${errorText}`);
+        throw new Error(`Upload failed (${response.status}): ${errorText}`);
+      }
+      
+      console.log(`✅ Upload success for ${sku}`);
+      return response.json();
+    } catch (error) {
+      console.error(`❌ Network/Upload error for ${sku}:`, error.message);
+      throw error;
+    }
   }
 
   async deleteImages(sku) {
