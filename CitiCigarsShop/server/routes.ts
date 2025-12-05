@@ -72,6 +72,69 @@ export async function registerRoutes(
     }
   });
 
+  // Bulk update prices
+  app.post("/api/products/bulk-update-prices", async (req, res) => {
+    try {
+      const { updates } = req.body;
+      
+      if (!updates || !Array.isArray(updates)) {
+        return res.status(400).json({ error: "Updates array required" });
+      }
+
+      const results = {
+        updated: 0,
+        notFound: [] as string[],
+        errors: [] as string[],
+      };
+
+      for (const update of updates) {
+        try {
+          const { sku, prixUnitaire, prixPack, prixBoite, promotions } = update;
+          
+          if (!sku) {
+            results.errors.push("SKU manquant");
+            continue;
+          }
+
+          const existing = await storage.getProduct(sku);
+          if (!existing) {
+            results.notFound.push(sku);
+            continue;
+          }
+
+          const updateData: any = {};
+          
+          if (prixUnitaire !== undefined && prixUnitaire !== null) {
+            updateData.prixUnitaire = prixUnitaire;
+          }
+          if (prixPack !== undefined && prixPack !== null) {
+            updateData.prixPack = prixPack;
+          }
+          if (prixBoite !== undefined && prixBoite !== null) {
+            updateData.prixBoite = prixBoite;
+          }
+          if (promotions !== undefined) {
+            updateData.promotions = promotions;
+          }
+
+          await storage.updateProduct(sku, updateData);
+          results.updated++;
+        } catch (err) {
+          results.errors.push(`Erreur pour ${update.sku}: ${err}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${results.updated} produits mis à jour`,
+        ...results,
+      });
+    } catch (error) {
+      console.error("Error bulk updating prices:", error);
+      res.status(500).json({ error: "Failed to bulk update prices" });
+    }
+  });
+
   // === IMAGES API ===
   
   // Upload images for a product

@@ -64,6 +64,16 @@ class ApiService {
     if (!response.ok) throw new Error('Failed to seed database');
     return response.json();
   }
+
+  async bulkUpdatePrices(updates) {
+    const response = await fetch(`${API_BASE}/products/bulk-update-prices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates }),
+    });
+    if (!response.ok) throw new Error('Failed to bulk update prices');
+    return response.json();
+  }
 }
 
 const apiService = new ApiService();

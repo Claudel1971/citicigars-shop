@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2 } from 'lucide-react';
+import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/products', icon: Package, label: 'Produits' },
     { path: '/admin/import', icon: Upload, label: 'Import Excel' },
+    { path: '/admin/prices', icon: DollarSign, label: 'Maj Prix (Excel)' },
     { path: '/admin/images', icon: ImageIcon, label: 'Images' },
     { path: '/admin/associations', icon: Link2, label: 'Associations' },
     { path: '/admin/promotions', icon: Percent, label: 'Promotions' },
