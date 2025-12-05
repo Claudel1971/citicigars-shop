@@ -24,82 +24,52 @@ const UpdatePricesExcel = () => {
         const sheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(sheet);
         
-        // Debug: log the actual column names from Excel
         if (json.length > 0) {
-          console.log('📊 Colonnes Excel détectées:', Object.keys(json[0]));
-          console.log('📊 Première ligne:', json[0]);
+          console.log('Colonnes Excel:', Object.keys(json[0]));
+          console.log('Premiere ligne:', json[0]);
         }
-        
-        // Helper function to find value by partial key match
-        const findValue = (row, patterns) => {
-          const keys = Object.keys(row);
-          for (const pattern of patterns) {
-            // First try exact match
-            if (row[pattern] !== undefined) return row[pattern];
-            // Then try partial match (case-insensitive)
-            const patternLower = pattern.toLowerCase();
-            for (const key of keys) {
-              if (key.toLowerCase().includes(patternLower) || patternLower.includes(key.toLowerCase())) {
-                return row[key];
-              }
-            }
-          }
-          return null;
-        };
 
         const transformed = json.map(row => {
+          const keys = Object.keys(row);
           const sku = row.SKU || row.sku || row.Sku || '';
           const existingProduct = products.find(p => p.sku === sku);
           
-          // Use Math.round to preserve user's rounded values - no recalculation!
-          const rawPrixUnitaire = findValue(row, ['prix CitiCigar', 'prix CitiCigars', 'prixUnitaire', 'Prix_Unit']);
-          const prixUnitaireReg = rawPrixUnitaire ? Math.round(Number(rawPrixUnitaire)) : null;
-          
-          let rabaisPromoRaw = findValue(row, ['Rabais promo', 'rabais', 'promo']) || 0;
-          let rabaisPromo = 0;
-          if (typeof rabaisPromoRaw === 'string') {
-            rabaisPromoRaw = rabaisPromoRaw.replace('%', '').replace('-', '');
-            rabaisPromo = Math.abs(parseFloat(rabaisPromoRaw) || 0);
-          } else if (typeof rabaisPromoRaw === 'number') {
-            // Excel stores percentages as decimals (e.g., 5% = 0.05 or -0.05)
-            rabaisPromo = Math.abs(rabaisPromoRaw);
-            if (rabaisPromo < 1) {
-              rabaisPromo = rabaisPromo * 100; // Convert 0.05 to 5
+          const findCol = (patterns) => {
+            for (const key of keys) {
+              const keyLower = key.toLowerCase();
+              for (const p of patterns) {
+                if (keyLower.includes(p.toLowerCase())) {
+                  return row[key];
+                }
+              }
+            }
+            return null;
+          };
+
+          const prixUnitaire = findCol(['citicigar', 'prix unit']);
+          const prixPromo = findCol(['p.u. promo', 'promo (cf', 'prix promo unit']);
+          const prixBoite = findCol(['promo box', 'prix box']);
+          const prixPack = findCol(['promo pack', 'prix pack']);
+          const rabaisRaw = findCol(['rabais']);
+
+          let rabais = 0;
+          if (rabaisRaw !== null) {
+            if (typeof rabaisRaw === 'number') {
+              rabais = Math.abs(rabaisRaw) < 1 ? Math.abs(rabaisRaw) * 100 : Math.abs(rabaisRaw);
+            } else if (typeof rabaisRaw === 'string') {
+              rabais = Math.abs(parseFloat(rabaisRaw.replace('%', '').replace('-', '')) || 0);
             }
           }
-          rabaisPromo = Math.round(rabaisPromo); // Round to whole number
-          
-          // Use the EXACT promo price from Excel - no calculation!
-          const rawPrixPromo = findValue(row, ['p.u. promo', 'prix promo', 'prixPromo']);
-          const prixUnitairePromo = rawPrixPromo ? Math.round(Number(rawPrixPromo)) : null;
-          
-          const rawPrixPack = findValue(row, ['promo pack', 'prix pack', 'prixPack']);
-          const prixPack = rawPrixPack ? Math.round(Number(rawPrixPack)) : null;
-          
-          const rawPrixBoite = findValue(row, ['promo box', 'prix box', 'boite', 'prixBoite']);
-          const prixBoite = rawPrixBoite ? Math.round(Number(rawPrixBoite)) : null;
-
-          const hasPromo = rabaisPromo > 0 || prixUnitairePromo > 0;
 
           return {
             sku,
             exists: !!existingProduct,
             currentProduct: existingProduct,
-            prixUnitaire: prixUnitaireReg || null,
-            prixPack: prixPack || null,
-            prixBoite: prixBoite || null,
-            rabaisPromo: rabaisPromo || 0,
-            prixUnitairePromo: prixUnitairePromo || 0,
-            hasPromo,
-            promotions: hasPromo ? {
-              unitaire: { 
-                actif: true, 
-                pourcentage: rabaisPromo,
-                prixPromo: prixUnitairePromo // Store exact promo price!
-              },
-              pack: { actif: false, pourcentage: 0, prixPromo: null },
-              boite: { actif: false, pourcentage: 0, prixPromo: null }
-            } : null,
+            prixUnitaire: prixUnitaire !== null ? prixUnitaire : null,
+            prixPromo: prixPromo !== null ? prixPromo : null,
+            prixPack: prixPack !== null ? prixPack : null,
+            prixBoite: prixBoite !== null ? prixBoite : null,
+            rabais: Math.round(rabais),
           };
         });
 
@@ -107,11 +77,9 @@ const UpdatePricesExcel = () => {
         setFile(file);
         
         const existCount = transformed.filter(r => r.exists).length;
-        const notFoundCount = transformed.filter(r => !r.exists).length;
-        
-        toast.success(`${transformed.length} lignes analysees. ${existCount} produits trouves, ${notFoundCount} non trouves.`);
+        toast.success(`${transformed.length} lignes. ${existCount} produits trouves.`);
       } catch (error) {
-        toast.error("Erreur lors de la lecture du fichier Excel.");
+        toast.error("Erreur lecture fichier Excel.");
         console.error(error);
       }
     };
@@ -138,64 +106,77 @@ const UpdatePricesExcel = () => {
     const validUpdates = preview.filter(r => r.exists && r.sku);
     
     if (validUpdates.length === 0) {
-      toast.error("Aucun produit valide a mettre a jour");
+      toast.error("Aucun produit valide");
       return;
     }
 
     setIsProcessing(true);
     
     try {
-      const updates = validUpdates.map(r => ({
-        sku: r.sku,
-        prixUnitaire: r.prixUnitaire,
-        prixPack: r.prixPack,
-        prixBoite: r.prixBoite,
-        promotions: r.promotions,
-      }));
+      const updates = validUpdates.map(r => {
+        const update = { sku: r.sku };
+        
+        if (r.prixUnitaire !== null) update.prixUnitaire = r.prixUnitaire;
+        if (r.prixPack !== null) update.prixPack = r.prixPack;
+        if (r.prixBoite !== null) update.prixBoite = r.prixBoite;
+        
+        if (r.rabais > 0 || r.prixPromo !== null) {
+          update.promotions = {
+            unitaire: { 
+              actif: true, 
+              pourcentage: r.rabais,
+              prixPromo: r.prixPromo
+            },
+            pack: { actif: false, pourcentage: 0 },
+            boite: { actif: false, pourcentage: 0 }
+          };
+        }
+        
+        return update;
+      });
 
       const result = await apiService.bulkUpdatePrices(updates);
       
       setResults(result);
       await refreshProducts();
       
-      toast.success(`${result.updated} produits mis a jour avec succes!`);
+      toast.success(`${result.updated} produits mis a jour!`);
     } catch (error) {
-      console.error("Error updating prices:", error);
-      toast.error("Erreur lors de la mise a jour des prix");
+      console.error("Error:", error);
+      toast.error("Erreur mise a jour");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const reset = () => {
-    setFile(null);
+  const handleReset = () => {
     setPreview([]);
+    setFile(null);
     setResults(null);
   };
 
   const formatPrice = (price) => {
-    if (!price) return '-';
-    return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
+    if (price === null || price === undefined || price === '' || price === 0) return '-';
+    return `${Number(price).toLocaleString('fr-FR')} FCFA`;
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="border-b pb-4">
         <h2 className="text-2xl font-serif font-bold text-primary">Mise a Jour des Prix (Excel)</h2>
-        <p className="text-muted-foreground mt-1">Importez un fichier Excel pour mettre a jour les prix en bloc</p>
+        <p className="text-muted-foreground mt-1">Importez votre fichier Excel - les valeurs sont utilisees telles quelles</p>
       </div>
 
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-        <h3 className="font-bold text-blue-900 mb-2">Format du fichier Excel attendu:</h3>
+        <h3 className="font-bold text-blue-900 mb-2">Colonnes reconnues:</h3>
         <div className="text-sm text-blue-800 space-y-1">
-          <p><strong>Colonnes reconnues:</strong></p>
           <ul className="list-disc list-inside ml-2 space-y-1">
-            <li><code className="bg-blue-100 px-1 rounded">SKU</code> - Code produit (obligatoire)</li>
-            <li><code className="bg-blue-100 px-1 rounded">prix CitiCigar</code> - Prix unitaire regulier</li>
-            <li><code className="bg-blue-100 px-1 rounded">Rabais promo</code> - Rabais en % (ex: -5%, 0%)</li>
-            <li><code className="bg-blue-100 px-1 rounded">p.u. promo</code> - Prix unitaire promo</li>
-            <li><code className="bg-blue-100 px-1 rounded">Prix Promo box</code> - Prix de la boite</li>
-            <li><code className="bg-blue-100 px-1 rounded">Prix Promo pack</code> - Prix du pack</li>
+            <li><code className="bg-blue-100 px-1 rounded">SKU</code></li>
+            <li><code className="bg-blue-100 px-1 rounded">prix CitiCigar</code> → Prix unitaire</li>
+            <li><code className="bg-blue-100 px-1 rounded">Rabais promo</code> → % rabais</li>
+            <li><code className="bg-blue-100 px-1 rounded">p.u. promo</code> → Prix unitaire promo</li>
+            <li><code className="bg-blue-100 px-1 rounded">Prix Promo box</code> → Prix boite</li>
+            <li><code className="bg-blue-100 px-1 rounded">Prix Promo pack</code> → Prix pack</li>
           </ul>
         </div>
       </div>
@@ -204,110 +185,95 @@ const UpdatePricesExcel = () => {
         <div className="space-y-4">
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <CheckCircle className="text-green-600 h-8 w-8" />
+              <CheckCircle className="text-green-600" size={32} />
               <div>
-                <h3 className="text-lg font-bold text-green-800">Mise a jour terminee!</h3>
+                <h3 className="text-lg font-semibold text-green-800">Mise a jour terminee!</h3>
                 <p className="text-green-700">{results.updated} produits mis a jour</p>
               </div>
             </div>
             
             {results.notFound?.length > 0 && (
-              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded p-3">
-                <p className="font-medium text-yellow-800 mb-2">
-                  <AlertTriangle className="inline h-4 w-4 mr-1" />
+              <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
+                <p className="text-sm font-medium text-yellow-800 flex items-center gap-2">
+                  <AlertTriangle size={16} />
                   {results.notFound.length} SKU non trouves:
                 </p>
-                <p className="text-sm text-yellow-700">{results.notFound.join(', ')}</p>
-              </div>
-            )}
-            
-            {results.errors?.length > 0 && (
-              <div className="mt-4 bg-red-50 border border-red-200 rounded p-3">
-                <p className="font-medium text-red-800 mb-2">
-                  <XCircle className="inline h-4 w-4 mr-1" />
-                  Erreurs:
-                </p>
-                <ul className="text-sm text-red-700">
-                  {results.errors.map((err, i) => <li key={i}>{err}</li>)}
-                </ul>
+                <p className="text-xs text-yellow-700 mt-1">{results.notFound.join(', ')}</p>
               </div>
             )}
           </div>
           
-          <Button onClick={reset} className="gap-2">
-            <RefreshCw size={16} /> Nouvelle mise a jour
+          <Button onClick={handleReset} className="w-full">
+            <RefreshCw size={16} className="mr-2" />
+            Nouvelle importation
           </Button>
         </div>
-      ) : !file ? (
+      ) : preview.length === 0 ? (
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-            isDragActive ? 'border-secondary bg-secondary/10' : 'border-border hover:border-primary'
+          className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
+            isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'
           }`}
         >
           <input {...getInputProps()} />
-          <UploadCloud className="h-16 w-16 text-muted-foreground mb-4" />
-          <p className="text-lg font-medium text-primary">Glissez votre fichier Excel ici</p>
-          <p className="text-sm text-muted-foreground">ou cliquez pour selectionner (.xlsx, .xls, .csv)</p>
+          <UploadCloud className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <p className="text-lg font-medium text-gray-700">
+            {isDragActive ? 'Deposez le fichier ici...' : 'Glissez votre fichier Excel ici'}
+          </p>
+          <p className="text-sm text-gray-500 mt-2">ou cliquez pour selectionner</p>
+          <p className="text-xs text-gray-400 mt-4">Formats acceptes: .xlsx, .xls, .csv</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between bg-muted/20 p-4 rounded-lg border">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
             <div className="flex items-center gap-3">
-              <FileSpreadsheet className="text-green-600 h-8 w-8" />
+              <FileSpreadsheet className="text-green-600" size={24} />
               <div>
-                <p className="font-medium">{file.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {preview.filter(r => r.exists).length} produits a mettre a jour sur {preview.length} lignes
-                </p>
+                <p className="font-medium">{file?.name}</p>
+                <p className="text-sm text-gray-500">{preview.length} lignes</p>
               </div>
             </div>
-            <button onClick={reset} className="text-sm text-destructive hover:underline">
-              Changer de fichier
-            </button>
+            <Button variant="ghost" size="sm" onClick={handleReset}>
+              <XCircle size={16} className="mr-1" />
+              Annuler
+            </Button>
           </div>
 
           <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted text-muted-foreground">
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="p-3">SKU</th>
-                    <th className="p-3">Produit</th>
-                    <th className="p-3 text-right">Prix Unit.</th>
-                    <th className="p-3 text-right">Promo %</th>
-                    <th className="p-3 text-right">Prix Pack</th>
-                    <th className="p-3 text-right">Prix Boite</th>
-                    <th className="p-3 text-center">Statut</th>
+                    <th className="px-3 py-2 text-left">SKU</th>
+                    <th className="px-3 py-2 text-left">Produit</th>
+                    <th className="px-3 py-2 text-right">Prix Unit.</th>
+                    <th className="px-3 py-2 text-right">Rabais %</th>
+                    <th className="px-3 py-2 text-right">Prix Promo</th>
+                    <th className="px-3 py-2 text-right">Prix Pack</th>
+                    <th className="px-3 py-2 text-right">Prix Boite</th>
+                    <th className="px-3 py-2 text-center">Statut</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.slice(0, 15).map((row, i) => (
-                    <tr key={i} className={`border-t ${!row.exists ? 'bg-red-50' : row.hasPromo ? 'bg-yellow-50' : ''}`}>
-                      <td className="p-3 font-mono text-xs">{row.sku}</td>
-                      <td className="p-3 text-sm">
-                        {row.exists ? (
-                          <span>{row.currentProduct?.marque} - {row.currentProduct?.modele}</span>
-                        ) : (
-                          <span className="text-red-500 italic">Non trouve</span>
-                        )}
+                  {preview.map((row, idx) => (
+                    <tr key={idx} className={`border-t ${!row.exists ? 'bg-red-50' : ''}`}>
+                      <td className="px-3 py-2 font-mono text-xs">{row.sku}</td>
+                      <td className="px-3 py-2">
+                        {row.exists ? `${row.currentProduct?.marque} - ${row.currentProduct?.modele}` : '-'}
                       </td>
-                      <td className="p-3 text-right text-sm">{formatPrice(row.prixUnitaire)}</td>
-                      <td className="p-3 text-right text-sm">
-                        {row.rabaisPromo > 0 ? (
-                          <span className="text-orange-600 font-medium">-{row.rabaisPromo}%</span>
-                        ) : '-'}
-                      </td>
-                      <td className="p-3 text-right text-sm">{formatPrice(row.prixPack)}</td>
-                      <td className="p-3 text-right text-sm">{formatPrice(row.prixBoite)}</td>
-                      <td className="p-3 text-center">
+                      <td className="px-3 py-2 text-right">{formatPrice(row.prixUnitaire)}</td>
+                      <td className="px-3 py-2 text-right">{row.rabais > 0 ? `${row.rabais}%` : '-'}</td>
+                      <td className="px-3 py-2 text-right">{formatPrice(row.prixPromo)}</td>
+                      <td className="px-3 py-2 text-right">{formatPrice(row.prixPack)}</td>
+                      <td className="px-3 py-2 text-right">{formatPrice(row.prixBoite)}</td>
+                      <td className="px-3 py-2 text-center">
                         {row.exists ? (
-                          <span className="inline-flex items-center gap-1 text-green-600">
+                          <span className="text-green-600 flex items-center justify-center gap-1">
                             <CheckCircle size={14} /> OK
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-red-500">
-                            <XCircle size={14} /> Erreur
+                          <span className="text-red-600 flex items-center justify-center gap-1">
+                            <XCircle size={14} /> Non trouve
                           </span>
                         )}
                       </td>
@@ -316,40 +282,18 @@ const UpdatePricesExcel = () => {
                 </tbody>
               </table>
             </div>
-            {preview.length > 15 && (
-              <div className="p-2 text-center text-xs text-muted-foreground bg-muted/10">
-                ...et {preview.length - 15} autres lignes
-              </div>
-            )}
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h4 className="font-medium text-amber-800 mb-2">Resume:</h4>
-            <ul className="text-sm text-amber-700 space-y-1">
-              <li>Produits a mettre a jour: <strong>{preview.filter(r => r.exists).length}</strong></li>
-              <li>SKU non trouves (ignores): <strong>{preview.filter(r => !r.exists).length}</strong></li>
-              <li>Produits avec promotion: <strong>{preview.filter(r => r.exists && r.hasPromo).length}</strong></li>
-            </ul>
-          </div>
-
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={reset}>Annuler</Button>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={handleReset} className="flex-1">
+              Annuler
+            </Button>
             <Button 
               onClick={handleConfirm} 
               disabled={isProcessing || preview.filter(r => r.exists).length === 0}
-              className="gap-2"
+              className="flex-1"
             >
-              {isProcessing ? (
-                <>
-                  <RefreshCw className="animate-spin" size={16} />
-                  Mise a jour en cours...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={16} />
-                  Confirmer la mise a jour ({preview.filter(r => r.exists).length} produits)
-                </>
-              )}
+              {isProcessing ? 'Mise a jour...' : `Confirmer (${preview.filter(r => r.exists).length} produits)`}
             </Button>
           </div>
         </div>
