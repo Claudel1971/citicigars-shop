@@ -304,25 +304,38 @@ const UploadImages = () => {
       setProgress(Math.round(((i + 1) / valides.length) * 100));
     }
 
-    let count = 0;
+    let successCount = 0;
+    let failedSkus = [];
+    
     for (const [sku, images] of Object.entries(bySku)) {
-      await updateProductImages(sku, images);
-      count++;
+      const result = await updateProductImages(sku, images);
+      if (result && result.success) {
+        successCount++;
+      } else {
+        failedSkus.push(sku);
+      }
     }
 
-    toast.success(`✅ ${count} produits mis à jour avec succès!`);
-    setImagesUploadees((prev) => prev.filter((img) => !img.valide));
     setIsProcessing(false);
 
-    setTimeout(() => {
-      if (
-        confirm(
-          "Associations sauvegardées ! Aller au catalogue pour voir le résultat ?",
-        )
-      ) {
-        window.location.href = "/catalogue";
-      }
-    }, 500);
+    if (failedSkus.length > 0) {
+      toast.error(`❌ Échec pour ${failedSkus.length} produit(s): ${failedSkus.join(', ')}`);
+    }
+    
+    if (successCount > 0) {
+      toast.success(`✅ ${successCount} produit(s) mis à jour avec succès!`);
+      setImagesUploadees((prev) => prev.filter((img) => !img.valide || failedSkus.includes(img.sku)));
+
+      setTimeout(() => {
+        if (
+          confirm(
+            "Associations sauvegardées ! Aller au catalogue pour voir le résultat ?",
+          )
+        ) {
+          window.location.href = "/catalogue";
+        }
+      }, 500);
+    }
   };
 
   return (

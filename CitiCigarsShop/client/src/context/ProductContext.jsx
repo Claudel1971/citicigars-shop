@@ -49,14 +49,16 @@ export const ProductProvider = ({ children }) => {
   const updateProductImages = async (sku, imagesData) => {
     try {
       console.log("updateProductImages →", sku, imagesData);
-      await apiService.uploadImages(sku, imagesData);
+      const result = await apiService.uploadImages(sku, imagesData);
+      console.log("uploadImages result →", result);
       
       const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
-      toast.success(`Images mises à jour pour ${sku}`);
+      return { success: true, sku };
     } catch (error) {
       console.error("Error updating images:", error);
-      toast.error("Erreur lors de la mise à jour des images");
+      toast.error(`Erreur upload images pour ${sku}: ${error.message}`);
+      return { success: false, sku, error: error.message };
     }
   };
 
