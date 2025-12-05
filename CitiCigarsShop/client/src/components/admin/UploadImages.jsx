@@ -306,49 +306,14 @@ const UploadImages = () => {
 
     let successCount = 0;
     let failedSkus = [];
-    const skuEntries = Object.entries(bySku);
-    const totalSkus = skuEntries.length;
     
-    setCurrentStep("Envoi des images au serveur...");
-    
-    for (let i = 0; i < skuEntries.length; i++) {
-      const [sku, images] = skuEntries[i];
-      setCurrentStep(`Envoi ${i + 1}/${totalSkus}: ${sku}...`);
-      
-      let success = false;
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (!success && attempts < maxAttempts) {
-        attempts++;
-        try {
-          const result = await updateProductImages(sku, images);
-          if (result && result.success) {
-            success = true;
-            successCount++;
-          } else {
-            console.log(`⚠️ Tentative ${attempts}/${maxAttempts} échouée pour ${sku}`);
-            if (attempts < maxAttempts) {
-              await new Promise(r => setTimeout(r, 1000));
-            }
-          }
-        } catch (err) {
-          console.error(`❌ Erreur tentative ${attempts}/${maxAttempts} pour ${sku}:`, err);
-          if (attempts < maxAttempts) {
-            await new Promise(r => setTimeout(r, 1000));
-          }
-        }
-      }
-      
-      if (!success) {
+    for (const [sku, images] of Object.entries(bySku)) {
+      const result = await updateProductImages(sku, images);
+      if (result && result.success) {
+        successCount++;
+      } else {
         failedSkus.push(sku);
       }
-      
-      if (i < skuEntries.length - 1) {
-        await new Promise(r => setTimeout(r, 200));
-      }
-      
-      setProgress(Math.round(((i + 1) / totalSkus) * 100));
     }
 
     setIsProcessing(false);
