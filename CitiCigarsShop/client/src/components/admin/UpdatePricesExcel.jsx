@@ -28,11 +28,31 @@ const UpdatePricesExcel = () => {
           const sku = row.SKU || row.sku || row.Sku || '';
           const existingProduct = products.find(p => p.sku === sku);
           
-          const prixUnitaireReg = parseFloat(row['Prix_Unitaire_Reg'] || row['Prix Unitaire Reg'] || row['prixUnitaire'] || row['Prix_Unit'] || 0);
-          const rabaisPromo = parseFloat(row['Rabais_Promo'] || row['Rabais Promo'] || row['rabais'] || row['Promo_%'] || 0);
-          const prixUnitairePromo = parseFloat(row['Prix_Unitaire_Promo'] || row['Prix Unitaire Promo'] || row['prixPromo'] || 0);
-          const prixPack = parseFloat(row['Prix_Pack'] || row['Prix Pack'] || row['prixPack'] || 0);
-          const prixBoite = parseFloat(row['Prix_Boite'] || row['Prix Boite'] || row['prixBoite'] || 0);
+          const prixUnitaireReg = parseFloat(
+            row['prix CitiCigar'] || row['prix CitiCigars'] || row['Prix_Unitaire_Reg'] || 
+            row['Prix Unitaire Reg'] || row['prixUnitaire'] || row['Prix_Unit'] || 0
+          );
+          
+          let rabaisPromoStr = row['Rabais promo'] || row['Rabais_Promo'] || row['Rabais Promo'] || row['rabais'] || row['Promo_%'] || '0%';
+          if (typeof rabaisPromoStr === 'string') {
+            rabaisPromoStr = rabaisPromoStr.replace('%', '').replace('-', '');
+          }
+          const rabaisPromo = Math.abs(parseFloat(rabaisPromoStr) || 0);
+          
+          const prixUnitairePromo = parseFloat(
+            row['p.u. promo (cf'] || row['p.u. promo'] || row['Prix_Unitaire_Promo'] || 
+            row['Prix Unitaire Promo'] || row['prixPromo'] || 0
+          );
+          
+          const prixPack = parseFloat(
+            row['Prix Promo pack'] || row['prix Promo pack'] || row['Prix_Pack'] || 
+            row['Prix Pack'] || row['prixPack'] || 0
+          );
+          
+          const prixBoite = parseFloat(
+            row['Prix Promo box'] || row['prix Promo box'] || row['Prix_Boite'] || 
+            row['Prix Boite'] || row['prixBoite'] || 0
+          );
 
           const hasPromo = rabaisPromo > 0 || prixUnitairePromo > 0;
 
@@ -142,14 +162,14 @@ const UpdatePricesExcel = () => {
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
         <h3 className="font-bold text-blue-900 mb-2">Format du fichier Excel attendu:</h3>
         <div className="text-sm text-blue-800 space-y-1">
-          <p><strong>Colonnes requises:</strong></p>
+          <p><strong>Colonnes reconnues:</strong></p>
           <ul className="list-disc list-inside ml-2 space-y-1">
             <li><code className="bg-blue-100 px-1 rounded">SKU</code> - Code produit (obligatoire)</li>
-            <li><code className="bg-blue-100 px-1 rounded">Prix_Unitaire_Reg</code> - Prix unitaire regulier</li>
-            <li><code className="bg-blue-100 px-1 rounded">Rabais_Promo</code> - Pourcentage de rabais (ex: 10 pour 10%)</li>
-            <li><code className="bg-blue-100 px-1 rounded">Prix_Unitaire_Promo</code> - Prix unitaire promotionnel</li>
-            <li><code className="bg-blue-100 px-1 rounded">Prix_Pack</code> - Prix du pack</li>
-            <li><code className="bg-blue-100 px-1 rounded">Prix_Boite</code> - Prix de la boite</li>
+            <li><code className="bg-blue-100 px-1 rounded">prix CitiCigar</code> - Prix unitaire regulier</li>
+            <li><code className="bg-blue-100 px-1 rounded">Rabais promo</code> - Rabais en % (ex: -5%, 0%)</li>
+            <li><code className="bg-blue-100 px-1 rounded">p.u. promo</code> - Prix unitaire promo</li>
+            <li><code className="bg-blue-100 px-1 rounded">Prix Promo box</code> - Prix de la boite</li>
+            <li><code className="bg-blue-100 px-1 rounded">Prix Promo pack</code> - Prix du pack</li>
           </ul>
         </div>
       </div>
