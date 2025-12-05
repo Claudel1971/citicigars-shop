@@ -1,0 +1,90 @@
+CORRECTION COMPLÈTE - ALIGNEMENT SUR LA STRUCTURE RÉELLE
+
+STRUCTURE RÉELLE DES IMAGES :
+Les produits n'ont PAS de tableau product.images[]
+Ils ont 4 champs distincts :
+- product.imagePrincipale (pour affichage par défaut)
+- product.imageSolo (pour achat unitaire)
+- product.imagePack (pour pack de 5)
+- product.imageBoite (pour boîte de 10/20)
+
+CORRECTIONS REQUISES :
+
+═══════════════════════════════════════════════
+1. ProductCard.jsx (CARTE PRODUIT CATALOGUE)
+═══════════════════════════════════════════════
+
+Trouve la ligne qui sélectionne l'image (environ ligne 34-40)
+REMPLACE PAR :
+```javascript
+const displayImage = product.imagePrincipale || '/placeholder-cigar.jpg';
+═══════════════════════════════════════════════
+2. ProductDetail.jsx (MODAL DÉTAILS)
+═══════════════════════════════════════════════
+L'image doit changer selon le format sélectionné (Unitaire/Pack/Boîte)
+Trouve où l'image est affichée et REMPLACE la logique par :
+const getImageByFormat = (selectedFormat) => {
+  switch(selectedFormat) {
+    case 'pack':
+      return product.imagePack || product.imagePrincipale || '/placeholder-cigar.jpg';
+    case 'boite':
+      return product.imageBoite || product.imagePrincipale || '/placeholder-cigar.jpg';
+    case 'unitaire':
+    default:
+      return product.imageSolo || product.imagePrincipale || '/placeholder-cigar.jpg';
+  }
+};
+
+// Utilise cette fonction pour afficher l'image
+const currentImage = getImageByFormat(formatSelectionne);
+═══════════════════════════════════════════════
+3. CartContext.jsx (PANIER)
+═══════════════════════════════════════════════
+Dans la fonction addToCart, l'image doit correspondre au format acheté
+Trouve la ligne 36 (imageOverride) et REMPLACE par :
+const getImageForFormat = (product, format) => {
+  switch(format) {
+    case 'pack':
+      return product.imagePack || product.imagePrincipale;
+    case 'boite':
+      return product.imageBoite || product.imagePrincipale;
+    case 'unitaire':
+    default:
+      return product.imageSolo || product.imagePrincipale;
+  }
+};
+
+const finalImage = imageOverride || getImageForFormat(product, format);
+═══════════════════════════════════════════════
+INSTRUCTIONS STRICTES :
+═══════════════════════════════════════════════
+Corrige les 3 fichiers exactement comme indiqué
+Supprime TOUS les console.log ajoutés pour le debug
+Supprime TOUTE référence à product.images (tableau)
+Teste avec les produits existants
+Confirme que :
+Carte produit affiche imagePrincipale
+Modal Détails change l'image selon Unitaire/Pack/Boîte
+Panier affiche la bonne image selon le format acheté
+NE MODIFIE RIEN D'AUTRE.
+
+4. GESTION DYNAMIQUE DU NOMBRE DE CIGARES PAR PACK
+═══════════════════════════════════════════════
+
+Le nombre de cigares dans un pack est variable (1 à 5), stocké dans product.quantitePack
+
+Dans ProductDetail.jsx et partout où "Pack (5)" est affiché en dur :
+
+REMPLACE :
+"Pack (5)" 
+
+PAR :
+Pack (${product.quantitePack || 5})
+
+REMPLACE :
+"Boîte (10)" ou "Boîte (20)"
+
+PAR :
+Boîte (${product.quantiteBoite || 10})
+
+Assure-toi que les labels affichent dynamiquement les bonnes quantités selon les données du produit, pas des valeurs fixes.

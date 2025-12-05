@@ -1,0 +1,79 @@
+CORRECTION FINALE ProductDetail.jsx - LIGNES SPÉCIFIQUES
+
+═══════════════════════════════════════════════════════════════════════════════
+PROBLÈME 1 : Badge TOP incorrect (ligne 83-88)
+═══════════════════════════════════════════════════════════════════════════════
+
+Le badge TOP s'affiche même si le produit n'est pas dans le top 25.
+
+TROUVE les lignes 83-88 :
+```jsx
+{product.badges?.coty ? (
+  <div className="bg-gradient-to-r from-amber-700 to-yellow-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
+    🏆 Cigare de l'année ({product.badges.top25Year})
+  </div>
+) : product.badges?.top25 ? (
+REMPLACE PAR :
+{product.badges?.coty && (
+  <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+    <span>🏆 Cigare de l'année ({product.badges.top25Year})</span>
+  </div>
+)}
+
+{product.badges?.top25 && !product.badges?.coty && (
+═══════════════════════════════════════════════════════════════════════════════
+PROBLÈME 2 : Badge CA pts s'affiche mal (ligne 93-97)
+═══════════════════════════════════════════════════════════════════════════════
+TROUVE les lignes 93-97 :
+{product.badges?.rating && (product.badges.coty || product.badges.top25) && (
+   <div className="bg-white/90 text-amber-900 px-2 py-0.5 rounded-full text-[10px] font-bold shadow border border-amber-900/20 ml-1">
+      CA {product.badges.rating} pts
+   </div>
+)}
+REMPLACE PAR :
+{product.badges?.rating && (
+  <div className="bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-semibold text-amber-700 border border-amber-200 shadow-sm">
+    CA {product.badges.rating} pts
+  </div>
+)}
+═══════════════════════════════════════════════════════════════════════════════
+PROBLÈME 3 : Format dimensions incorrect (ligne 123-133)
+═══════════════════════════════════════════════════════════════════════════════
+Le format actuel affiche "Toro, 6 × 54" au lieu de "Toro (6 × 54)".
+TROUVE les lignes 123-133 :
+{/* Ligne 2: Vitole, Format, Dimensions */}
+{(product.vitole || product.format || product.longueur) && (
+  <p className="text-sm text-muted-foreground mb-2">
+    {/* Si vitole et format différents : "vitole, format (dim)" */}
+    {product.vitole && product.vitole !== product.format && `${product.vitole}, `}
+    {/* Format avec dimensions entre parenthèses */}
+    {product.format}
+    {product.longueur && product.diametre && ` (${product.longueur} × ${product.diametre})`}
+  </p>
+)}
+REMPLACE PAR :
+{/* Ligne 2: Vitole/Format avec dimensions */}
+{(product.vitole || product.format) && (
+  <p className="text-sm text-muted-foreground mb-2">
+    {product.vitole && product.vitole !== product.format ? `${product.vitole}, ` : ''}
+    {product.format}
+    {product.longueur && product.diametre && `, ${product.longueur} × ${product.diametre}`}
+  </p>
+)}
+═══════════════════════════════════════════════════════════════════════════════
+RÉSUMÉ DES CHANGEMENTS
+═══════════════════════════════════════════════════════════════════════════════
+✅ Badge COTY/TOP : Affichage conditionnel correct (AND au lieu de ternaire)
+✅ Badge CA pts : S'affiche indépendamment, pas seulement si COTY/TOP
+✅ Format dimensions : "Toro, 6 × 54" au lieu de "Toro (6 × 54)"
+RÉSULTAT ATTENDU pour Bolivar Cofradia :
+Bolivar, Cofradia · Honduras
+Toro, 6 × 54
+[████████░] Medium-Full
+PAS DE BADGE TOP si le produit n'est pas réellement top 25.
+INSTRUCTIONS :
+Remplace UNIQUEMENT ces 3 sections (lignes mentionnées)
+Ne modifie RIEN d'autre
+Teste avec Bolivar Cofradia (sans badge TOP)
+Teste avec un produit qui a un badge TOP (Casa Carrillo)
+Vérifie que les dimensions sont au format "Format, L × D"

@@ -1,0 +1,54 @@
+[13 h 52, 2025-12-03] CT: CORRECTIONS URGENTES - ProductCard.jsx
+
+PROBLÈME 1 : Préfixe "Rep." dupliqué
+ACTUELLEMENT : "Rep. Rep. Dominicaine"
+CAUSE : Le code ajoute "Rep." alors que la base de données contient déjà "Rep. Dominicaine"
+CORRECTION : Afficher directement product.origine sans ajouter "Rep." devant
+Format attendu : {product.marque}, {product.ligne} · {product.origine}
+
+PROBLÈME 2 : Taille de police des prix trop grande
+Les prix sont maintenant trop gros
+CORRECTION : Réduire la taille de police (font-size) des prix de 3 points
+Cible tous les éléments affichant les prix (Unité, Pack, Boîte)
+
+PROBLÈME 3 : Gestion vitole/format quand identiques ou vides
+RÈGLES :
+- Si vitole est vide : afficher seulement {product.format}, {product.longueur}×{product.diametre}
+- Si format est vide : afficher seulement {product.vitole}, {product.longueur}×{product.diametre}
+- Si vitole === format : afficher seulement {product.vitole}, {product.longueur}×{product.diametre}
+- Si vitole ET format sont différents et non vides : afficher {product.vitole}, {product.format}, {product.longueur}×{product.diametre}
+
+EXEMPLE LOGIQUE :
+```javascript
+const vitoleFormatDisplay = () => {
+  if (!product.vitole || product.vitole === product.format) {
+    return ${product.format}, ${product.longueur}×${product.diametre};
+  }
+  if (!product.format) {
+    return ${product.vitole}, ${product.longueur}×${product.diametre};
+  }
+  return ${product.vitole}, ${product.format}, ${product.longueur}×${product.diametre};
+};
+INSTRUCTIONS :
+Modifie UNIQUEMENT ProductCard.jsx
+Corrige les 3 problèmes
+Teste avec plusieurs produits (avec/sans vitole)
+Ne modifie rien d'autre
+[13 h 57, 2025-12-03] CT: PROBLÈME 4 : Image principale ne s'affiche toujours pas
+L'image avec type "Principale (Défaut)" ne s'affiche pas dans les cartes produits
+
+DIAGNOSTIC NÉCESSAIRE :
+1. Vérifie comment l'image est actuellement sélectionnée dans ProductCard.jsx
+2. Le type d'image dans la BD est exactement "Principale (Défaut)" (avec parenthèses et accent)
+3. Assure-toi que la comparaison est exacte
+
+CORRECTION :
+Trouve la ligne qui sélectionne l'image et remplace par :
+```javascript
+const mainImage = product.images?.find(img => 
+  img.type === "Principale (Défaut)" || 
+  img.principale === true
+) || product.images?.[0];
+Si après cette correction ça ne fonctionne toujours pas :
+Affiche console.log(product.images) pour voir la structure exacte
+Vérifie que product.images contient bien les données

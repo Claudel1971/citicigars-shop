@@ -1,0 +1,34 @@
+SKU;Marque;Name;Description;Qty;Vitole;Rating;Top 25
+CTGBDL001;Oliva;Taste of Oliva Sampler;Découvrez l’univers Oliva à travers huit cigares primés, réunissant les gammes Serie G, Serie O et Serie V Melanio. Un coffret raffiné qui révèle toute la richesse et la puissance du terroir nicaraguayen.;1;Serie G Churchill;CA : 91;
+;;;;1;Serie G Churchill Maduro;CA : 93;
+;;;;1;Serie O Double Toro;CA : 90;
+;;;;1;Serie O Double Toro Maduro;CA : 88;
+;;;;1;Serie V Torpedo;CA : 93;#4 en 2007
+;;;;1;Serie V Torpedo Maduro;CA : 92;#8 en 2010
+;;;;1;Serie V Melanio Churchill;CA : 95;#8 en 2020
+;;;;1;Serie V Melanio Churchill Maduro;CA : 95; #7 en 2021
+CTGBDL002;Casa Carrillo;Triumph;NA;1;Majestic;CA : 96;COTY en 2018
+;;;;1;Prequel;CA : 98;COTY en 2020
+;;;;1;E-III;CA : 95; #2 en 2014
+CTGBDL003;Horacio;Le Coffret;NA;1;Bolosos;;
+;;;;1;Colosso;;
+;;;;1;Jacques Chancel;;
+;;;;1;Sled;;
+CTGBDL004;Citicigars;Nos meilleurs 660;Ce bundle célèbre le format 6 × 60, très prisé en Afrique. Quatre références emblématiques – Oliva, My Father, Jaime Garcia et Flor de Las Antillas – pour savourer toute la puissance et la générosité du 6 × 60.;1;My Father - Flor de Las Antillas (6 × 60);CA : 90;
+;;;;1;My Father - Connecticut (6 × 60);CA : 89;
+;;;;1;Oliva - Serie V Double Toro (6 × 60);CA : 90;
+;;;;1;Jaime Garcia Reserva Especial (6 × 60);CA : 88;
+CTGBDL005;Citicigars;Pack Aficionado;Ce bundle unit deu× La Aroma de Cuba et deu× The Judge dans le format Toro Fino (6×52). Un mélange harmonieu× de douceur et de puissance, parfait pour les connaisseurs recherchant équilibre et longueur en bouche.;2;The Judge - Toro Fino (6 × 52);CA : 89;
+;;;;2;La Aroma de Cuba - Monarch (6 × 52);CA : 90;
+;;;;;;;
+;;;;;;;
+CTGBDL006;Citicigars;Pack Initiation;Cet assortiment met à l’honneur le format culte des amateurs. Deu× My Father Connecticut et deu× Oliva Master Blends 3 offrent un voyage du dou× au corsé — l’équilibre parfait pour s’initier à l’art du Robusto.;2;My Father - Connecticut (5¼ × 52);CA : 90;
+;;;;2;Oliva - Master Blends 3 (5 × 50);CA : 92;
+;;;;;;;
+;;;;;;;
+CTGBDL007;Citicigars;Toro Prestige;Le Pack Toro Prestige réunit quatre Toro emblématiques et un Belicoso d’e×ception, le Mi Amor. Un ensemble raffiné qui e×plore la richesse du format Toro tout en y ajoutant la profondeur et l’élégance du Belicoso.;1;La Aroma de Cuba - Mi Amor (5½ × 54);CA : 95;#9 en 2023
+;;;;1;Jaime Garcia Reserva Especial (6 × 52);CA : 88;
+;;;;1;Montecristo - White Series (6 × 54);CA : 88;
+;;;;1;Bolívar - Cofradia N° 654 (6 × 54);;
+;;;;1;My Father - Connecticut (6 × 52);CA : 89;
+;;;;;;;

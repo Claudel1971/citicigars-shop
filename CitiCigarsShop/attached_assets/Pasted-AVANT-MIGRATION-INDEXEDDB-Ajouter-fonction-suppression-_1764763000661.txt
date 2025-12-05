@@ -1,0 +1,224 @@
+AVANT MIGRATION INDEXEDDB - Ajouter fonction suppression d'images
+
+OBJECTIF:
+Permettre de supprimer les associations d'images existantes pour un produit.
+
+═══════════════════════════════════════════════════════
+ÉTAPE 1: AJOUTER FONCTION DANS ProductContext.jsx
+═══════════════════════════════════════════════════════
+
+Dans ProductContext.jsx, ajoute cette fonction:
+
+```javascript
+const removeProduitImages = (sku, typeImage) => {
+  setProducts(prev => prev.map(p => {
+    if (p.sku !== sku) return p;
+    
+    const updated = { ...p };
+    
+    // Si typeImage spécifié, supprimer seulement ce type
+    if (typeImage) {
+      if (typeImage === 'principale') updated.imagePrincipale = null;
+      if (typeImage === 'solo') updated.imageSolo = null;
+      if (typeImage === 'pack') updated.imagePack = null;
+      if (typeImage === 'boite') updated.imageBoite = null;
+    } else {
+      // Sinon supprimer toutes les images
+      updated.imagePrincipale = null;
+      updated.imageSolo = null;
+      updated.imagePack = null;
+      updated.imageBoite = null;
+    }
+    
+    updated.imagesUpdated = true;
+    updated.lastUpdate = Date.now();
+    
+    return updated;
+  }));
+  
+  console.log(🗑️ Images supprimées pour ${sku}${typeImage ? ` (${typeImage}) : ''}`);
+};
+Et EXPORTE-LA dans le Provider:
+return (
+  <ProductContext.Provider value={{ 
+    products, 
+    setProducts,
+    updateProduitImages,
+    removeProduitImages,  // ✅ AJOUTER ICI
+    upsertProduit,
+    importProduits
+  }}>
+    {children}
+  </ProductContext.Provider>
+);
+═══════════════════════════════════════════════════════
+ÉTAPE 2: CRÉER PAGE GESTION DES ASSOCIATIONS
+═══════════════════════════════════════════════════════
+Crée un nouveau fichier: client/src/components/admin/GestionAssociations.jsx
+import React, { useState } from 'react';
+import { useProducts } from '@/context/ProductContext';
+import { Trash2, Image as ImageIcon } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function GestionAssociations() {
+  const { products, removeProduitImages } = useProducts();
+  const [filtre, setFiltre] = useState('avec'); // avec | sans | tous
+  
+  const produitsFiltres = products.filter(p => {
+    if (filtre === 'avec') return p.imagePrincipale || p.imageSolo || p.imagePack || p.imageBoite;
+    if (filtre === 'sans') return !p.imagePrincipale && !p.imageSolo && !p.imagePack && !p.imageBoite;
+    return true;
+  });
+  
+  const handleSupprimerImage = (sku, type) => {
+    if (confirm(Supprimer l'image ${type} ?)) {
+      removeProduitImages(sku, type);
+      toast.success(Image ${type} supprimée);
+    }
+  };
+  
+  const handleSupprimerTout = (sku, marque) => {
+    if (confirm(Supprimer TOUTES les images de ${marque} ?)) {
+      removeProduitImages(sku);
+      toast.success('Toutes les images supprimées');
+    }
+  };
+  
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-serif font-bold text-primary">Gestion des Associations</h1>
+        
+        {/* Filtres */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFiltre('avec')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filtre === 'avec' 
+                ? 'bg-green-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Avec images ({products.filter(p => p.imagePrincipale).length})
+          </button>
+          <button
+            onClick={() => setFiltre('sans')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filtre === 'sans' 
+                ? 'bg-orange-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Sans images ({products.filter(p => !p.imagePrincipale).length})
+          </button>
+          <button
+            onClick={() => setFiltre('tous')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filtre === 'tous' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Tous ({products.length})
+          </button>
+        </div>
+      </div>
+      
+      {/* Liste des produits */}
+      <div className="space-y-4">
+        {produitsFiltres.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">
+            <ImageIcon size={48} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-gray-500">Aucun produit dans cette catégorie</p>
+          </div>
+        ) : (
+          produitsFiltres.map(produit => (
+            <div key={produit.sku} className="bg-white rounded-lg shadow border p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">
+                    {produit.marque} - {produit.vitole}
+                  </h3>
+                  <p className="text-sm text-gray-500 font-mono">{produit.sku}</p>
+                </div>
+                
+                {(produit.imagePrincipale || produit.imageSolo || produit.imagePack || produit.imageBoite) && (
+                  <button
+                    onClick={() => handleSupprimerTout(produit.sku, produit.marque)}
+                    className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-2 font-medium"
+                  >
+                    <Trash2 size={16} />
+                    Tout supprimer
+                  </button>
+                )}
+              </div>
+              
+              {/* Grille des images */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {['principale', 'solo', 'pack', 'boite'].map(type => {
+                  const imageKey = type === 'principale' ? 'imagePrincipale' : 
+                                   type === 'solo' ? 'imageSolo' : 
+                                   type === 'pack' ? 'imagePack' : 'imageBoite';
+                  const image = produit[imageKey];
+                  
+                  return (
+                    <div key={type} className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-100 p-2 text-xs font-bold text-gray-700 capitalize flex justify-between items-center">
+                        <span>{type === 'principale' ? 'Principale (Défaut)' : 
+                               type === 'solo' ? 'Solo (Cigare)' : 
+                               type === 'pack' ? 'Pack' : 'Boîte'}</span>
+                        {image && (
+                          <button
+                            onClick={() => handleSupprimerImage(produit.sku, type)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="aspect-square bg-gray-50 flex items-center justify-center">
+                        {image ? (
+                          <img 
+                            src={image}
+                            alt={${produit.marque} ${type}}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-gray-300 text-xs">Aucune image</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+═══════════════════════════════════════════════════════
+ÉTAPE 3: AJOUTER LA ROUTE
+═══════════════════════════════════════════════════════
+Dans App.jsx (ou le fichier de routes admin), ajoute:
+import GestionAssociations from './components/admin/GestionAssociations';
+
+// Dans les routes:
+<Route path="/admin/associations" element={<GestionAssociations />} />
+Et dans le menu admin (AdminLayout ou Header admin):
+<Link to="/admin/associations" className="flex items-center gap-2 px-4 py-2 hover:bg-white/10 rounded">
+  🔗 Associations Images
+</Link>
+═══════════════════════════════════════════════════════
+RÉSULTAT ATTENDU
+═══════════════════════════════════════════════════════
+✅ Nouvelle page /admin/associations
+✅ Voir tous les produits avec/sans images
+✅ Supprimer une image spécifique (solo, pack, etc.)
+✅ Supprimer toutes les images d'un produit en 1 clic
+✅ Filtres dynamiques (avec/sans/tous)
+✅ Interface visuelle claire
+Implémente maintenant. Teste la suppression avant la migration IndexedDB.

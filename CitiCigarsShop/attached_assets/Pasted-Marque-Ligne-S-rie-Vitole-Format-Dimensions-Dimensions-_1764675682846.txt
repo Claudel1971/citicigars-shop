@@ -1,0 +1,50 @@
+Marque;Ligne / Série;Vitole;Format;Dimensions;Dimensions (mm);Lenght;Ring;Qté/boîte;Puissance;Pays;Note;CA Top25;Année
+Bolívar;Cuban Line;Belicoso Fino;Figurado;5½ × 52;140 × 20,6;5½;52;25;🔥🔥🔥🔥🔥;Cuba;95;4;2017
+Cohiba;Siglo Series;Siglo VI;Toro;5⅞ × 52;150 × 20,6;5⅞;52;25;🔥🔥🔥🔥;Cuba;94;8;2021
+Cohiba;Maduro 5;Mágicos;Robusto court;4½ × 52;115 × 20,6;4½;52;10;🔥🔥🔥🔥;Cuba;95;8;2024
+Partagás;Serie D Line;No.4;Robusto;4⅞ × 50;124 × 19,8;4⅞;50;25;🔥🔥🔥;Cuba;94;4;2021
+Partagás;Classic Line;Lusitanias;Double Corona;7⅝ × 49;194 × 19,8;7⅝;49;25;🔥🔥🔥;Cuba;93;11;2017
+H. Upmann;Classic Line;No.2;Piramides;6⅛ × 52;156 × 20,6;6⅛;52;25;🔥🔥🔥;Cuba;98;1;2022
+H. Upmann;Magnum Line;56;Toro;5⅞ × 56;150 × 22,2;5⅞;56;25;🔥🔥🔥;Cuba;92;—;2024
+Montecristo;Classic Line;No.2;Torpedo;6⅛ × 52;156 × 20,6;6⅛;52;25;🔥🔥🔥🔥;Cuba;96;1;2013
+Romeo y Julieta;Churchill Series;Wide Churchill;Robusto Extra;5⅛ × 55;130 × 20,6;5⅛;55;25;🔥🔥🔥;Cuba;93;15;2024
+Hoyo de Monterrey;Epicure Line;Epicure No.1;Toro;5⅝ × 46 ;143 × 18,3;5⅝;46;25;🔥🔥🔥;Cuba;93;—;2022
+Punch;Cuban Line;Short de Punch;Robusto;4¾ × 50;121 × 19,8;4¾;50;10;🔥🔥🔥;Cuba;95;5;2020
+Bolívar;Cuban Line;Royal Corona;Robusto;4⅞ × 50;124 × 19,8;4⅞;50;25;🔥🔥🔥🔥;Cuba;94;21;2013
+Trinidad;La Trova;Toro long;Double Robusto;6½ × 52;166 × 21,4;6½;52;12;🔥🔥🔥🔥;Cuba;90;—;2018
+Trinidad;Esmeralda;Toro;Robusto;5¾ × 53;145 × 21.0;5¾;53;12;🔥🔥🔥;Cuba;91;—;2021
+Trinidad;Vigia;Short Robusto (Pigtail);Robusto Gordo;4⅜ × 54;110 × 21.4;4⅜;54;12;🔥🔥🔥🔥;Cuba;94;14;2015
+Oliva;Serie V Melanio;Churchill;Churchill;7 × 50;178 × 19,8;7;50;10;🔥🔥🔥🔥;Nicaragua;95;8;2020
+Oliva;Serie V Melanio;Torpedo;Figurado;6½ × 52;165 × 21,4;6½;52;10;🔥🔥🔥🔥;Nicaragua;95;1;2014
+Oliva;Serie V Melanio;Double Toro;Double Toro;6 × 60;152 × 23,8;6;60;10;🔥🔥🔥🔥;Nicaragua;93;—;NA
+Oliva;Serie V Melanio;Toro;Toro;6 × 52;152 × 20,6;6;52;10;🔥🔥🔥🔥;Nicaragua;96;3;2023
+Oliva;Serie V Melanio Maduro;Churchill;Churchill;7 × 50;178 × 19,8;7;50;10;🔥🔥🔥;Nicaragua;96;7;2021
+Oliva;Serie V Melanio Maduro;Toro;Toro;6 × 52;152 × 21,4;6;52;10;🔥🔥🔥🔥;Nicaragua;91;—;2021
+Oliva;Serie V Melanio Maduro;Torpedo;Figurado;6½ × 52;165 × 21,4;6½;52;10;🔥🔥🔥;Nicaragua;95;6;2024
+Oliva;Serie V Melanio Maduro;Double Toro;Double Toro;6 × 60;152 × 23,8;6;60;10;🔥🔥🔥;Nicaragua;95;—;2024
+Oliva;Serie V;Double Toro;Double Toro;6 × 60;152 × 23,8;6;60;24;🔥🔥🔥🔥;Nicaragua;90;—;2024
+Oliva;Master Blends 3;Robusto;Robusto;5 × 50;127 × 19,8 ;5;50;20;🔥🔥🔥;Nicaragua;92;—;2006
+My Father;The Judge;Grand Robusto;Grand Robusto;5 × 60;150 × 23,8;5;60;23;🔥🔥🔥🔥;Nicaragua;98;1;2024
+My Father;The Judge;Toro;Toro;6 × 56;152 × 22,2;6;56;23;🔥🔥🔥🔥;Nicaragua;90;—;2017
+My Father;The Judge;Toro Fino;Toro Fino;6 × 52;152 × 20,6;6;52;23;🔥🔥🔥🔥;Nicaragua;89;—;2018
+My Father;Le Bijou 1922;Grand Robusto;Grand Robusto;5⅞ × 55;150 × 21,8;5⅞;55;23;🔥🔥🔥🔥🔥;Nicaragua;88;—;2021
+My Father;Le Bijou 1922;Torpedo;Figurado;6⅛ × 52;156 × 20,6;6⅛;52;23;🔥🔥🔥🔥;Nicaragua;97;1;2015
+My Father;Connecticut;Gordo;Gordo;6 × 60;152 × 23,8;6;60;20;🔥🔥🔥;Nicaragua;89;—;2023
+My Father;Connecticut;Toro;Toro;6 × 52;152 × 20,6;6;52;20;🔥🔥🔥;Nicaragua;89;—;2014
+My Father;Connecticut;Robusto;Robusto;5¼ × 52;133 × 20,6;5¼;52;20;🔥🔥🔥;Nicaragua;90;—;2021
+My Father;Flor de Las Antillas;Gordo (Toro Grande);Gordo;6 × 60;152 × 23,8;6;60;20;🔥🔥🔥;Nicaragua;90;—;2017
+My Father;Le Bijou 1922;Toro;Toro;6 × 52;152 × 20,6;6;52;23;🔥🔥🔥🔥;Nicaragua;90;—;2021
+My Father;Jaime Garcia Reserva Especial;Gordo Extra;Gordo Extra;7 × 70;178 × 27,8;7;70;14;🔥🔥🔥🔥;Nicaragua;NA;—;2012
+My Father;Jaime Garcia Reserva Especial;Gordo;Gordo;6 × 60;152 × 23,8;6;60;20;🔥🔥🔥🔥;Nicaragua;88;—;2011
+My Father;Jaime Garcia Reserva Especial;Super Gordo;Super Gordo;5¾ × 66;146 × 26;5¾;66;20;🔥🔥🔥🔥;Nicaragua;90;—;2012
+My Father;Jaime Garcia Reserva Especial;Toro;Toro;6 × 52;152 × 20,6;6;52;20;🔥🔥🔥🔥;Nicaragua;88;—;2010
+Montecristo;Nicaragua 1935 Anniversary;No.2;Torpedo;6⅛ × 52;156 × 20,6;6⅛;52;20;🔥🔥🔥🔥;Nicaragua;95;2;2021
+Montecristo;Nicaragua Series;Churchill;Churchill;7 × 56;178 × 22,2;7;56;20;🔥🔥🔥🔥;Nicaragua;91;—;2020
+La Aroma de Cuba;Mi Amor;Belicoso;Figurado;5½ × 54;140 × 21,4;5½;54;25;🔥🔥🔥🔥;Nicaragua;95;9;2023
+La Aroma de Cuba;Red Label;Monarch;Toro;6 × 52;152 × 20,6;6;52;25;🔥🔥🔥;Nicaragua;90;—;2023
+CAO;Flathead ;V770 Big Block;Gordo Extra;7 × 70;178 × 27,9;7;70;24;🔥🔥🔥;Nicaragua;88;—;2014
+CAO;Flathead V660 Carb;Gordo;Gordo;6 × 60;152 × 23,8;6;60;24;🔥🔥🔥🔥;Nicaragua;95;3;2015
+Plasencia;Alma Fuerte;Sixto I;Gordo Hexagonal;6 × 60;152 × 23,8;6;60;10;🔥🔥🔥🔥🔥;Nicaragua;88;—;2021
+Plasencia;Alma Fuerte;Nestor IV;Toro Gordo;6¼ × 54;159 × 21,4;6¼;54;10;🔥🔥🔥🔥;Nicaragua;89;—;2022
+Montecristo;White Series;Toro;Toro;6 × 54;152 × 21,4;6;54;20;🔥🔥🔥;Rep. Dominicaine;88;—;2012
+Bolivar;Cofradia;No.654;Toro;6 × 54;152 × 21,4;6;54;25;🔥🔥🔥🔥;Honduras;NA;—;NA
