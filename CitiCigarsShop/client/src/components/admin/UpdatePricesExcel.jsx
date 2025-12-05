@@ -29,35 +29,48 @@ const UpdatePricesExcel = () => {
           console.log('📊 Colonnes Excel détectées:', Object.keys(json[0]));
           console.log('📊 Première ligne:', json[0]);
         }
+        
+        // Helper function to find value by partial key match
+        const findValue = (row, patterns) => {
+          const keys = Object.keys(row);
+          for (const pattern of patterns) {
+            // First try exact match
+            if (row[pattern] !== undefined) return row[pattern];
+            // Then try partial match (case-insensitive)
+            const patternLower = pattern.toLowerCase();
+            for (const key of keys) {
+              if (key.toLowerCase().includes(patternLower) || patternLower.includes(key.toLowerCase())) {
+                return row[key];
+              }
+            }
+          }
+          return null;
+        };
 
         const transformed = json.map(row => {
           const sku = row.SKU || row.sku || row.Sku || '';
           const existingProduct = products.find(p => p.sku === sku);
           
           const prixUnitaireReg = parseFloat(
-            row['prix CitiCigar'] || row['prix CitiCigars'] || row['Prix_Unitaire_Reg'] || 
-            row['Prix Unitaire Reg'] || row['prixUnitaire'] || row['Prix_Unit'] || 0
+            findValue(row, ['prix CitiCigar', 'prix CitiCigars', 'prixUnitaire', 'Prix_Unit']) || 0
           );
           
-          let rabaisPromoStr = row['Rabais promo'] || row['Rabais_Promo'] || row['Rabais Promo'] || row['rabais'] || row['Promo_%'] || '0%';
+          let rabaisPromoStr = findValue(row, ['Rabais promo', 'rabais', 'promo']) || '0%';
           if (typeof rabaisPromoStr === 'string') {
             rabaisPromoStr = rabaisPromoStr.replace('%', '').replace('-', '');
           }
           const rabaisPromo = Math.abs(parseFloat(rabaisPromoStr) || 0);
           
           const prixUnitairePromo = parseFloat(
-            row['p.u. promo (cf'] || row['p.u. promo'] || row['Prix_Unitaire_Promo'] || 
-            row['Prix Unitaire Promo'] || row['prixPromo'] || 0
+            findValue(row, ['p.u. promo', 'prix promo', 'prixPromo']) || 0
           );
           
           const prixPack = parseFloat(
-            row['Prix Promo pack'] || row['prix Promo pack'] || row['Prix_Pack'] || 
-            row['Prix Pack'] || row['prixPack'] || 0
+            findValue(row, ['promo pack', 'prix pack', 'prixPack']) || 0
           );
           
           const prixBoite = parseFloat(
-            row['Prix Promo box'] || row['prix Promo box'] || row['Prix_Boite'] || 
-            row['Prix Boite'] || row['prixBoite'] || 0
+            findValue(row, ['promo box', 'prix box', 'boite', 'prixBoite']) || 0
           );
 
           const hasPromo = rabaisPromo > 0 || prixUnitairePromo > 0;
