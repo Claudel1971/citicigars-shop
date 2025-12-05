@@ -163,7 +163,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
   }
 
   return (
-    <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+    <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
       <div
         className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
         onClick={() => onOpenDetails && onOpenDetails(produit)}
@@ -222,7 +222,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
         )}
       </div>
 
-      <div className="p-5 flex flex-col h-full">
+      <div className="p-5">
         <h3 className="text-xl font-serif font-bold text-primary mb-1 leading-tight group-hover:text-secondary transition-colors">
           {produit.marque}
           {produit.ligne ? `, ${produit.ligne}` : ""}
@@ -233,7 +233,6 @@ const ProductCard = ({ product, onOpenDetails }) => {
           ) : null}
         </h3>
 
-        {/* CORRECTION ICI - Ligne Vitole/Format avec dimensions */}
         {(produit.vitole || produit.format) && (
           <p className="text-sm text-muted-foreground mb-2">
             {produit.vitole && produit.vitole !== produit.format
@@ -246,7 +245,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
           </p>
         )}
 
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <div className="flex gap-0.5">
             {[1, 2, 3, 4, 5].map((niveau) => (
               <div
@@ -264,7 +263,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
           </p>
         </div>
 
-        <div className="flex-1" />
+        {/* 🔧 FIX: Removed flex-1 spacer that caused excessive spacing */}
 
         <div>
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
@@ -383,3 +382,4 @@ const ProductCard = ({ product, onOpenDetails }) => {
 };
 
 export default ProductCard;
+
