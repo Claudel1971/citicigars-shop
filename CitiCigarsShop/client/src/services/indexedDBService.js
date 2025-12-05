@@ -164,11 +164,13 @@ class IndexedDBService {
 
     const images = await this.getImagesBySku(sku);
 
-    // Simplified image mapping - map to standard fields
+    // Image mapping - map to standard fields including pack variants
     const imageMap = {
       imagePrincipale: null,
       imageSolo: null,
       imagePack: null,
+      imagePack4: null,
+      imagePack5: null,
       imageBoite: null,
     };
 
@@ -183,7 +185,17 @@ class IndexedDBService {
       else if (t.includes('solo') || t.includes('cigare')) {
         imageMap.imageSolo = img.data;
       }
-      // Pack (includes all pack variants: Pack, Pack (4), Pack (5))
+      // Pack 4 (specific)
+      else if (t === 'pack4' || t.includes('pack_4') || t.includes('pack (4)')) {
+        imageMap.imagePack4 = img.data;
+        if (!imageMap.imagePack) imageMap.imagePack = img.data;
+      }
+      // Pack 5 (specific)
+      else if (t === 'pack5' || t.includes('pack_5') || t.includes('pack (5)')) {
+        imageMap.imagePack5 = img.data;
+        if (!imageMap.imagePack) imageMap.imagePack = img.data;
+      }
+      // Pack (generic fallback)
       else if (t.includes('pack')) {
         imageMap.imagePack = img.data;
       }

@@ -40,7 +40,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
   // Image selection based on format
   const getImageByFormat = (fmt) => {
     switch(fmt) {
-      case 'pack': return product.imagePack || product.imagePrincipale || generatedImage;
+      case 'pack': return product.imagePack || product.imagePack4 || product.imagePack5 || product.imagePrincipale || generatedImage;
       case 'boite': return product.imageBoite || product.imagePrincipale || generatedImage;
       case 'unitaire':
       default: return product.imageSolo || product.imagePrincipale || generatedImage;

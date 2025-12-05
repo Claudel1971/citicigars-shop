@@ -24,6 +24,8 @@ function getMainImage(p) {
     p.imagePrincipale ||
     p.imageSolo ||
     p.imagePack ||
+    p.imagePack4 ||
+    p.imagePack5 ||
     p.imageBoite ||
     generatedImage
   );
@@ -45,7 +47,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const imageForFormat = (format) => {
     switch (format) {
       case "pack":
-        return produit.imagePack || mainImage;
+        return produit.imagePack || produit.imagePack4 || produit.imagePack5 || mainImage;
       case "boite":
         return produit.imageBoite || mainImage;
       default:
