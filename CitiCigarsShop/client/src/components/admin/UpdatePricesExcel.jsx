@@ -51,9 +51,9 @@ const UpdatePricesExcel = () => {
           const sku = row.SKU || row.sku || row.Sku || '';
           const existingProduct = products.find(p => p.sku === sku);
           
-          const prixUnitaireReg = parseFloat(
-            findValue(row, ['prix CitiCigar', 'prix CitiCigars', 'prixUnitaire', 'Prix_Unit']) || 0
-          );
+          // Use Math.round to preserve user's rounded values - no recalculation!
+          const rawPrixUnitaire = findValue(row, ['prix CitiCigar', 'prix CitiCigars', 'prixUnitaire', 'Prix_Unit']);
+          const prixUnitaireReg = rawPrixUnitaire ? Math.round(Number(rawPrixUnitaire)) : null;
           
           let rabaisPromoStr = findValue(row, ['Rabais promo', 'rabais', 'promo']) || '0%';
           if (typeof rabaisPromoStr === 'string') {
@@ -61,17 +61,14 @@ const UpdatePricesExcel = () => {
           }
           const rabaisPromo = Math.abs(parseFloat(rabaisPromoStr) || 0);
           
-          const prixUnitairePromo = parseFloat(
-            findValue(row, ['p.u. promo', 'prix promo', 'prixPromo']) || 0
-          );
+          const rawPrixPromo = findValue(row, ['p.u. promo', 'prix promo', 'prixPromo']);
+          const prixUnitairePromo = rawPrixPromo ? Math.round(Number(rawPrixPromo)) : null;
           
-          const prixPack = parseFloat(
-            findValue(row, ['promo pack', 'prix pack', 'prixPack']) || 0
-          );
+          const rawPrixPack = findValue(row, ['promo pack', 'prix pack', 'prixPack']);
+          const prixPack = rawPrixPack ? Math.round(Number(rawPrixPack)) : null;
           
-          const prixBoite = parseFloat(
-            findValue(row, ['promo box', 'prix box', 'boite', 'prixBoite']) || 0
-          );
+          const rawPrixBoite = findValue(row, ['promo box', 'prix box', 'boite', 'prixBoite']);
+          const prixBoite = rawPrixBoite ? Math.round(Number(rawPrixBoite)) : null;
 
           const hasPromo = rabaisPromo > 0 || prixUnitairePromo > 0;
 
