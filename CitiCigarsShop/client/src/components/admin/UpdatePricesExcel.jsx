@@ -23,6 +23,12 @@ const UpdatePricesExcel = () => {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(sheet);
+        
+        // Debug: log the actual column names from Excel
+        if (json.length > 0) {
+          console.log('📊 Colonnes Excel détectées:', Object.keys(json[0]));
+          console.log('📊 Première ligne:', json[0]);
+        }
 
         const transformed = json.map(row => {
           const sku = row.SKU || row.sku || row.Sku || '';
