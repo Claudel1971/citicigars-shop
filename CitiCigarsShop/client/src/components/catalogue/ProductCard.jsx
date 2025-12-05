@@ -215,7 +215,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
           )}
         </button>
 
-        {produit.promotions?.unitaire?.actif && (
+        {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.pourcentage > 0 && (
           <div className="absolute bottom-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
             -{produit.promotions.unitaire.pourcentage}%
           </div>
