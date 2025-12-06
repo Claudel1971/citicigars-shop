@@ -7,11 +7,10 @@ import UpdatePricesExcel from '@/components/admin/UpdatePricesExcel';
 import UploadImages from '@/components/admin/UploadImages';
 import GestionAssociations from '@/components/admin/GestionAssociations';
 import PackConfig from '@/components/admin/PackConfig';
+import ProductManager from '@/components/admin/ProductManager';
 import { Menu } from 'lucide-react';
 
-// Placeholder components for missing features
 const PromotionManager = () => <div className="p-8">Gestion des promotions (À venir)</div>;
-const ProductManager = () => <div className="p-8">Gestion produits (À venir)</div>;
 
 const Admin = () => {
   // ... state remains same
