@@ -1,0 +1,257 @@
+🚀 AMÉLIORATION PERFORMANCE - Mode Édition avec Sauvegarde Globale
+Problème actuel : Chaque modification (prix, rabais, toggle) déclenche un appel API immédiat → 30 secondes d'attente à chaque fois.
+Solution : Mode édition local + bouton "Sauvegarder les modifications" global.
+
+Architecture à Implémenter
+javascriptconst ProductManager = () => {
+  const [products, setProducts] = useState([]);           // Données originales (serveur)
+  const [editedProducts, setEditedProducts] = useState({}); // Modifications locales
+  const [hasChanges, setHasChanges] = useState(false);    // Y a-t-il des modifs?
+  const [saving, setSaving] = useState(false);            // En cours de sauvegarde?
+
+  // Marquer un produit comme modifié (stockage local)
+  const markProductAsEdited = (productId, changes) => {
+    setEditedProducts(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        ...changes
+      }
+    }));
+    setHasChanges(true);
+  };
+
+  // Handlers modifiés - PAS d'appel API, juste mise à jour locale
+  const handlePriceChange = (productId, newPrixUnitaire) => {
+    const product = products.find(p => p.id === productId);
+    const rabaisActuel = editedProducts[productId]?.promotions?.unitaire?.pourcentage 
+                        || product.promotions?.unitaire?.pourcentage 
+                        || 0;
+    
+    const updatedPricing = calculateAllPrices(newPrixUnitaire, rabaisActuel, product);
+    markProductAsEdited(productId, updatedPricing);
+  };
+
+  const handleRabaisChange = (productId, newRabais) => {
+    const product = products.find(p => p.id === productId);
+    const prixActuel = editedProducts[productId]?.prixUnitaire || product.prixUnitaire;
+    
+    const updatedPricing = calculateAllPrices(prixActuel, newRabais, product);
+    markProductAsEdited(productId, updatedPricing);
+  };
+
+  const handleToggleCatalogue = (productId, newStatus) => {
+    markProductAsEdited(productId, { inCatalogue: newStatus });
+  };
+
+  const handleToggleCoupDeCoeur = (productId, newStatus) => {
+    markProductAsEdited(productId, { coupDeCoeur: newStatus });
+  };
+
+  // Fonction de calcul centralisée
+  const calculateAllPrices = (prixUnitaire, rabais, product) => {
+    const rabaisPositif = normaliserRabais(rabais);
+    const qtyPack = product.conditionnements?.pack || 4;
+    const qtyBoite = product.conditionnements?.boite || 25;
+    
+    return {
+      prixUnitaire: prixUnitaire,
+      promotions: {
+        unitaire: {
+          actif: rabaisPositif > 0,
+          pourcentage: rabaisPositif,
+          prixPromo: calculerPrixPromo(prixUnitaire, rabaisPositif)
+        },
+        pack: {
+          actif: rabaisPositif > 0,
+          pourcentage: rabaisPositif,
+          prixPromo: calculerPrixPack(prixUnitaire, qtyPack, rabaisPositif)
+        },
+        boite: {
+          actif: rabaisPositif > 0,
+          pourcentage: rabaisPositif,
+          prixPromo: calculerPrixBoite(prixUnitaire, qtyBoite, rabaisPositif)
+        }
+      }
+    };
+  };
+
+  // Sauvegarder TOUTES les modifications en une fois
+  const handleSaveAll = async () => {
+    if (!hasChanges) return;
+    
+    setSaving(true);
+    const productIds = Object.keys(editedProducts);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      // Sauvegarder tous les produits modifiés en parallèle
+      await Promise.all(
+        productIds.map(async (productId) => {
+          try {
+            await apiService.updateProduct(productId, editedProducts[productId]);
+            successCount++;
+          } catch (error) {
+            console.error(`Erreur sauvegarde ${productId}:`, error);
+            errorCount++;
+          }
+        })
+      );
+
+      // Recharger les données
+      await loadProducts();
+      
+      // Réinitialiser
+      setEditedProducts({});
+      setHasChanges(false);
+      
+      alert(`✅ ${successCount} produit(s) sauvegardé(s)${errorCount > 0 ? `\n❌ ${errorCount} erreur(s)` : ''}`);
+      
+    } catch (error) {
+      console.error('Erreur sauvegarde globale:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Annuler toutes les modifications
+  const handleCancelAll = () => {
+    if (confirm('Annuler toutes les modifications non sauvegardées ?')) {
+      setEditedProducts({});
+      setHasChanges(false);
+    }
+  };
+
+  // Obtenir la valeur affichée (modifiée ou originale)
+  const getDisplayValue = (productId, path) => {
+    const edited = editedProducts[productId];
+    if (!edited) {
+      const product = products.find(p => p.id === productId);
+      return getNestedValue(product, path);
+    }
+    return getNestedValue(edited, path) ?? getNestedValue(products.find(p => p.id === productId), path);
+  };
+
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((acc, part) => acc?.[part], obj);
+  };
+
+  // Produit fusionné (original + modifications)
+  const getMergedProduct = (product) => {
+    const edited = editedProducts[product.id];
+    if (!edited) return product;
+    
+    return {
+      ...product,
+      ...edited,
+      promotions: {
+        ...product.promotions,
+        ...edited.promotions
+      }
+    };
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gestion des Produits</h1>
+        
+        {/* Barre de sauvegarde sticky */}
+        {hasChanges && (
+          <div className="fixed top-20 right-8 z-50 bg-white shadow-lg rounded-lg p-4 border-2 border-blue-500">
+            <p className="text-sm text-gray-600 mb-3">
+              {Object.keys(editedProducts).length} modification(s) non sauvegardée(s)
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancelAll}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    💾 Sauvegarder tout
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Filtres... */}
+      
+      {/* Tableau - utiliser getMergedProduct pour afficher */}
+      <table>
+        <tbody>
+          {filteredProducts.map(product => {
+            const mergedProduct = getMergedProduct(product);
+            const isEdited = !!editedProducts[product.id];
+            
+            return (
+              <tr 
+                key={product.id} 
+                className={`border-b hover:bg-gray-50 ${isEdited ? 'bg-yellow-50' : ''}`}
+              >
+                {/* Prix Unitaire */}
+                <td>
+                  <input
+                    type="number"
+                    step="0.50"
+                    value={mergedProduct.prixUnitaire}
+                    onChange={(e) => handlePriceChange(product.id, parseFloat(e.target.value) || 0)}
+                    className={`w-24 px-2 py-1 border rounded ${isEdited ? 'border-yellow-500 bg-yellow-50' : ''}`}
+                  />
+                </td>
+                
+                {/* Rabais */}
+                <td>
+                  <input
+                    type="number"
+                    value={Math.abs(mergedProduct.promotions?.unitaire?.pourcentage || 0)}
+                    onChange={(e) => handleRabaisChange(product.id, parseInt(e.target.value) || 0)}
+                    className={`w-16 px-2 py-1 border rounded ${isEdited ? 'border-yellow-500 bg-yellow-50' : ''}`}
+                  />
+                </td>
+                
+                {/* ... autres colonnes avec mergedProduct ... */}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+Visuels à Ajouter
+
+Indicateur de modification : Fond jaune sur les lignes modifiées
+Compteur : "3 modification(s) non sauvegardée(s)"
+Bouton sticky : "💾 Sauvegarder tout" en haut à droite
+Bouton annuler : Pour réinitialiser
+Loading state : Spinner pendant la sauvegarde
+
+
+Avantages
+✅ Performance : Modifications instantanées (locales)
+✅ UX améliorée : Édition fluide, pas d'attente
+✅ Sauvegarde groupée : Tous les produits en parallèle (Promise.all)
+✅ Sécurité : Demande confirmation avant annulation
+✅ Feedback visuel : Lignes modifiées en jaune
+
+Implémente cette architecture dans ProductManager.jsx en remplaçant les appels API immédiats par le système de sauvegarde différée.
