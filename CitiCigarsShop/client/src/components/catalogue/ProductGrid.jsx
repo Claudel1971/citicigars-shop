@@ -46,21 +46,23 @@ const ProductGrid = () => {
       return parseInt(product.ringGauge);
     }
     
-    // PRIORITÉ 2 : Extraire de dimensions (pouces) - le 2ème nombre
-    if (product.dimensions) {
-      const match = product.dimensions.match(/(\d+(?:[.,]\d+)?)\s*[×xX]\s*(\d+)/);
+    // PRIORITÉ 2 : Extraire du champ format (pouces, ex: "5 × 50") - le 2ème nombre
+    if (product.format && product.format.includes('×')) {
+      const match = product.format.match(/(\d+(?:[.,½¼¾⅛⅜⅝⅞])?)\s*[×xX]\s*(\d+)/);
       if (match) {
         return parseInt(match[2]); // Le 2ème nombre = ring gauge
       }
     }
     
-    // PRIORITÉ 3 : Extraire du format si contient dimensions
-    if (product.format && product.format.includes('×')) {
-      const match = product.format.match(/(\d+)\s*[×xX]\s*(\d+)/);
+    // PRIORITÉ 3 : Extraire du vitole si contient dimensions (ex: "Robusto (5 × 50)")
+    if (product.vitole && product.vitole.includes('×')) {
+      const match = product.vitole.match(/(\d+)\s*[×xX]\s*(\d+)/);
       if (match) {
         return parseInt(match[2]);
       }
     }
+    
+    // NOTE: Ne PAS utiliser product.dimensions car il contient les MM (ex: "152 × 21,4")
     
     return null;
   };
