@@ -47,7 +47,12 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const imageForFormat = (format) => {
     switch (format) {
       case "pack":
-        return produit.imagePack || produit.imagePack4 || produit.imagePack5 || mainImage;
+        return (
+          produit.imagePack ||
+          produit.imagePack4 ||
+          produit.imagePack5 ||
+          mainImage
+        );
       case "boite":
         return produit.imageBoite || mainImage;
       default:
@@ -66,19 +71,22 @@ const ProductCard = ({ product, onOpenDetails }) => {
     } else {
       switch (format) {
         case "pack":
-          price = promo?.pack?.actif
-            ? (promo.pack.prixPromo || calculateDiscountedPrice(produit.prixPack, promo.pack.pourcentage))
-            : produit.prixPack;
+          price =
+            promo?.pack?.actif && promo.pack.prixPromo
+              ? promo.pack.prixPromo
+              : produit.prixPack;
           break;
         case "boite":
-          price = promo?.boite?.actif
-            ? (promo.boite.prixPromo || calculateDiscountedPrice(produit.prixBoite, promo.boite.pourcentage))
-            : produit.prixBoite;
+          price =
+            promo?.boite?.actif && promo.boite.prixPromo
+              ? promo.boite.prixPromo
+              : produit.prixBoite;
           break;
         default:
-          price = promo?.unitaire?.actif
-            ? (promo.unitaire.prixPromo || calculateDiscountedPrice(produit.prixUnitaire, promo.unitaire.pourcentage))
-            : produit.prixUnitaire;
+          price =
+            promo?.unitaire?.actif && promo.unitaire.prixPromo
+              ? promo.unitaire.prixPromo
+              : produit.prixUnitaire;
       }
     }
 
@@ -216,9 +224,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
         </button>
 
         {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.pourcentage > 0 && (
-          <div className="absolute bottom-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-            -{produit.promotions.unitaire.pourcentage}%
-          </div>
+            <div className="absolute bottom-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+              -{produit.promotions.unitaire.pourcentage}%
+            </div>
         )}
       </div>
 
@@ -280,19 +288,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 Unité :
               </span>
               <div className="text-right">
-                {produit.promotions?.unitaire?.actif ? (
+                {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.pourcentage > 0 ? (
                   <>
                     <span className="text-[10px] line-through text-muted-foreground mr-1">
                       {formatPrice(produit.prixUnitaire)}
                     </span>
                     <span className="text-base font-bold text-destructive">
-                      {formatPrice(
-                        produit.promotions.unitaire.prixPromo || 
-                        calculateDiscountedPrice(
-                          produit.prixUnitaire,
-                          produit.promotions.unitaire.pourcentage,
-                        ),
-                      )}
+                      {formatPrice(produit.promotions.unitaire.prixPromo)}
                     </span>
                   </>
                 ) : (
@@ -318,11 +320,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 </span>
                 <span className="text-base font-semibold text-orange-800">
                   {formatPrice(
-                    produit.promotions?.pack?.actif
-                      ? (produit.promotions.pack.prixPromo || calculateDiscountedPrice(
-                          produit.prixPack,
-                          produit.promotions.pack.pourcentage,
-                        ))
+                    produit.promotions?.pack?.actif &&
+                      produit.promotions.pack.prixPromo
+                      ? produit.promotions.pack.prixPromo
                       : produit.prixPack,
                   )}
                 </span>
@@ -344,11 +344,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 </span>
                 <span className="text-base font-semibold text-orange-800">
                   {formatPrice(
-                    produit.promotions?.boite?.actif
-                      ? (produit.promotions.boite.prixPromo || calculateDiscountedPrice(
-                          produit.prixBoite,
-                          produit.promotions.boite.pourcentage,
-                        ))
+                    produit.promotions?.boite?.actif &&
+                      produit.promotions.boite.prixPromo
+                      ? produit.promotions.boite.prixPromo
                       : produit.prixBoite,
                   )}
                 </span>
@@ -382,4 +380,3 @@ const ProductCard = ({ product, onOpenDetails }) => {
 };
 
 export default ProductCard;
-
