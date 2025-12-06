@@ -71,10 +71,10 @@ const ProductGrid = () => {
     const gauge = extractRingGauge(product);
     if (gauge == null) return null;
 
-    if (gauge < 42) return "S";
-    if (gauge < 48) return "M";
-    if (gauge < 52) return "L";
-    if (gauge < 56) return "XL";
+    if (gauge < 50) return "S";
+    if (gauge <= 52) return "M";
+    if (gauge <= 56) return "L";
+    if (gauge <= 60) return "XL";
     return "XXL";
   };
 
@@ -288,11 +288,11 @@ const ProductGrid = () => {
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
                   <option value="Tous">Toutes tailles</option>
-                  <option value="S">S (&lt; 42)</option>
-                  <option value="M">M (42 – 47)</option>
-                  <option value="L">L (48 – 51)</option>
-                  <option value="XL">XL (52 – 55)</option>
-                  <option value="XXL">XXL (56+)</option>
+                  <option value="S">S (&lt; 50)</option>
+                  <option value="M">M (50 – 52)</option>
+                  <option value="L">L (54 – 56)</option>
+                  <option value="XL">XL (57 – 60)</option>
+                  <option value="XXL">XXL (&gt; 60)</option>
                 </select>
               </div>
             </div>
