@@ -21,7 +21,7 @@ const ImportExcel = () => {
 
   const mapExcelRowToProduct = (row) => {
     const rabais = normaliserRabais(row['Rabais (%)'] || row['Rabais'] || row['rabais'] || row['Rabais(%)'] || 0);
-    const prixUnitaire = parseInt(row['p. u.'] || row['p.u.'] || row['p. u'] || row['pu'] || row['P. U.'] || row['P.U.'] || row['Prix_Unit'] || row['Prix Unit'] || row['prixUnitaire'] || row['Prix unitaire'] || 0);
+    const prixUnitaire = parseInt(row['Prix unitaire'] || row['prix unitaire'] || row['Prix Unitaire'] || row['p. u.'] || row['p.u.'] || row['p. u'] || row['pu'] || row['P. U.'] || row['P.U.'] || row['Prix_Unit'] || row['Prix Unit'] || row['prixUnitaire'] || 0);
     const qtyPack = parseInt(row['Qte / pack'] || row['Qte/pack'] || row['Qte_Pack'] || row['typePack'] || row['Qté/pack'] || 4);
     const qtyBoite = parseInt(row['Qté/boîte'] || row['Qté / boîte'] || row['Qte_Boite'] || row['qteBoite'] || row['Qte/boite'] || 25);
 
