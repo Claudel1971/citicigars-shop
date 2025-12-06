@@ -1,0 +1,900 @@
+# INSTRUCTION COMPLÈTE : Création du Composant ProductManager.jsx
+
+## 📋 OBJECTIF
+Créer un composant admin complet pour gérer tous les aspects des produits : visibilité catalogue, coups de cœur, prix et promotions.
+
+---
+
+## 🎯 FONCTIONNALITÉS REQUISES
+
+### 1. Tableau de Gestion des Produits
+
+Colonnes dans cet ordre :
+1. **Image** (miniature)
+2. **Nom du produit**
+3. **Prix Unitaire** (éditable)
+4. **Rabais %** (éditable)
+5. **Prix Final** (calculé, lecture seule)
+6. **Prix Pack** (calculé, lecture seule)
+7. **Prix Boîte** (calculé, lecture seule)
+8. **Stock**
+9. **Toggle Catalogue** (ON/OFF)
+10. **Toggle Coup de ❤️** (ON/OFF)
+
+### 2. Filtres en Haut de Page
+
+```jsx
+<div className="mb-4 flex gap-2 flex-wrap">
+  <button 
+    onClick={() => setFilter('all')}
+    className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+  >
+    Tous les produits
+  </button>
+  <button 
+    onClick={() => setFilter('visible')}
+    className={`px-4 py-2 rounded ${filter === 'visible' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
+  >
+    Visibles au catalogue
+  </button>
+  <button 
+    onClick={() => setFilter('hidden')}
+    className={`px-4 py-2 rounded ${filter === 'hidden' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}
+  >
+    Masqués
+  </button>
+  <button 
+    onClick={() => setFilter('promo')}
+    className={`px-4 py-2 rounded ${filter === 'promo' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}
+  >
+    En promotion
+  </button>
+  <button 
+    onClick={() => setFilter('favorite')}
+    className={`px-4 py-2 rounded ${filter === 'favorite' ? 'bg-pink-600 text-white' : 'bg-gray-200'}`}
+  >
+    Coups de ❤️
+  </button>
+</div>
+```
+
+---
+
+## 💰 RÈGLES DE CALCUL DES PRIX (CRITIQUE)
+
+### Principe Fondamental
+**SEUL le prix unitaire est éditable manuellement.**  
+Tous les autres prix sont **calculés automatiquement**.
+
+### Fonction 1 : Normalisation du Rabais
+
+```javascript
+// Le rabais peut être saisi avec un signe négatif (-5%, -10%)
+// Cette fonction le convertit TOUJOURS en positif
+const normaliserRabais = (rabais) => {
+  if (!rabais || rabais === 0) return 0;
+  return Math.abs(rabais); // Enlève le signe -
+};
+```
+
+### Fonction 2 : Arrondi au Multiple de 0.50 MAD
+
+```javascript
+const arrondirMultiple = (valeur, multiple = 0.50) => {
+  return Math.round(valeur / multiple) * multiple;
+};
+
+// Exemples :
+// arrondirMultiple(145.8)  → 146.00
+// arrondirMultiple(148.75) → 148.50
+// arrondirMultiple(144.2)  → 144.00
+```
+
+### Fonction 3 : Calcul Prix Promo Unitaire
+
+```javascript
+const calculerPrixPromo = (prixUnitaire, rabais) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  
+  if (rabaisPositif === 0) return null;
+  
+  // Formule : P.U. × (1 - rabais/100)
+  const prixAvecRabais = prixUnitaire * (1 - rabaisPositif / 100);
+  
+  // Arrondir au multiple de 0.50 MAD
+  return arrondirMultiple(prixAvecRabais, 0.50);
+};
+
+// Exemples :
+// calculerPrixPromo(180, -20) → 180 × 0.8 = 144.00
+// calculerPrixPromo(175, -15) → 175 × 0.85 = 148.75 → 148.50 (arrondi)
+// calculerPrixPromo(162, 10)  → 162 × 0.9 = 145.8 → 146.00 (arrondi)
+```
+
+### Fonction 4 : Calcul Prix Pack
+
+```javascript
+const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  const prixBase = prixUnitaire * qtyPack;
+  
+  if (rabaisPositif > 0) {
+    const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 0.50);
+  }
+  
+  return prixBase;
+};
+
+// Exemples :
+// Pack de 4 cigares
+// calculerPrixPack(180, 4, 0)   → 180 × 4 = 720.00 MAD
+// calculerPrixPack(180, 5, -20) → (180 × 5) × 0.8 = 720.00 MAD
+```
+
+### Fonction 5 : Calcul Prix Boîte
+
+```javascript
+const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  const prixBase = prixUnitaire * qtyBoite;
+  
+  if (rabaisPositif > 0) {
+    const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 0.50);
+  }
+  
+  return prixBase;
+};
+
+// Exemples :
+// Boîte de 25 cigares
+// calculerPrixBoite(180, 25, 0)   → 180 × 25 = 4500.00 MAD
+// calculerPrixBoite(162, 25, -10) → (162 × 25) × 0.9 = 3645.00 MAD
+```
+
+---
+
+## 🔄 GESTION DES MODIFICATIONS
+
+### Handler 1 : Changement de Prix Unitaire
+
+```javascript
+const handlePriceChange = async (productId, newPrixUnitaire) => {
+  const product = products.find(p => p.id === productId);
+  const rabaisActuel = product.promotions?.unitaire?.pourcentage || 0;
+  
+  await handleUpdatePricing(productId, newPrixUnitaire, rabaisActuel);
+};
+```
+
+### Handler 2 : Changement de Rabais
+
+```javascript
+const handleRabaisChange = async (productId, newRabais) => {
+  const product = products.find(p => p.id === productId);
+  
+  await handleUpdatePricing(productId, product.prixUnitaire, newRabais);
+};
+```
+
+### Handler 3 : Mise à Jour Globale des Prix
+
+```javascript
+const handleUpdatePricing = async (productId, newPrixUnitaire, newRabais) => {
+  const product = products.find(p => p.id === productId);
+  
+  // Normaliser le rabais
+  const rabaisPositif = normaliserRabais(newRabais);
+  
+  // Récupérer les quantités des conditionnements
+  const qtyPack = product.conditionnements?.pack || 4;
+  const qtyBoite = product.conditionnements?.boite || 25;
+  
+  // Calculer TOUS les prix automatiquement
+  const prixPromoUnitaire = calculerPrixPromo(newPrixUnitaire, rabaisPositif);
+  const prixPack = calculerPrixPack(newPrixUnitaire, qtyPack, rabaisPositif);
+  const prixBoite = calculerPrixBoite(newPrixUnitaire, qtyBoite, rabaisPositif);
+  
+  // Objet à envoyer à l'API
+  const updatedProduct = {
+    prixUnitaire: newPrixUnitaire,
+    promotions: {
+      unitaire: {
+        actif: rabaisPositif > 0,
+        pourcentage: rabaisPositif,  // Stocké POSITIF en base
+        prixPromo: prixPromoUnitaire
+      },
+      pack: {
+        actif: rabaisPositif > 0,
+        pourcentage: rabaisPositif,
+        prixPromo: prixPack
+      },
+      boite: {
+        actif: rabaisPositif > 0,
+        pourcentage: rabaisPositif,
+        prixPromo: prixBoite
+      }
+    }
+  };
+  
+  try {
+    await apiService.updateProduct(productId, updatedProduct);
+    await loadProducts(); // Recharger la liste
+    console.log(`Prix mis à jour pour ${productId}`);
+  } catch (error) {
+    console.error('Erreur mise à jour prix:', error);
+    alert('Erreur lors de la mise à jour des prix');
+  }
+};
+```
+
+### Handler 4 : Toggle Catalogue
+
+```javascript
+const handleToggleCatalogue = async (productId, newStatus) => {
+  try {
+    await apiService.updateProduct(productId, { inCatalogue: newStatus });
+    await loadProducts();
+    console.log(`Produit ${newStatus ? 'visible' : 'masqué'} au catalogue`);
+  } catch (error) {
+    console.error('Erreur toggle catalogue:', error);
+    alert('Erreur lors du changement de visibilité');
+  }
+};
+```
+
+### Handler 5 : Toggle Coup de Cœur
+
+```javascript
+const handleToggleCoupDeCoeur = async (productId, newStatus) => {
+  try {
+    await apiService.updateProduct(productId, { coupDeCoeur: newStatus });
+    await loadProducts();
+    console.log(`Produit ${newStatus ? 'ajouté aux' : 'retiré des'} coups de cœur`);
+  } catch (error) {
+    console.error('Erreur toggle coup de cœur:', error);
+    alert('Erreur lors du changement');
+  }
+};
+```
+
+---
+
+## 📊 STRUCTURE DU TABLEAU
+
+```jsx
+<table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+  <thead className="bg-gray-800 text-white">
+    <tr>
+      <th className="px-4 py-3">Image</th>
+      <th className="px-4 py-3">Nom</th>
+      <th className="px-4 py-3">Prix Unitaire</th>
+      <th className="px-4 py-3">Rabais (%)</th>
+      <th className="px-4 py-3">Prix Final</th>
+      <th className="px-4 py-3">Prix Pack</th>
+      <th className="px-4 py-3">Prix Boîte</th>
+      <th className="px-4 py-3">Stock</th>
+      <th className="px-4 py-3">Catalogue</th>
+      <th className="px-4 py-3">Coup de ❤️</th>
+    </tr>
+  </thead>
+  <tbody>
+    {filteredProducts.map(produit => (
+      <tr key={produit.id} className="border-b hover:bg-gray-50">
+        
+        {/* IMAGE */}
+        <td className="px-4 py-3">
+          <img 
+            src={produit.imagePrincipale || '/placeholder.jpg'} 
+            alt={produit.nom}
+            className="w-16 h-16 object-contain"
+          />
+        </td>
+        
+        {/* NOM */}
+        <td className="px-4 py-3">
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold">{produit.nom}</span>
+            <div className="flex gap-1">
+              {produit.promotions?.unitaire?.actif && (
+                <span className="bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">
+                  -{Math.abs(produit.promotions.unitaire.pourcentage)}%
+                </span>
+              )}
+              {produit.coupDeCoeur && (
+                <span className="bg-pink-500 text-white px-2 py-0.5 rounded text-xs">
+                  ❤️ Coup de Cœur
+                </span>
+              )}
+              {!produit.inCatalogue && (
+                <span className="bg-gray-500 text-white px-2 py-0.5 rounded text-xs">
+                  Masqué
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+        
+        {/* PRIX UNITAIRE - ÉDITABLE */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              step="0.50"
+              value={produit.prixUnitaire}
+              onChange={(e) => handlePriceChange(produit.id, parseFloat(e.target.value) || 0)}
+              className="w-24 px-2 py-1 border rounded focus:border-blue-500 focus:outline-none"
+            />
+            <span className="text-sm text-gray-600">MAD</span>
+          </div>
+        </td>
+        
+        {/* RABAIS - ÉDITABLE */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1">
+            <span className="text-red-500 font-bold">-</span>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={Math.abs(produit.promotions?.unitaire?.pourcentage || 0)}
+              onChange={(e) => handleRabaisChange(produit.id, parseInt(e.target.value) || 0)}
+              className="w-16 px-2 py-1 border rounded focus:border-blue-500 focus:outline-none"
+            />
+            <span className="text-sm">%</span>
+          </div>
+        </td>
+        
+        {/* PRIX FINAL - CALCULÉ */}
+        <td className="px-4 py-3">
+          {produit.promotions?.unitaire?.actif ? (
+            <div className="flex flex-col">
+              <span className="text-red-600 font-bold text-lg">
+                {produit.promotions.unitaire.prixPromo.toFixed(2)} MAD
+              </span>
+              <span className="text-xs text-gray-400 line-through">
+                {produit.prixUnitaire.toFixed(2)} MAD
+              </span>
+            </div>
+          ) : (
+            <span className="font-bold text-lg">
+              {produit.prixUnitaire.toFixed(2)} MAD
+            </span>
+          )}
+        </td>
+        
+        {/* PRIX PACK - CALCULÉ */}
+        <td className="px-4 py-3">
+          <div className="text-sm text-gray-700">
+            <div className="font-semibold">
+              Pack ({produit.conditionnements?.pack || 4})
+            </div>
+            <div>
+              {calculerPrixPack(
+                produit.prixUnitaire, 
+                produit.conditionnements?.pack || 4, 
+                produit.promotions?.unitaire?.pourcentage || 0
+              ).toFixed(2)} MAD
+            </div>
+          </div>
+        </td>
+        
+        {/* PRIX BOÎTE - CALCULÉ */}
+        <td className="px-4 py-3">
+          <div className="text-sm text-gray-700">
+            <div className="font-semibold">Boîte (25)</div>
+            <div>
+              {calculerPrixBoite(
+                produit.prixUnitaire, 
+                25, 
+                produit.promotions?.unitaire?.pourcentage || 0
+              ).toFixed(2)} MAD
+            </div>
+          </div>
+        </td>
+        
+        {/* STOCK */}
+        <td className="px-4 py-3">
+          <span className={`font-semibold ${produit.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {produit.stock}
+          </span>
+        </td>
+        
+        {/* TOGGLE CATALOGUE */}
+        <td className="px-4 py-3">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={produit.inCatalogue}
+              onChange={() => handleToggleCatalogue(produit.id, !produit.inCatalogue)}
+              className="sr-only peer"
+            />
+            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <span className="ml-3 text-sm font-medium">
+              {produit.inCatalogue ? '✅ Visible' : '❌ Masqué'}
+            </span>
+          </label>
+        </td>
+        
+        {/* TOGGLE COUP DE CŒUR */}
+        <td className="px-4 py-3">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={produit.coupDeCoeur || false}
+              onChange={() => handleToggleCoupDeCoeur(produit.id, !produit.coupDeCoeur)}
+              className="sr-only peer"
+            />
+            <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+            <span className="ml-3 text-2xl">
+              {produit.coupDeCoeur ? '❤️' : '🤍'}
+            </span>
+          </label>
+        </td>
+        
+      </tr>
+    ))}
+  </tbody>
+</table>
+```
+
+---
+
+## 🔍 LOGIQUE DE FILTRAGE
+
+```javascript
+const [filter, setFilter] = useState('all');
+const [products, setProducts] = useState([]);
+
+const filteredProducts = useMemo(() => {
+  switch (filter) {
+    case 'visible':
+      return products.filter(p => p.inCatalogue === true);
+    case 'hidden':
+      return products.filter(p => p.inCatalogue === false);
+    case 'promo':
+      return products.filter(p => p.promotions?.unitaire?.actif === true);
+    case 'favorite':
+      return products.filter(p => p.coupDeCoeur === true);
+    default:
+      return products;
+  }
+}, [products, filter]);
+```
+
+---
+
+## 📥 CHARGEMENT DES PRODUITS
+
+```javascript
+const loadProducts = async () => {
+  try {
+    const allProducts = await apiService.getAllProducts();
+    setProducts(allProducts);
+  } catch (error) {
+    console.error('Erreur chargement produits:', error);
+    alert('Erreur lors du chargement des produits');
+  }
+};
+
+useEffect(() => {
+  loadProducts();
+}, []);
+```
+
+---
+
+## 🎨 COMPOSANT COMPLET
+
+```jsx
+import React, { useState, useEffect, useMemo } from 'react';
+import apiService from '../../services/apiService';
+
+const ProductManager = () => {
+  const [products, setProducts] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  // Fonctions utilitaires
+  const normaliserRabais = (rabais) => {
+    if (!rabais || rabais === 0) return 0;
+    return Math.abs(rabais);
+  };
+
+  const arrondirMultiple = (valeur, multiple = 0.50) => {
+    return Math.round(valeur / multiple) * multiple;
+  };
+
+  const calculerPrixPromo = (prixUnitaire, rabais) => {
+    const rabaisPositif = normaliserRabais(rabais);
+    if (rabaisPositif === 0) return null;
+    const prixAvecRabais = prixUnitaire * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 0.50);
+  };
+
+  const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
+    const rabaisPositif = normaliserRabais(rabais);
+    const prixBase = prixUnitaire * qtyPack;
+    if (rabaisPositif > 0) {
+      const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+      return arrondirMultiple(prixAvecRabais, 0.50);
+    }
+    return prixBase;
+  };
+
+  const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
+    const rabaisPositif = normaliserRabais(rabais);
+    const prixBase = prixUnitaire * qtyBoite;
+    if (rabaisPositif > 0) {
+      const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+      return arrondirMultiple(prixAvecRabais, 0.50);
+    }
+    return prixBase;
+  };
+
+  // Handlers
+  const handleUpdatePricing = async (productId, newPrixUnitaire, newRabais) => {
+    const product = products.find(p => p.id === productId);
+    const rabaisPositif = normaliserRabais(newRabais);
+    const qtyPack = product.conditionnements?.pack || 4;
+    const qtyBoite = product.conditionnements?.boite || 25;
+    
+    const prixPromoUnitaire = calculerPrixPromo(newPrixUnitaire, rabaisPositif);
+    const prixPack = calculerPrixPack(newPrixUnitaire, qtyPack, rabaisPositif);
+    const prixBoite = calculerPrixBoite(newPrixUnitaire, qtyBoite, rabaisPositif);
+    
+    const updatedProduct = {
+      prixUnitaire: newPrixUnitaire,
+      promotions: {
+        unitaire: {
+          actif: rabaisPositif > 0,
+          pourcentage: rabaisPositif,
+          prixPromo: prixPromoUnitaire
+        },
+        pack: {
+          actif: rabaisPositif > 0,
+          pourcentage: rabaisPositif,
+          prixPromo: prixPack
+        },
+        boite: {
+          actif: rabaisPositif > 0,
+          pourcentage: rabaisPositif,
+          prixPromo: prixBoite
+        }
+      }
+    };
+    
+    try {
+      await apiService.updateProduct(productId, updatedProduct);
+      await loadProducts();
+    } catch (error) {
+      console.error('Erreur mise à jour prix:', error);
+      alert('Erreur lors de la mise à jour');
+    }
+  };
+
+  const handlePriceChange = async (productId, newPrixUnitaire) => {
+    const product = products.find(p => p.id === productId);
+    const rabaisActuel = product.promotions?.unitaire?.pourcentage || 0;
+    await handleUpdatePricing(productId, newPrixUnitaire, rabaisActuel);
+  };
+
+  const handleRabaisChange = async (productId, newRabais) => {
+    const product = products.find(p => p.id === productId);
+    await handleUpdatePricing(productId, product.prixUnitaire, newRabais);
+  };
+
+  const handleToggleCatalogue = async (productId, newStatus) => {
+    try {
+      await apiService.updateProduct(productId, { inCatalogue: newStatus });
+      await loadProducts();
+    } catch (error) {
+      console.error('Erreur toggle catalogue:', error);
+      alert('Erreur lors du changement de visibilité');
+    }
+  };
+
+  const handleToggleCoupDeCoeur = async (productId, newStatus) => {
+    try {
+      await apiService.updateProduct(productId, { coupDeCoeur: newStatus });
+      await loadProducts();
+    } catch (error) {
+      console.error('Erreur toggle coup de cœur:', error);
+      alert('Erreur lors du changement');
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const allProducts = await apiService.getAllProducts();
+      setProducts(allProducts);
+    } catch (error) {
+      console.error('Erreur chargement produits:', error);
+      alert('Erreur lors du chargement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    switch (filter) {
+      case 'visible':
+        return products.filter(p => p.inCatalogue === true);
+      case 'hidden':
+        return products.filter(p => p.inCatalogue === false);
+      case 'promo':
+        return products.filter(p => p.promotions?.unitaire?.actif === true);
+      case 'favorite':
+        return products.filter(p => p.coupDeCoeur === true);
+      default:
+        return products;
+    }
+  }, [products, filter]);
+
+  if (loading) {
+    return <div className="p-8 text-center">Chargement...</div>;
+  }
+
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold mb-6">Gestion des Produits</h1>
+      
+      {/* Filtres */}
+      <div className="mb-6 flex gap-2 flex-wrap">
+        <button 
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+        >
+          Tous ({products.length})
+        </button>
+        <button 
+          onClick={() => setFilter('visible')}
+          className={`px-4 py-2 rounded ${filter === 'visible' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
+        >
+          Visibles ({products.filter(p => p.inCatalogue).length})
+        </button>
+        <button 
+          onClick={() => setFilter('hidden')}
+          className={`px-4 py-2 rounded ${filter === 'hidden' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}
+        >
+          Masqués ({products.filter(p => !p.inCatalogue).length})
+        </button>
+        <button 
+          onClick={() => setFilter('promo')}
+          className={`px-4 py-2 rounded ${filter === 'promo' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}
+        >
+          En promo ({products.filter(p => p.promotions?.unitaire?.actif).length})
+        </button>
+        <button 
+          onClick={() => setFilter('favorite')}
+          className={`px-4 py-2 rounded ${filter === 'favorite' ? 'bg-pink-600 text-white' : 'bg-gray-200'}`}
+        >
+          Coups de ❤️ ({products.filter(p => p.coupDeCoeur).length})
+        </button>
+      </div>
+
+      {/* Tableau */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+          <thead className="bg-gray-800 text-white">
+            <tr>
+              <th className="px-4 py-3">Image</th>
+              <th className="px-4 py-3">Nom</th>
+              <th className="px-4 py-3">Prix Unitaire</th>
+              <th className="px-4 py-3">Rabais (%)</th>
+              <th className="px-4 py-3">Prix Final</th>
+              <th className="px-4 py-3">Prix Pack</th>
+              <th className="px-4 py-3">Prix Boîte</th>
+              <th className="px-4 py-3">Stock</th>
+              <th className="px-4 py-3">Catalogue</th>
+              <th className="px-4 py-3">Coup de ❤️</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map(produit => (
+              <tr key={produit.id} className="border-b hover:bg-gray-50">
+                
+                {/* IMAGE */}
+                <td className="px-4 py-3">
+                  <img 
+                    src={produit.imagePrincipale || '/placeholder.jpg'} 
+                    alt={produit.nom}
+                    className="w-16 h-16 object-contain"
+                  />
+                </td>
+                
+                {/* NOM */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold">{produit.nom}</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {produit.promotions?.unitaire?.actif && (
+                        <span className="bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">
+                          -{Math.abs(produit.promotions.unitaire.pourcentage)}%
+                        </span>
+                      )}
+                      {produit.coupDeCoeur && (
+                        <span className="bg-pink-500 text-white px-2 py-0.5 rounded text-xs">
+                          ❤️ Coup de Cœur
+                        </span>
+                      )}
+                      {!produit.inCatalogue && (
+                        <span className="bg-gray-500 text-white px-2 py-0.5 rounded text-xs">
+                          Masqué
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                
+                {/* PRIX UNITAIRE - ÉDITABLE */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.50"
+                      value={produit.prixUnitaire}
+                      onChange={(e) => handlePriceChange(produit.id, parseFloat(e.target.value) || 0)}
+                      className="w-24 px-2 py-1 border rounded focus:border-blue-500 focus:outline-none"
+                    />
+                    <span className="text-sm text-gray-600">MAD</span>
+                  </div>
+                </td>
+                
+                {/* RABAIS - ÉDITABLE */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <span className="text-red-500 font-bold">-</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={Math.abs(produit.promotions?.unitaire?.pourcentage || 0)}
+                      onChange={(e) => handleRabaisChange(produit.id, parseInt(e.target.value) || 0)}
+                      className="w-16 px-2 py-1 border rounded focus:border-blue-500 focus:outline-none"
+                    />
+                    <span className="text-sm">%</span>
+                  </div>
+                </td>
+                
+                {/* PRIX FINAL - CALCULÉ */}
+                <td className="px-4 py-3">
+                  {produit.promotions?.unitaire?.actif ? (
+                    <div className="flex flex-col">
+                      <span className="text-red-600 font-bold text-lg">
+                        {produit.promotions.unitaire.prixPromo.toFixed(2)} MAD
+                      </span>
+                      <span className="text-xs text-gray-400 line-through">
+                        {produit.prixUnitaire.toFixed(2)} MAD
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="font-bold text-lg">
+                      {produit.prixUnitaire.toFixed(2)} MAD
+                    </span>
+                  )}
+                </td>
+                
+                {/* PRIX PACK - CALCULÉ */}
+                <td className="px-4 py-3">
+                  <div className="text-sm text-gray-700">
+                    <div className="font-semibold">
+                      Pack ({produit.conditionnements?.pack || 4})
+                    </div>
+                    <div>
+                      {calculerPrixPack(
+                        produit.prixUnitaire, 
+                        produit.conditionnements?.pack || 4, 
+                        produit.promotions?.unitaire?.pourcentage || 0
+                      ).toFixed(2)} MAD
+                    </div>
+                  </div>
+                </td>
+                
+                {/* PRIX BOÎTE - CALCULÉ */}
+                <td className="px-4 py-3">
+                  <div className="text-sm text-gray-700">
+                    <div className="font-semibold">Boîte (25)</div>
+                    <div>
+                      {calculerPrixBoite(
+                        produit.prixUnitaire, 
+                        25, 
+                        produit.promotions?.unitaire?.pourcentage || 0
+                      ).toFixed(2)} MAD
+                    </div>
+                  </div>
+                </td>
+                
+                {/* STOCK */}
+                <td className="px-4 py-3 text-center">
+                  <span className={`font-semibold ${produit.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {produit.stock}
+                  </span>
+                </td>
+                
+                {/* TOGGLE CATALOGUE */}
+                <td className="px-4 py-3">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={produit.inCatalogue}
+                      onChange={() => handleToggleCatalogue(produit.id, !produit.inCatalogue)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span className="ml-3 text-sm font-medium">
+                      {produit.inCatalogue ? '✅ Visible' : '❌ Masqué'}
+                    </span>
+                  </label>
+                </td>
+                
+                {/* TOGGLE COUP DE CŒUR */}
+                <td className="px-4 py-3">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={produit.coupDeCoeur || false}
+                      onChange={() => handleToggleCoupDeCoeur(produit.id, !produit.coupDeCoeur)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                    <span className="ml-3 text-2xl">
+                      {produit.coupDeCoeur ? '❤️' : '🤍'}
+                    </span>
+                  </label>
+                </td>
+                
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredProducts.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          Aucun produit dans cette catégorie
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProductManager;
+```
+
+---
+
+## ✅ CHECKLIST FINALE
+
+- [ ] Créer le fichier `/client/src/components/admin/ProductManager.jsx`
+- [ ] Importer dans `/client/src/pages/Admin.jsx` et remplacer le placeholder
+- [ ] Vérifier que `apiService.updateProduct()` accepte tous les champs
+- [ ] Tester le changement de prix unitaire → vérifie calculs automatiques
+- [ ] Tester le changement de rabais → vérifie calculs automatiques
+- [ ] Tester les toggles Catalogue et Coup de Cœur
+- [ ] Tester les filtres
+- [ ] Vérifier que les produits masqués n'apparaissent pas côté client
+- [ ] Vérifier que les coups de cœur apparaissent dans la section dédiée
+- [ ] Vérifier que les promos apparaissent dans la section dédiée
+
+---
+
+## 🎯 POINTS CRITIQUES À RESPECTER
+
+1. **SEUL le prix unitaire est éditable** - tous les autres prix sont calculés
+2. **Arrondi OBLIGATOIRE à 0.50 MAD** pour tous les prix promo
+3. **Rabais toujours POSITIF en base** (même si saisi avec -)
+4. **Recalculer automatiquement** dès qu'un prix ou rabais change
+5. **Stocker le prix promo calculé** (ne pas recalculer à l'affichage)
+
+---
+
+**FIN DE L'INSTRUCTION**

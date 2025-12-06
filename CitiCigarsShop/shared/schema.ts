@@ -33,6 +33,7 @@ export const products = pgTable("products", {
   prixBoite: integer("prix_boite"),
   prixPack: integer("prix_pack"),
   inCatalogue: boolean("in_catalogue").default(true),
+  coupDeCoeur: boolean("coup_de_coeur").default(false),
   type: text("type").default("standard"),
   description: text("description"),
   origine: text("origine"),
