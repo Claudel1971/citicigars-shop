@@ -10,6 +10,9 @@ const ImportExcel = () => {
   const { importProducts } = useProducts();
   const [preview, setPreview] = React.useState([]);
   const [file, setFile] = React.useState(null);
+  const [rawColumns, setRawColumns] = React.useState([]);
+  const [rawFirstRow, setRawFirstRow] = React.useState(null);
+  const [debugProduct, setDebugProduct] = React.useState(null);
 
   const normaliserRabais = (rabais) => {
     if (!rabais || rabais === 0) return 0;
@@ -17,10 +20,10 @@ const ImportExcel = () => {
   };
 
   const mapExcelRowToProduct = (row) => {
-    const rabais = normaliserRabais(row['Rabais (%)'] || row['Rabais'] || row['rabais'] || 0);
-    const prixUnitaire = parseInt(row['p. u.'] || row['Prix_Unit'] || row['prixUnitaire'] || 0);
-    const qtyPack = parseInt(row['Qte / pack'] || row['Qte_Pack'] || row['typePack'] || 4);
-    const qtyBoite = parseInt(row['Qté/boîte'] || row['Qte_Boite'] || row['qteBoite'] || 25);
+    const rabais = normaliserRabais(row['Rabais (%)'] || row['Rabais'] || row['rabais'] || row['Rabais(%)'] || 0);
+    const prixUnitaire = parseInt(row['p. u.'] || row['p.u.'] || row['p. u'] || row['pu'] || row['P. U.'] || row['P.U.'] || row['Prix_Unit'] || row['Prix Unit'] || row['prixUnitaire'] || row['Prix unitaire'] || 0);
+    const qtyPack = parseInt(row['Qte / pack'] || row['Qte/pack'] || row['Qte_Pack'] || row['typePack'] || row['Qté/pack'] || 4);
+    const qtyBoite = parseInt(row['Qté/boîte'] || row['Qté / boîte'] || row['Qte_Boite'] || row['qteBoite'] || row['Qte/boite'] || 25);
 
     const prixPack = parseInt(row['Prix_Pack'] || row['prixPack'] || 0) || (prixUnitaire * qtyPack);
     const prixBoite = parseInt(row['Prix_Boite'] || row['prixBoite'] || 0) || (prixUnitaire * qtyBoite);
@@ -31,9 +34,9 @@ const ImportExcel = () => {
     return {
       sku: row['SKU'] || row['sku'],
       marque: row['Marque'] || row['marque'],
-      ligne: row['Ligne / Série'] || row['Ligne'] || row['ligne'] || null,
-      pays: row['Pays'] || row['pays'] || null,
-      modele: row['Modele'] || row['modele'] || null,
+      ligne: row['Ligne / Série'] || row['Ligne/Série'] || row['Ligne'] || row['Serie'] || row['Série'] || row['ligne'] || null,
+      pays: row['Pays'] || row['pays'] || row['Origine'] || row['origine'] || null,
+      modele: row['Modèle'] || row['Modele'] || row['modele'] || row['modèle'] || null,
       
       vitole: row['Vitole'] || row['vitole'] || null,
       format: row['Format'] || row['format'] || null,
@@ -102,14 +105,21 @@ const ImportExcel = () => {
         const sheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(sheet);
         
+        const columns = Object.keys(json[0] || {});
+        setRawColumns(columns);
+        setRawFirstRow(json[0] || null);
+        
         const transformed = json
           .filter(row => row['SKU'] || row['sku'])
           .map(mapExcelRowToProduct);
 
         setPreview(transformed);
+        setDebugProduct(transformed[0] || null);
         toast.success(`${transformed.length} produits analysés.`);
         
-        console.log('Colonnes Excel détectées:', Object.keys(json[0] || {}));
+        console.log('=== DEBUG IMPORT EXCEL ===');
+        console.log('Colonnes Excel détectées:', columns);
+        console.log('Première ligne brute:', json[0]);
         console.log('Premier produit transformé:', transformed[0]);
       } catch (error) {
         toast.error("Erreur lors de la lecture du fichier Excel.");
@@ -171,6 +181,52 @@ const ImportExcel = () => {
             </div>
             <button onClick={() => { setFile(null); setPreview([]); }} className="text-sm text-destructive hover:underline">Changer</button>
           </div>
+
+          {/* DEBUG: Colonnes Excel détectées */}
+          {rawColumns.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <h3 className="font-bold text-blue-800">🔍 DEBUG - Colonnes Excel détectées ({rawColumns.length})</h3>
+              <div className="flex flex-wrap gap-1">
+                {rawColumns.map((col, i) => (
+                  <span key={i} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-mono">
+                    "{col}"
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* DEBUG: Première ligne brute */}
+          {rawFirstRow && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+              <h3 className="font-bold text-purple-800">📋 DEBUG - Première ligne Excel (CTGCU0001 ou autre)</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {Object.entries(rawFirstRow).map(([key, value], i) => (
+                  <div key={i} className="flex gap-2 bg-purple-100 p-2 rounded">
+                    <span className="font-mono font-bold text-purple-700">"{key}":</span>
+                    <span className="text-purple-900">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* DEBUG: Produit transformé */}
+          {debugProduct && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+              <h3 className="font-bold text-green-800">✅ DEBUG - Produit transformé complet ({debugProduct.sku})</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {Object.entries(debugProduct).map(([key, value], i) => (
+                  <div key={i} className="flex gap-2 bg-green-100 p-2 rounded">
+                    <span className="font-mono font-bold text-green-700">{key}:</span>
+                    <span className="text-green-900">
+                      {typeof value === 'object' ? JSON.stringify(value) : String(value ?? 'null')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="border rounded-lg overflow-hidden overflow-x-auto">
             <table className="w-full text-sm text-left">
