@@ -41,37 +41,38 @@ const ProductGrid = () => {
   };
 
   const extractRingGauge = (product) => {
-    const source =
-      product.diametre ||
-      product.diameter ||
-      product.ringGauge ||
-      product.gauge ||
-      product.dimensions ||
-      product.dimension ||
-      product.taille ||
-      product.size ||
-      "";
-
-    if (!source) return null;
-
-    const matches = String(source).match(/(\d+(?:[.,]\d+)?)/g);
-    if (!matches || matches.length === 0) return null;
-
-    const last = matches[matches.length - 1];
-    const gauge = parseFloat(last.replace(",", "."));
-    if (isNaN(gauge)) return null;
-
-    return gauge;
+    // PRIORITÉ 1 : Champ ringGauge direct (colonne Ring de l'Excel)
+    if (product.ringGauge && !isNaN(product.ringGauge)) {
+      return parseInt(product.ringGauge);
+    }
+    
+    // PRIORITÉ 2 : Extraire de dimensions (pouces) - le 2ème nombre
+    if (product.dimensions) {
+      const match = product.dimensions.match(/(\d+(?:[.,]\d+)?)\s*[×xX]\s*(\d+)/);
+      if (match) {
+        return parseInt(match[2]); // Le 2ème nombre = ring gauge
+      }
+    }
+    
+    // PRIORITÉ 3 : Extraire du format si contient dimensions
+    if (product.format && product.format.includes('×')) {
+      const match = product.format.match(/(\d+)\s*[×xX]\s*(\d+)/);
+      if (match) {
+        return parseInt(match[2]);
+      }
+    }
+    
+    return null;
   };
 
   const getRingCategory = (product) => {
     const gauge = extractRingGauge(product);
     if (gauge == null) return null;
 
-    if (gauge < 50) return "S";
-    if (gauge <= 54) return "M";
-    if (gauge <= 59) return "L";
-    if (gauge <= 69) return "XL";
+    if (gauge < 42) return "S";
+    if (gauge < 48) return "M";
+    if (gauge < 52) return "L";
+    if (gauge < 56) return "XL";
     return "XXL";
   };
 
@@ -285,11 +286,11 @@ const ProductGrid = () => {
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
                   <option value="Tous">Toutes tailles</option>
-                  <option value="S">S (&lt; 50)</option>
-                  <option value="M">M (50 – 54)</option>
-                  <option value="L">L (55 – 59)</option>
-                  <option value="XL">XL (60 – 69)</option>
-                  <option value="XXL">XXL (70+)</option>
+                  <option value="S">S (&lt; 42)</option>
+                  <option value="M">M (42 – 47)</option>
+                  <option value="L">L (48 – 51)</option>
+                  <option value="XL">XL (52 – 55)</option>
+                  <option value="XXL">XXL (56+)</option>
                 </select>
               </div>
             </div>

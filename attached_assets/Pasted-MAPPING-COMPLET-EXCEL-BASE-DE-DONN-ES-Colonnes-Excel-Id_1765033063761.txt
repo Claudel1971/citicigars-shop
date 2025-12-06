@@ -1,0 +1,241 @@
+MAPPING COMPLET EXCEL → BASE DE DONNÉES
+📊 Colonnes Excel Identifiées
+SKU
+Marque
+Ligne / Série
+Pays
+Vitole
+Format
+Dimensions (pouces)
+Dimensions (mm)
+Lenght
+Ring
+Qté/boîte
+Puissance
+Note
+Top25
+Rang
+Année
+p. u.
+Rabais (%)
+Qte / pack
+
+🔄 Mapping Exact
+Colonne ExcelExemple ValeurChamp Base de DonnéesTypeSKUCTGNI0004skustringMarqueCasa CarrillomarquestringLigne / SériePledgelignestringPaysRep. DominicainepaysstringVitoleRobustovitolestringFormatToroformatstringDimensions (pouces)6 × 54dimensionsstringDimensions (mm)152 × 21,4dimensionsMMstringLenght6longueurnumberRing54ringGaugenumberQté/boîte25qteBoitenumberPuissance5puissancenumberNote98ratingnumberTop25Oui / Nontop25booleanRang1ranknumberAnnée2020yearnumberp. u.180prixUnitairenumberRabais (%)10rabaisnumberQte / pack5typePacknumber
+
+💻 Code de Mapping Complet
+Fonction mapExcelRowToProduct()
+javascriptconst mapExcelRowToProduct = (row) => {
+  // Normaliser le rabais (enlever le signe - si présent)
+  const normaliserRabais = (rabais) => {
+    if (!rabais || rabais === 0) return 0;
+    return Math.abs(parseFloat(rabais));
+  };
+
+  const rabais = normaliserRabais(row['Rabais (%)']);
+  const prixUnitaire = parseFloat(row['p. u.']) || 0;
+  const qtyPack = parseInt(row['Qte / pack']) || 4;
+  const qtyBoite = parseInt(row['Qté/boîte']) || 25;
+
+  // Calculer les prix promo
+  const calculerPrixPromo = (prix, rabaisPct) => {
+    if (rabaisPct === 0) return null;
+    const prixAvecRabais = prix * (1 - rabaisPct / 100);
+    return Math.round(prixAvecRabais * 2) / 2; // Arrondi 0.50
+  };
+
+  return {
+    // Identification
+    sku: row['SKU'],
+    marque: row['Marque'],
+    ligne: row['Ligne / Série'],
+    pays: row['Pays'],
+    
+    // ✅ DIMENSIONS - MAPPING CORRECT
+    vitole: row['Vitole'],                      // "Robusto", "Toro"
+    format: row['Format'],                      // "Toro", "Churchill"
+    dimensions: row['Dimensions (pouces)'],     // "6 × 54" ← CHAMP PRINCIPAL
+    dimensionsMM: row['Dimensions (mm)'],       // "152 × 21,4" (à ignorer)
+    longueur: parseFloat(row['Lenght']) || null,
+    ringGauge: parseInt(row['Ring']) || null,
+    
+    // Conditionnements
+    qteBoite: qtyBoite,
+    typePack: qtyPack,
+    conditionnements: {
+      pack: qtyPack,
+      boite: qtyBoite
+    },
+    
+    // Évaluations
+    puissance: parseInt(row['Puissance']) || 0,
+    rating: parseInt(row['Note']) || null,
+    top25: row['Top25'] === 'Oui' || row['Top25'] === 'OUI' || row['Top25'] === true,
+    rank: parseInt(row['Rang']) || null,
+    year: parseInt(row['Année']) || null,
+    
+    // Badge CA (Cigar Aficionado)
+    badges: {
+      rating: row['Note'] && row['Note'] !== 'NA' ? row['Note'] : null
+    },
+    
+    // Prix de base
+    prixUnitaire: prixUnitaire,
+    
+    // Promotions calculées
+    promotions: {
+      unitaire: {
+        actif: rabais > 0,
+        pourcentage: rabais,
+        prixPromo: calculerPrixPromo(prixUnitaire, rabais)
+      },
+      pack: {
+        actif: rabais > 0,
+        pourcentage: rabais,
+        prixPromo: calculerPrixPromo(prixUnitaire * qtyPack, rabais)
+      },
+      boite: {
+        actif: rabais > 0,
+        pourcentage: rabais,
+        prixPromo: calculerPrixPromo(prixUnitaire * qtyBoite, rabais)
+      }
+    },
+    
+    // Prix calculés (sans promo)
+    prixPack: prixUnitaire * qtyPack,
+    prixBoite: prixUnitaire * qtyBoite,
+    
+    // État par défaut
+    inCatalogue: true,
+    coupDeCoeur: false,
+    stock: 0  // À remplir manuellement après import
+  };
+};
+
+🔍 Extraction du Ring Gauge (Mise à Jour)
+Maintenant simplifié car on a dimensions en pouces :
+javascriptconst extractRingGauge = (product) => {
+  // PRIORITÉ 1 : Champ ringGauge direct (colonne Ring)
+  if (product.ringGauge && !isNaN(product.ringGauge)) {
+    return parseInt(product.ringGauge);
+  }
+  
+  // PRIORITÉ 2 : Extraire de dimensions (pouces)
+  if (product.dimensions) {
+    const match = product.dimensions.match(/(\d+(?:[.,]\d+)?)\s*[×xX]\s*(\d+)/);
+    if (match) {
+      return parseInt(match[2]); // Le 2ème nombre = ring gauge
+    }
+  }
+  
+  // PRIORITÉ 3 : Extraire du vitole si contient dimensions
+  if (product.vitole && product.vitole.includes('×')) {
+    const match = product.vitole.match(/(\d+)\s*[×xX]\s*(\d+)/);
+    if (match) {
+      return parseInt(match[2]);
+    }
+  }
+  
+  return null;
+};
+
+// Catégorisation S/M/L/XL/XXL
+const getRingCategory = (product) => {
+  const gauge = extractRingGauge(product);
+  if (gauge == null) return null;
+  
+  if (gauge < 42) return "S";
+  if (gauge < 48) return "M";
+  if (gauge < 52) return "L";
+  if (gauge < 56) return "XL";
+  return "XXL";
+};
+
+📝 Exemple de Transformation
+Ligne Excel :
+SKU: CTGRD0007
+Marque: Casa Carrillo
+Ligne / Série: Pledge
+Pays: Rep. Dominicaine
+Vitole: Robusto
+Format: Toro
+Dimensions (pouces): 5 × 50
+Dimensions (mm): 152 × 21,4
+Lenght: 5
+Ring: 50
+Qté/boîte: 20
+Puissance: 5
+Note: 98
+Top25: Oui
+Rang: 1
+Année: 2020
+p. u.: 180
+Rabais (%): -10
+Qte / pack: 5
+Résultat en Base de Données :
+javascript{
+  sku: "CTGRD0007",
+  marque: "Casa Carrillo",
+  ligne: "Pledge",
+  pays: "Rep. Dominicaine",
+  vitole: "Robusto",
+  format: "Toro",
+  dimensions: "5 × 50",        // ← Pouces (utilisé pour filtre)
+  dimensionsMM: "152 × 21,4",  // ← MM (ignoré)
+  longueur: 5,
+  ringGauge: 50,               // ← Utilisé pour filtre grosseur
+  qteBoite: 20,
+  typePack: 5,
+  conditionnements: { pack: 5, boite: 20 },
+  puissance: 5,
+  rating: 98,
+  top25: true,
+  rank: 1,
+  year: 2020,
+  badges: { rating: "98" },
+  prixUnitaire: 180,
+  promotions: {
+    unitaire: {
+      actif: true,
+      pourcentage: 10,
+      prixPromo: 162.0   // 180 * 0.9 = 162, arrondi à 0.50
+    },
+    pack: {
+      actif: true,
+      pourcentage: 10,
+      prixPromo: 810.0   // (180 * 5) * 0.9 = 810
+    },
+    boite: {
+      actif: true,
+      pourcentage: 10,
+      prixPromo: 3240.0  // (180 * 20) * 0.9 = 3240
+    }
+  },
+  prixPack: 900,   // 180 * 5
+  prixBoite: 3600, // 180 * 20
+  inCatalogue: true,
+  coupDeCoeur: false,
+  stock: 0
+}
+
+✅ Points Critiques
+
+"Dimensions (pouces)" → dimensions (champ principal pour filtre)
+"Dimensions (mm)" → dimensionsMM (ignoré par les filtres)
+"Ring" → ringGauge (champ direct, prioritaire)
+"Rabais (%)" → Toujours normalisé en positif (10, pas -10)
+Prix promo → Calculés automatiquement et arrondis à 0.50
+Images → Conservées lors du ré-import (associées par SKU)
+
+
+🚀 Procédure de Ré-import
+
+✅ Implémenter ce mapping dans ImportExcel.jsx
+✅ Tester avec 1-2 lignes d'abord
+✅ Importer tout l'Excel
+✅ Vérifier que les images sont toujours là (par SKU)
+✅ Tester le filtre grosseur (S/M/L/XL/XXL)
+✅ Tester l'affichage du vitole
+
+
+FIN DU MAPPING COMPLET
