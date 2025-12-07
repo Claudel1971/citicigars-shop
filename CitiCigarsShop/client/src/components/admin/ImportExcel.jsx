@@ -100,10 +100,20 @@ const ImportExcel = () => {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', defval: '' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet);
+        
+        const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        
+        const json = rawJson.map(row => {
+          const normalized = {};
+          Object.keys(row).forEach(key => {
+            const cleanKey = key.trim();
+            normalized[cleanKey] = row[key];
+          });
+          return normalized;
+        });
         
         const columns = Object.keys(json[0] || {});
         setRawColumns(columns);
