@@ -1,18 +1,14 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { ShoppingCart, Heart, Menu, X, User, Crown } from 'lucide-react';
+import { ShoppingCart, Heart, Menu, X } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
-import { useConfig } from '@/context/ConfigContext';
 import { cn } from '@/lib/utils';
-import Button from '../shared/Button';
-import { Switch } from '@/components/ui/switch';
 
 const Header = () => {
   const [location] = useLocation();
   const { itemCount, setIsOpen } = useCart();
   const { wishlist } = useWishlist();
-  const { config, toggleMemberStatus } = useConfig();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const navLinks = [
@@ -45,15 +41,6 @@ const Header = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          {/* Member Toggle (Mock) */}
-          <div className="hidden lg:flex items-center gap-2 mr-4 px-3 py-1 bg-secondary/10 rounded-full border border-secondary/20">
-             <Switch checked={config.isMember} onCheckedChange={toggleMemberStatus} id="member-mode" />
-             <label htmlFor="member-mode" className="text-xs font-bold text-primary cursor-pointer flex items-center gap-1">
-                {config.isMember ? <Crown size={14} className="text-secondary fill-secondary" /> : <User size={14} />}
-                {config.isMember ? "MEMBRE CLUB" : "VISITEUR"}
-             </label>
-          </div>
-
           <Link href="/wishlist" className="relative p-2 hover:bg-accent rounded-full transition-colors text-primary">
               <Heart className={cn("h-6 w-6", wishlist.length > 0 && "fill-destructive stroke-destructive")} />
               {wishlist.length > 0 && (
@@ -89,10 +76,6 @@ const Header = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t p-4 bg-background">
           <nav className="flex flex-col gap-4">
-            <div className="flex items-center justify-between py-2 px-4 bg-secondary/10 rounded-md">
-                <span className="text-sm font-bold">Mode Membre</span>
-                <Switch checked={config.isMember} onCheckedChange={toggleMemberStatus} />
-            </div>
             {navLinks.map(link => (
               <Link key={link.href} href={link.href} className="text-lg font-medium py-2 px-4 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>
                   {link.label}
