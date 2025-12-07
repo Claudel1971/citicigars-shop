@@ -88,6 +88,16 @@ class ApiService {
     return response.json();
   }
 
+  async bulkUpdatePuissance(updates) {
+    const response = await fetch(`${API_BASE}/products/bulk-update-puissance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates }),
+    });
+    if (!response.ok) throw new Error('Failed to bulk update puissance');
+    return response.json();
+  }
+
   async importProducts(products) {
     const response = await fetch(`${API_BASE}/products/import`, {
       method: 'POST',

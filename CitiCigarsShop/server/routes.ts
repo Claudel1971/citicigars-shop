@@ -152,6 +152,59 @@ export async function registerRoutes(
     }
   });
 
+  // Bulk update puissance
+  app.post("/api/products/bulk-update-puissance", async (req, res) => {
+    try {
+      const { updates } = req.body;
+      
+      if (!updates || !Array.isArray(updates)) {
+        return res.status(400).json({ error: "Updates array required" });
+      }
+
+      const results = {
+        updated: 0,
+        notFound: [] as string[],
+        errors: [] as string[],
+      };
+
+      for (const update of updates) {
+        try {
+          const { sku, puissance } = update;
+          
+          if (!sku) {
+            results.errors.push("SKU manquant");
+            continue;
+          }
+
+          if (puissance === undefined || puissance === null || puissance < 1 || puissance > 5) {
+            results.errors.push(`Puissance invalide pour ${sku}`);
+            continue;
+          }
+
+          const existing = await storage.getProduct(sku);
+          if (!existing) {
+            results.notFound.push(sku);
+            continue;
+          }
+
+          await storage.updateProduct(sku, { puissance });
+          results.updated++;
+        } catch (err) {
+          results.errors.push(`Erreur pour ${update.sku}: ${err}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${results.updated} produits mis à jour`,
+        ...results,
+      });
+    } catch (error) {
+      console.error("Error bulk updating puissance:", error);
+      res.status(500).json({ error: "Failed to bulk update puissance" });
+    }
+  });
+
   // Import products from Excel
   app.post("/api/products/import", async (req, res) => {
     try {

@@ -4,6 +4,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import Dashboard from '@/components/admin/Dashboard';
 import ImportExcel from '@/components/admin/ImportExcel';
 import UpdatePricesExcel from '@/components/admin/UpdatePricesExcel';
+import UpdatePuissanceExcel from '@/components/admin/UpdatePuissanceExcel';
 import UploadImages from '@/components/admin/UploadImages';
 import GestionAssociations from '@/components/admin/GestionAssociations';
 import PackConfig from '@/components/admin/PackConfig';
@@ -157,6 +158,7 @@ const Admin = () => {
               <Route path="/admin" component={Dashboard} />
               <Route path="/admin/import" component={ImportExcel} />
               <Route path="/admin/prices" component={UpdatePricesExcel} />
+              <Route path="/admin/puissance" component={UpdatePuissanceExcel} />
               <Route path="/admin/promotions" component={PromotionManager} />
               <Route path="/admin/images" component={UploadImages} />
               <Route path="/admin/associations" component={GestionAssociations} />
