@@ -104,7 +104,7 @@ const ImportExcel = () => {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         
-        const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
         
         const json = rawJson.map(row => {
           const normalized = {};
