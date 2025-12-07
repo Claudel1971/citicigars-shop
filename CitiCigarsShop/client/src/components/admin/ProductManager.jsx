@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import apiService from '@/services/apiService';
-import { Search, Loader2, Package } from 'lucide-react';
+import { Search, Loader2, Package, Save, X, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ProductManager = () => {
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState({});
 
   const normaliserRabais = (rabais) => {
     if (!rabais || rabais === 0) return 0;
@@ -45,89 +47,125 @@ const ProductManager = () => {
     return prixBase;
   };
 
-  const handleUpdatePricing = async (sku, newPrixUnitaire, newRabais) => {
-    const product = products.find(p => p.sku === sku);
-    if (!product) return;
+  const getProductWithChanges = (sku) => {
+    const original = products.find(p => p.sku === sku);
+    if (!original) return null;
+    const changes = pendingChanges[sku] || {};
+    return { ...original, ...changes };
+  };
 
-    setUpdating(sku);
-    const rabaisPositif = normaliserRabais(newRabais);
-    const qtyPack = product.quantitePack || product.typePack || 4;
-    const qtyBoite = product.qteBoite || product.quantiteBoite || 25;
+  const handleLocalChange = (sku, field, value) => {
+    setPendingChanges(prev => ({
+      ...prev,
+      [sku]: {
+        ...prev[sku],
+        [field]: value
+      }
+    }));
+  };
 
-    const prixPromoUnitaire = calculerPrixPromo(newPrixUnitaire, rabaisPositif);
-    const prixPack = calculerPrixPack(newPrixUnitaire, qtyPack, rabaisPositif);
-    const prixBoite = calculerPrixBoite(newPrixUnitaire, qtyBoite, rabaisPositif);
+  const handlePriceChange = (sku, newPrixUnitaire) => {
+    handleLocalChange(sku, 'prixUnitaire', parseInt(newPrixUnitaire) || 0);
+  };
 
-    const updatedProduct = {
-      prixUnitaire: newPrixUnitaire,
-      prixPack: rabaisPositif > 0 ? prixPack : product.prixPack,
-      prixBoite: rabaisPositif > 0 ? prixBoite : product.prixBoite,
-      promotions: {
-        unitaire: {
-          actif: rabaisPositif > 0,
-          pourcentage: rabaisPositif,
-          prixPromo: prixPromoUnitaire
-        },
-        pack: {
-          actif: rabaisPositif > 0,
-          pourcentage: rabaisPositif,
-          prixPromo: prixPack
-        },
-        boite: {
-          actif: rabaisPositif > 0,
-          pourcentage: rabaisPositif,
-          prixPromo: prixBoite
+  const handleRabaisChange = (sku, newRabais) => {
+    handleLocalChange(sku, 'rabais', parseInt(newRabais) || 0);
+  };
+
+  const handleToggleCatalogue = (sku, newStatus) => {
+    handleLocalChange(sku, 'inCatalogue', newStatus);
+  };
+
+  const handleToggleCoupDeCoeur = (sku, newStatus) => {
+    handleLocalChange(sku, 'coupDeCoeur', newStatus);
+  };
+
+  const pendingCount = Object.keys(pendingChanges).length;
+
+  const discardChanges = () => {
+    if (pendingCount > 0 && confirm(`Annuler ${pendingCount} modification(s) en attente ?`)) {
+      setPendingChanges({});
+      toast.info('Modifications annulees');
+    }
+  };
+
+  const saveAllChanges = async () => {
+    if (pendingCount === 0) return;
+
+    setSaving(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const [sku, changes] of Object.entries(pendingChanges)) {
+        const product = products.find(p => p.sku === sku);
+        if (!product) continue;
+
+        const updatedData = {};
+
+        if ('prixUnitaire' in changes || 'rabais' in changes) {
+          const newPrixUnitaire = changes.prixUnitaire ?? product.prixUnitaire;
+          const newRabais = normaliserRabais(changes.rabais ?? product.promotions?.unitaire?.pourcentage ?? 0);
+          const qtyPack = product.quantitePack || product.typePack || 4;
+          const qtyBoite = product.qteBoite || product.quantiteBoite || 25;
+
+          const prixPromoUnitaire = calculerPrixPromo(newPrixUnitaire, newRabais);
+          const prixPack = calculerPrixPack(newPrixUnitaire, qtyPack, newRabais);
+          const prixBoite = calculerPrixBoite(newPrixUnitaire, qtyBoite, newRabais);
+
+          updatedData.prixUnitaire = newPrixUnitaire;
+          updatedData.prixPack = newRabais > 0 ? prixPack : product.prixPack;
+          updatedData.prixBoite = newRabais > 0 ? prixBoite : product.prixBoite;
+          updatedData.promotions = {
+            unitaire: {
+              actif: newRabais > 0,
+              pourcentage: newRabais,
+              prixPromo: prixPromoUnitaire
+            },
+            pack: {
+              actif: newRabais > 0,
+              pourcentage: newRabais,
+              prixPromo: prixPack
+            },
+            boite: {
+              actif: newRabais > 0,
+              pourcentage: newRabais,
+              prixPromo: prixBoite
+            }
+          };
+        }
+
+        if ('inCatalogue' in changes) {
+          updatedData.inCatalogue = changes.inCatalogue;
+        }
+
+        if ('coupDeCoeur' in changes) {
+          updatedData.coupDeCoeur = changes.coupDeCoeur;
+        }
+
+        try {
+          await apiService.updateProduct(sku, updatedData);
+          successCount++;
+        } catch (error) {
+          console.error(`Erreur pour ${sku}:`, error);
+          errorCount++;
         }
       }
-    };
 
-    try {
-      await apiService.updateProduct(sku, updatedProduct);
+      if (successCount > 0) {
+        toast.success(`${successCount} produit(s) mis a jour avec succes`);
+      }
+      if (errorCount > 0) {
+        toast.error(`${errorCount} erreur(s) lors de la sauvegarde`);
+      }
+
+      setPendingChanges({});
       await loadProducts();
     } catch (error) {
-      console.error('Erreur mise à jour prix:', error);
-      alert('Erreur lors de la mise à jour');
+      console.error('Erreur sauvegarde:', error);
+      toast.error('Erreur lors de la sauvegarde');
     } finally {
-      setUpdating(null);
-    }
-  };
-
-  const handlePriceChange = async (sku, newPrixUnitaire) => {
-    const product = products.find(p => p.sku === sku);
-    if (!product) return;
-    const rabaisActuel = product.promotions?.unitaire?.pourcentage || 0;
-    await handleUpdatePricing(sku, newPrixUnitaire, rabaisActuel);
-  };
-
-  const handleRabaisChange = async (sku, newRabais) => {
-    const product = products.find(p => p.sku === sku);
-    if (!product) return;
-    await handleUpdatePricing(sku, product.prixUnitaire, newRabais);
-  };
-
-  const handleToggleCatalogue = async (sku, newStatus) => {
-    setUpdating(sku);
-    try {
-      await apiService.updateProduct(sku, { inCatalogue: newStatus });
-      await loadProducts();
-    } catch (error) {
-      console.error('Erreur toggle catalogue:', error);
-      alert('Erreur lors du changement de visibilité');
-    } finally {
-      setUpdating(null);
-    }
-  };
-
-  const handleToggleCoupDeCoeur = async (sku, newStatus) => {
-    setUpdating(sku);
-    try {
-      await apiService.updateProduct(sku, { coupDeCoeur: newStatus });
-      await loadProducts();
-    } catch (error) {
-      console.error('Erreur toggle coup de coeur:', error);
-      alert('Erreur lors du changement');
-    } finally {
-      setUpdating(null);
+      setSaving(false);
     }
   };
 
@@ -138,7 +176,7 @@ const ProductManager = () => {
       setProducts(allProducts);
     } catch (error) {
       console.error('Erreur chargement produits:', error);
-      alert('Erreur lors du chargement');
+      toast.error('Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
@@ -149,23 +187,29 @@ const ProductManager = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    let result = products;
+    let result = products.map(p => {
+      const changes = pendingChanges[p.sku] || {};
+      return { ...p, ...changes, _hasChanges: !!pendingChanges[p.sku] };
+    });
 
     switch (filter) {
       case 'visible':
-        result = products.filter(p => p.inCatalogue !== false);
+        result = result.filter(p => p.inCatalogue !== false);
         break;
       case 'hidden':
-        result = products.filter(p => p.inCatalogue === false);
+        result = result.filter(p => p.inCatalogue === false);
         break;
       case 'promo':
-        result = products.filter(p => p.promotions?.unitaire?.actif === true);
+        result = result.filter(p => p.promotions?.unitaire?.actif === true || (pendingChanges[p.sku]?.rabais > 0));
         break;
       case 'favorite':
-        result = products.filter(p => p.coupDeCoeur === true);
+        result = result.filter(p => p.coupDeCoeur === true);
+        break;
+      case 'modified':
+        result = result.filter(p => p._hasChanges);
         break;
       default:
-        result = products;
+        result = result;
     }
 
     if (search) {
@@ -178,7 +222,7 @@ const ProductManager = () => {
     }
 
     return result.sort((a, b) => (a.marque || '').localeCompare(b.marque || ''));
-  }, [products, filter, search]);
+  }, [products, filter, search, pendingChanges]);
 
   const formatPrice = (price) => {
     if (!price && price !== 0) return '-';
@@ -204,13 +248,13 @@ const ProductManager = () => {
   }
 
   return (
-    <div className="p-6 max-w-full">
+    <div className="p-6 max-w-full pb-24">
       <div className="mb-6">
         <h1 className="text-2xl font-serif font-bold text-primary mb-2">
           Gestion des Produits
         </h1>
         <p className="text-muted-foreground">
-          Gerez la visibilite, les prix, les promotions et les coups de coeur
+          Modifiez vos produits librement. Les changements ne seront enregistres qu'apres avoir clique sur "Sauvegarder".
         </p>
       </div>
 
@@ -268,6 +312,16 @@ const ProductManager = () => {
             >
               Coups de coeur ({favoriteCount})
             </button>
+            {pendingCount > 0 && (
+              <button
+                onClick={() => setFilter('modified')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  filter === 'modified' ? 'bg-orange-600 text-white' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                }`}
+              >
+                Modifies ({pendingCount})
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -300,13 +354,29 @@ const ProductManager = () => {
               ) : (
                 filteredProducts.map((produit) => {
                   const image = getProductImage(produit);
-                  const isUpdating = updating === produit.sku;
+                  const hasChanges = produit._hasChanges;
+                  const changes = pendingChanges[produit.sku] || {};
+                  const originalProduct = products.find(p => p.sku === produit.sku);
+
+                  const currentPrixUnitaire = changes.prixUnitaire ?? produit.prixUnitaire ?? 0;
+                  const currentRabais = changes.rabais ?? produit.promotions?.unitaire?.pourcentage ?? 0;
+                  const currentInCatalogue = 'inCatalogue' in changes ? changes.inCatalogue : produit.inCatalogue !== false;
+                  const currentCoupDeCoeur = 'coupDeCoeur' in changes ? changes.coupDeCoeur : produit.coupDeCoeur || false;
+
                   const qtyPack = produit.quantitePack || produit.typePack || 4;
                   const qtyBoite = produit.qteBoite || produit.quantiteBoite || 25;
-                  const rabais = produit.promotions?.unitaire?.pourcentage || 0;
+
+                  const prixFinal = currentRabais > 0 
+                    ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
+                    : currentPrixUnitaire;
+                  const prixPack = calculerPrixPack(currentPrixUnitaire, qtyPack, currentRabais);
+                  const prixBoite = calculerPrixBoite(currentPrixUnitaire, qtyBoite, currentRabais);
 
                   return (
-                    <tr key={produit.sku} className={`hover:bg-gray-50 transition-colors ${isUpdating ? 'opacity-50' : ''}`}>
+                    <tr 
+                      key={produit.sku} 
+                      className={`hover:bg-gray-50 transition-colors ${hasChanges ? 'bg-orange-50 border-l-4 border-l-orange-400' : ''}`}
+                    >
                       <td className="px-3 py-3">
                         <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                           {image ? (
@@ -324,17 +394,22 @@ const ProductManager = () => {
                           </span>
                           <span className="text-xs text-muted-foreground">SKU: {produit.sku}</span>
                           <div className="flex gap-1 flex-wrap">
-                            {produit.promotions?.unitaire?.actif && (
-                              <span className="bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">
-                                -{Math.abs(rabais)}%
+                            {hasChanges && (
+                              <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-xs font-bold">
+                                Modifie
                               </span>
                             )}
-                            {produit.coupDeCoeur && (
+                            {currentRabais > 0 && (
+                              <span className="bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">
+                                -{Math.abs(currentRabais)}%
+                              </span>
+                            )}
+                            {currentCoupDeCoeur && (
                               <span className="bg-pink-500 text-white px-2 py-0.5 rounded text-xs">
                                 Coup de coeur
                               </span>
                             )}
-                            {produit.inCatalogue === false && (
+                            {!currentInCatalogue && (
                               <span className="bg-gray-500 text-white px-2 py-0.5 rounded text-xs">
                                 Masque
                               </span>
@@ -348,10 +423,11 @@ const ProductManager = () => {
                           <input
                             type="number"
                             step="50"
-                            value={produit.prixUnitaire || 0}
-                            onChange={(e) => handlePriceChange(produit.sku, parseInt(e.target.value) || 0)}
-                            disabled={isUpdating}
-                            className="w-24 px-2 py-1 border rounded text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                            value={currentPrixUnitaire}
+                            onChange={(e) => handlePriceChange(produit.sku, e.target.value)}
+                            className={`w-24 px-2 py-1 border rounded text-sm focus:border-blue-500 focus:outline-none ${
+                              'prixUnitaire' in changes ? 'border-orange-400 bg-orange-50' : ''
+                            }`}
                           />
                           <span className="text-xs text-gray-500">FCFA</span>
                         </div>
@@ -365,28 +441,29 @@ const ProductManager = () => {
                             min="0"
                             max="100"
                             step="1"
-                            value={Math.abs(rabais)}
-                            onChange={(e) => handleRabaisChange(produit.sku, parseInt(e.target.value) || 0)}
-                            disabled={isUpdating}
-                            className="w-16 px-2 py-1 border rounded text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                            value={Math.abs(currentRabais)}
+                            onChange={(e) => handleRabaisChange(produit.sku, e.target.value)}
+                            className={`w-16 px-2 py-1 border rounded text-sm focus:border-blue-500 focus:outline-none ${
+                              'rabais' in changes ? 'border-orange-400 bg-orange-50' : ''
+                            }`}
                           />
                           <span className="text-sm">%</span>
                         </div>
                       </td>
 
                       <td className="px-3 py-3">
-                        {produit.promotions?.unitaire?.actif ? (
+                        {currentRabais > 0 ? (
                           <div className="flex flex-col">
                             <span className="text-red-600 font-bold">
-                              {formatPrice(produit.promotions.unitaire.prixPromo)} FCFA
+                              {formatPrice(prixFinal)} FCFA
                             </span>
                             <span className="text-xs text-gray-400 line-through">
-                              {formatPrice(produit.prixUnitaire)} FCFA
+                              {formatPrice(currentPrixUnitaire)} FCFA
                             </span>
                           </div>
                         ) : (
                           <span className="font-bold">
-                            {formatPrice(produit.prixUnitaire)} FCFA
+                            {formatPrice(currentPrixUnitaire)} FCFA
                           </span>
                         )}
                       </td>
@@ -395,7 +472,7 @@ const ProductManager = () => {
                         <div className="text-sm text-gray-700">
                           <div className="font-semibold text-xs">Pack ({qtyPack})</div>
                           <div>
-                            {formatPrice(calculerPrixPack(produit.prixUnitaire, qtyPack, rabais))} FCFA
+                            {formatPrice(prixPack)} FCFA
                           </div>
                         </div>
                       </td>
@@ -404,7 +481,7 @@ const ProductManager = () => {
                         <div className="text-sm text-gray-700">
                           <div className="font-semibold text-xs">Boite ({qtyBoite})</div>
                           <div>
-                            {formatPrice(calculerPrixBoite(produit.prixUnitaire, qtyBoite, rabais))} FCFA
+                            {formatPrice(prixBoite)} FCFA
                           </div>
                         </div>
                       </td>
@@ -417,14 +494,15 @@ const ProductManager = () => {
                         <label className="flex flex-col items-center cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={produit.inCatalogue !== false}
-                            onChange={() => handleToggleCatalogue(produit.sku, produit.inCatalogue === false)}
-                            disabled={isUpdating}
+                            checked={currentInCatalogue}
+                            onChange={() => handleToggleCatalogue(produit.sku, !currentInCatalogue)}
                             className="sr-only peer"
                           />
-                          <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                          <div className={`relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500 ${
+                            'inCatalogue' in changes ? 'ring-2 ring-orange-400' : ''
+                          }`}></div>
                           <span className="text-xs font-medium mt-1">
-                            {produit.inCatalogue !== false ? 'Visible' : 'Masque'}
+                            {currentInCatalogue ? 'Visible' : 'Masque'}
                           </span>
                         </label>
                       </td>
@@ -433,14 +511,15 @@ const ProductManager = () => {
                         <label className="flex flex-col items-center cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={produit.coupDeCoeur || false}
-                            onChange={() => handleToggleCoupDeCoeur(produit.sku, !produit.coupDeCoeur)}
-                            disabled={isUpdating}
+                            checked={currentCoupDeCoeur}
+                            onChange={() => handleToggleCoupDeCoeur(produit.sku, !currentCoupDeCoeur)}
                             className="sr-only peer"
                           />
-                          <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                          <div className={`relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500 ${
+                            'coupDeCoeur' in changes ? 'ring-2 ring-orange-400' : ''
+                          }`}></div>
                           <span className="text-2xl mt-1">
-                            {produit.coupDeCoeur ? '\u2764\uFE0F' : '\u{1F90D}'}
+                            {currentCoupDeCoeur ? '\u2764\uFE0F' : '\u{1F90D}'}
                           </span>
                         </label>
                       </td>
@@ -456,6 +535,42 @@ const ProductManager = () => {
       <div className="mt-4 text-sm text-muted-foreground text-center">
         {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} affiche{filteredProducts.length > 1 ? 's' : ''}
       </div>
+
+      {pendingCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-50 md:left-64">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-orange-600">
+              <AlertCircle className="h-5 w-5" />
+              <span className="font-medium">
+                {pendingCount} modification{pendingCount > 1 ? 's' : ''} en attente
+              </span>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={discardChanges}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+                Annuler
+              </button>
+              <button
+                onClick={saveAllChanges}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? 'Sauvegarde...' : 'Sauvegarder tout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
