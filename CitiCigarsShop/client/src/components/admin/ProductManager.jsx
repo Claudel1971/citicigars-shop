@@ -201,16 +201,16 @@ const ProductManager = () => {
 
     switch (filter) {
       case 'visible':
-        result = result.filter(p => p.inCatalogue !== false);
+        result = result.filter(p => p._hasChanges || p.inCatalogue !== false);
         break;
       case 'hidden':
-        result = result.filter(p => p.inCatalogue === false);
+        result = result.filter(p => p._hasChanges || p.inCatalogue === false);
         break;
       case 'promo':
-        result = result.filter(p => p.promotions?.unitaire?.actif === true || (pendingChanges[p.sku]?.rabais > 0));
+        result = result.filter(p => p._hasChanges || p.promotions?.unitaire?.actif === true || (pendingChanges[p.sku]?.rabais > 0));
         break;
       case 'favorite':
-        result = result.filter(p => p.coupDeCoeur === true);
+        result = result.filter(p => p._hasChanges || p.coupDeCoeur === true);
         break;
       case 'modified':
         result = result.filter(p => p._hasChanges);
