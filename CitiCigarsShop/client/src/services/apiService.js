@@ -100,6 +100,12 @@ class ApiService {
     }
     return response.json();
   }
+
+  async getProductImages(sku) {
+    const response = await fetch(`${API_BASE}/products/${sku}/images`);
+    if (!response.ok) return null;
+    return response.json();
+  }
 }
 
 const apiService = new ApiService();

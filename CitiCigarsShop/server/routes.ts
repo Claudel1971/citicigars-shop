@@ -11,23 +11,40 @@ export async function registerRoutes(
   
   // === PRODUCTS API ===
   
-  // Get all products with their images
+  // Get all products (lightweight - no image data by default)
   app.get("/api/products", async (req, res) => {
     try {
+      const includeImages = req.query.includeImages === 'true';
       const products = await storage.getAllProducts();
       
-      // Get images for each product
-      const productsWithImages = await Promise.all(
-        products.map(async (product) => {
-          const images = await storage.getImagesBySku(product.sku);
-          return mapProductWithImages(product, images);
-        })
-      );
-      
-      res.json(productsWithImages);
+      if (includeImages) {
+        // Full load with images (slower)
+        const productsWithImages = await Promise.all(
+          products.map(async (product) => {
+            const images = await storage.getImagesBySku(product.sku);
+            return mapProductWithImages(product, images);
+          })
+        );
+        res.json(productsWithImages);
+      } else {
+        // Lightweight load - just product data, no images
+        res.json(products);
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+
+  // Get images for a specific product (called on demand)
+  app.get("/api/products/:sku/images", async (req, res) => {
+    try {
+      const images = await storage.getImagesBySku(req.params.sku);
+      const imageMap = mapImagesToFields(images);
+      res.json(imageMap);
+    } catch (error) {
+      console.error("Error fetching images:", error);
+      res.status(500).json({ error: "Failed to fetch images" });
     }
   });
 
@@ -359,4 +376,45 @@ function mapProductWithImages(product: any, images: any[]) {
     ...imageMap,
     images,
   };
+}
+
+// Helper to map images to field names (without product data)
+function mapImagesToFields(images: any[]) {
+  const normalizeType = (type: string) =>
+    (type || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  const imageMap: any = {
+    imagePrincipale: null,
+    imageSolo: null,
+    imagePack: null,
+    imagePack4: null,
+    imagePack5: null,
+    imageBoite: null,
+  };
+
+  images.forEach((img) => {
+    const t = normalizeType(img.type);
+
+    if (t.includes('principale') || t.includes('open') || t.includes('defaut')) {
+      imageMap.imagePrincipale = img.data;
+    } else if (t.includes('solo') || t.includes('cigare')) {
+      imageMap.imageSolo = img.data;
+    } else if (t === 'pack4' || t.includes('pack_4') || t.includes('pack (4)')) {
+      imageMap.imagePack4 = img.data;
+      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+    } else if (t === 'pack5' || t.includes('pack_5') || t.includes('pack (5)')) {
+      imageMap.imagePack5 = img.data;
+      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+    } else if (t.includes('pack')) {
+      imageMap.imagePack = img.data;
+    } else if (t.includes('boite') || t.includes('closed')) {
+      imageMap.imageBoite = img.data;
+    }
+  });
+
+  return imageMap;
 }

@@ -14,12 +14,16 @@ export const ProductProvider = ({ children }) => {
   useEffect(() => {
     const initData = async () => {
       try {
-        // First, try to seed the database (will skip if already seeded)
-        await apiService.seedDatabase();
-        console.log("✅ Database seeded or already populated");
-
-        // Then fetch all products
-        const loadedProducts = await apiService.getAllProducts();
+        // Load products directly (faster - no seed call)
+        let loadedProducts = await apiService.getAllProducts();
+        
+        // Only seed if database is empty (first time setup)
+        if (loadedProducts.length === 0) {
+          console.log("🌱 Database empty, seeding...");
+          await apiService.seedDatabase();
+          loadedProducts = await apiService.getAllProducts();
+        }
+        
         setProducts(loadedProducts);
         setDbInitialized(true);
         setLoading(false);

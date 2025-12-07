@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatPrice, calculateDiscountedPrice } from "@/utils/priceCalculator";
 import generatedImage from "@assets/generated_images/single_premium_cigar.png";
 import Button from "../shared/Button";
+import LazyProductImage from "./LazyProductImage";
 
 function getPuissanceLabel(puissance) {
   const labels = {
@@ -97,12 +98,12 @@ const ProductCard = ({ product, onOpenDetails }) => {
     return (
       <div className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow border-2 border-purple-300 flex flex-col h-full">
         <div className="relative h-64 bg-gradient-to-br from-purple-100 to-pink-100">
-          <img
-            src={produit.imageBundle || mainImage}
+          <LazyProductImage
+            sku={produit.sku}
+            format="bundle"
+            existingImages={produit.imagePrincipale ? produit : null}
             alt={produit.marque}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
+            className="w-full h-full"
           />
           <div className="absolute top-3 left-3 bg-purple-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg flex items-center gap-2">
             <span className="text-xl">🎁</span>
@@ -178,12 +179,12 @@ const ProductCard = ({ product, onOpenDetails }) => {
         className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
         onClick={() => onOpenDetails && onOpenDetails(produit)}
       >
-        <img
-          src={currentImage}
+        <LazyProductImage
+          sku={produit.sku}
+          format={selectedFormat}
+          existingImages={produit.imagePrincipale ? produit : null}
           alt={produit.marque}
-          className="w-full h-64 object-contain bg-gray-50"
-          loading="lazy"
-          decoding="async"
+          className="w-full h-64 bg-gray-50"
         />
 
         {(produit.badges?.coty ||
