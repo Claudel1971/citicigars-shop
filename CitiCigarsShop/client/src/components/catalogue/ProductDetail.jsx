@@ -39,9 +39,18 @@ const imageCache = new Map();
 
 const ProductDetail = ({ product, isOpen, onClose }) => {
   const { addToCart } = useCart();
-  const [selectedFormat, setSelectedFormat] = useState("unitaire");
+  const isBundle = product?.type === "bundle";
+  const [selectedFormat, setSelectedFormat] = useState(isBundle ? "bundle" : "unitaire");
   const [images, setImages] = useState(null);
   const [imagesLoading, setImagesLoading] = useState(false);
+
+  useEffect(() => {
+    if (product?.type === "bundle") {
+      setSelectedFormat("bundle");
+    } else {
+      setSelectedFormat("unitaire");
+    }
+  }, [product?.sku, product?.type]);
 
   useEffect(() => {
     if (!isOpen || !product?.sku) {
@@ -76,6 +85,15 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
 
   // 🔧 FIX: Use exact prixPromo from database (already rounded), NEVER calculate
   const getPrice = (fmt) => {
+    if (isBundle || fmt === "bundle") {
+      return {
+        base: product.prixBundle || product.prixUnitaire,
+        final: product.prixBundle || product.prixUnitaire,
+        isPromo: false,
+        pct: 0,
+      };
+    }
+
     let base, promoObj;
     switch (fmt) {
       case "pack":
@@ -105,6 +123,10 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
 
   const getImageByFormat = (fmt) => {
     if (!images) return generatedImage;
+    
+    if (isBundle || fmt === "bundle") {
+      return images.imageBoite || images.imagePrincipale || generatedImage;
+    }
     
     switch (fmt) {
       case "pack":
@@ -326,59 +348,104 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 value="details"
                 className="space-y-4 animate-in fade-in slide-in-from-bottom-2"
               >
-                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                  <span className="text-muted-foreground">Cape:</span>
-                  <span className="font-medium">Habano Ecuador</span>
-                  <span className="text-muted-foreground">Sous-cape:</span>
-                  <span className="font-medium">Dominican Republic</span>
-                  <span className="text-muted-foreground">Tripe:</span>
-                  <span className="font-medium">Nicaragua / Dominican</span>
-                  <span className="text-muted-foreground">Ring Gauge:</span>
-                  <span className="font-medium">
-                    {product.diametre || "N/A"}
-                  </span>
-                </div>
+                {isBundle && product.composition && product.composition.length > 0 ? (
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-purple-800 text-sm flex items-center gap-2">
+                      <span>📦</span> Composition du bundle
+                    </h5>
+                    <div className="bg-purple-50 rounded-lg p-3 space-y-2">
+                      {product.composition.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between items-start text-sm text-gray-700 border-b border-purple-100 pb-2 last:border-0 last:pb-0"
+                        >
+                          <span className="flex-1">
+                            <span className="font-medium">{item.quantite}x</span>{" "}
+                            {item.marque} {item.modele}
+                          </span>
+                          <div className="flex flex-col items-end gap-1">
+                            {item.rating && (
+                              <span className="font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded text-xs">
+                                {item.rating}
+                              </span>
+                            )}
+                            {item.top25 && (
+                              <span className="text-xs text-amber-600 font-bold">
+                                {item.top25}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-y-2 text-sm">
+                    <span className="text-muted-foreground">Cape:</span>
+                    <span className="font-medium">Habano Ecuador</span>
+                    <span className="text-muted-foreground">Sous-cape:</span>
+                    <span className="font-medium">Dominican Republic</span>
+                    <span className="text-muted-foreground">Tripe:</span>
+                    <span className="font-medium">Nicaragua / Dominican</span>
+                    <span className="text-muted-foreground">Ring Gauge:</span>
+                    <span className="font-medium">
+                      {product.diametre || "N/A"}
+                    </span>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 
             {/* Footer: Price & Add to Cart */}
             <div className="mt-auto pt-6 border-t border-border">
               <div className="flex gap-2 mb-4">
-                {["unitaire", "pack", "boite"]
-                  .filter((fmt) => {
-                    // Only show formats that have a price
-                    if (fmt === "pack") return product.prixPack > 0;
-                    if (fmt === "boite") return product.prixBoite > 0;
-                    return true; // unitaire always shown
-                  })
-                  .map((fmt) => {
-                    const p = getPrice(fmt);
-                    return (
-                      <button
-                        key={fmt}
-                        onClick={() => setSelectedFormat(fmt)}
-                        className={cn(
-                          "flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all",
-                          selectedFormat === fmt
-                            ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                            : "border-border text-muted-foreground hover:border-primary/50",
-                        )}
-                      >
-                        <span className="block capitalize text-xs mb-1">
-                          {fmt === "unitaire"
-                            ? "Unité"
-                            : fmt.charAt(0).toUpperCase() + fmt.slice(1)}
-                          {fmt === "pack" &&
-                            ` (${product.quantitePack || product.typePack || 5})`}
-                          {fmt === "boite" &&
-                            ` (${product.quantiteBoite || product.qteBoite || 10})`}
-                        </span>
-                        <span className="font-bold">
-                          {formatPrice(p.final)}
-                        </span>
-                      </button>
-                    );
-                  })}
+                {isBundle ? (
+                  <button
+                    className="flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500"
+                  >
+                    <span className="block text-xs mb-1">
+                      Bundle ({product.quantiteBoite || product.qteBoite || 4} cigares)
+                    </span>
+                    <span className="font-bold">
+                      {formatPrice(product.prixBundle || product.prixUnitaire)}
+                    </span>
+                  </button>
+                ) : (
+                  ["unitaire", "pack", "boite"]
+                    .filter((fmt) => {
+                      if (fmt === "pack") return product.prixPack > 0;
+                      if (fmt === "boite") return product.prixBoite > 0;
+                      return true;
+                    })
+                    .map((fmt) => {
+                      const p = getPrice(fmt);
+                      return (
+                        <button
+                          key={fmt}
+                          onClick={() => setSelectedFormat(fmt)}
+                          className={cn(
+                            "flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all",
+                            selectedFormat === fmt
+                              ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                              : "border-border text-muted-foreground hover:border-primary/50",
+                          )}
+                        >
+                          <span className="block capitalize text-xs mb-1">
+                            {fmt === "unitaire"
+                              ? "Unité"
+                              : fmt.charAt(0).toUpperCase() + fmt.slice(1)}
+                            {fmt === "pack" &&
+                              ` (${product.quantitePack || product.typePack || 5})`}
+                            {fmt === "boite" &&
+                              ` (${product.quantiteBoite || product.qteBoite || 10})`}
+                          </span>
+                          <span className="font-bold">
+                            {formatPrice(p.final)}
+                          </span>
+                        </button>
+                      );
+                    })
+                )}
               </div>
 
               <div className="flex items-center justify-between gap-4">

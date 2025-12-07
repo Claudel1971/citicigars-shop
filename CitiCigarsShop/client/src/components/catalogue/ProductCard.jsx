@@ -100,7 +100,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
         <div className="relative h-64 bg-gradient-to-br from-purple-100 to-pink-100">
           <LazyProductImage
             sku={produit.sku}
-            format="bundle"
+            format="principale"
             existingImages={produit.imagePrincipale ? produit : null}
             alt={produit.marque}
             className="w-full h-full"
@@ -112,44 +112,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
         </div>
         <div className="p-5 flex flex-col flex-1">
           <h3 className="text-2xl font-bold text-purple-900 mb-2">
-            {produit.marque} {produit.modele}
+            {produit.marque} {produit.ligne || produit.modele}
           </h3>
           <p className="text-gray-700 mb-4 text-sm flex-1 leading-relaxed">
-            {produit.description}
+            {produit.description || `Assortiment de ${produit.quantiteBoite || produit.qteBoite || 4} cigares premium`}
           </p>
-          {produit.composition && produit.composition.length > 0 && (
-            <div className="bg-purple-50 rounded-lg p-3 mb-4">
-              <p className="text-xs font-semibold text-purple-800 mb-2">
-                📦 Composition :
-              </p>
-              <div className="space-y-1">
-                {produit.composition.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-start text-xs text-gray-700 border-b border-purple-100 pb-1 last:border-0 last:pb-0"
-                  >
-                    <span>
-                      • {item.quantite}x {item.marque} {item.modele}
-                    </span>
-                    <div className="flex flex-col items-end">
-                      {item.rating && (
-                        <span className="font-bold text-purple-600 bg-purple-100 px-1 rounded ml-2">
-                          {item.rating}
-                        </span>
-                      )}
-                      {item.top25 && (
-                        <span className="text-[10px] text-amber-600 font-bold">
-                          {item.top25}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg p-4 text-center mb-4">
-            <p className="text-sm opacity-90 mb-1">Prix de l'assortiment</p>
+            <p className="text-sm opacity-90 mb-1">Prix du bundle</p>
             <p className="text-3xl font-bold">
               {formatPrice(produit.prixBundle || produit.prixUnitaire)}
             </p>
