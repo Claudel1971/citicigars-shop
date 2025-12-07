@@ -96,8 +96,8 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
   if (produit.type === "bundle") {
     return (
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow border-2 border-purple-300 flex flex-col h-full">
-        <div className="relative h-64 bg-gradient-to-br from-purple-100 to-pink-100">
+      <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+        <div className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100">
           <LazyProductImage
             sku={produit.sku}
             format="principale"
@@ -105,19 +105,19 @@ const ProductCard = ({ product, onOpenDetails }) => {
             alt={produit.marque}
             className="w-full h-full"
           />
-          <div className="absolute top-3 left-3 bg-purple-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg flex items-center gap-2">
-            <span className="text-xl">🎁</span>
+          <div className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+            <span>🎁</span>
             <span>ASSORTIMENT</span>
           </div>
         </div>
         <div className="p-5 flex flex-col flex-1">
-          <h3 className="text-2xl font-bold text-purple-900 mb-2">
+          <h3 className="text-lg font-bold text-foreground mb-2">
             {produit.marque} {produit.ligne || produit.modele}
           </h3>
-          <p className="text-gray-700 mb-4 text-sm flex-1 leading-relaxed">
+          <p className="text-muted-foreground mb-4 text-sm flex-1 leading-relaxed">
             {produit.description || `Assortiment de ${produit.quantiteBoite || produit.qteBoite || 4} cigares premium`}
           </p>
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg p-4 text-center mb-4">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg p-4 text-center mb-4">
             <p className="text-sm opacity-90 mb-1">Prix du bundle</p>
             <p className="text-3xl font-bold">
               {formatPrice(produit.prixBundle || produit.prixUnitaire)}
@@ -126,13 +126,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
           <div className="flex gap-2">
             <button
               onClick={() => onOpenDetails && onOpenDetails(produit)}
-              className="flex-1 bg-purple-100 text-purple-800 py-2 rounded hover:bg-purple-200 transition-colors font-medium"
+              className="flex-1 bg-accent text-accent-foreground py-2 rounded hover:bg-accent/80 transition-colors font-medium"
             >
               Détails
             </button>
             <button
               onClick={() => handleQuickAdd("bundle", 1)}
-              className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition-colors font-bold"
+              className="flex-1 bg-primary text-primary-foreground py-2 rounded hover:bg-primary/90 transition-colors font-bold"
             >
               Ajouter 🛒
             </button>

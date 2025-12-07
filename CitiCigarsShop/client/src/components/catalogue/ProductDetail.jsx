@@ -350,14 +350,14 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               >
                 {isBundle && product.composition && product.composition.length > 0 ? (
                   <div className="space-y-3">
-                    <h5 className="font-bold text-purple-800 text-sm flex items-center gap-2">
+                    <h5 className="font-bold text-primary text-sm flex items-center gap-2">
                       <span>📦</span> Composition du bundle
                     </h5>
-                    <div className="bg-purple-50 rounded-lg p-3 space-y-2">
+                    <div className="bg-accent/50 rounded-lg p-3 space-y-2">
                       {product.composition.map((item, idx) => (
                         <div
                           key={idx}
-                          className="flex justify-between items-start text-sm text-gray-700 border-b border-purple-100 pb-2 last:border-0 last:pb-0"
+                          className="flex justify-between items-start text-sm text-foreground border-b border-border pb-2 last:border-0 last:pb-0"
                         >
                           <span className="flex-1">
                             <span className="font-medium">{item.quantite}x</span>{" "}
@@ -365,7 +365,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                           </span>
                           <div className="flex flex-col items-end gap-1">
                             {item.rating && (
-                              <span className="font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded text-xs">
+                              <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-xs">
                                 {item.rating}
                               </span>
                             )}
@@ -401,7 +401,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               <div className="flex gap-2 mb-4">
                 {isBundle ? (
                   <button
-                    className="flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all border-purple-500 bg-purple-50 text-purple-700 ring-1 ring-purple-500"
+                    className="flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all border-primary bg-primary/5 text-primary ring-1 ring-primary"
                   >
                     <span className="block text-xs mb-1">
                       Bundle ({product.quantiteBoite || product.qteBoite || 4} cigares)
