@@ -387,6 +387,7 @@ export default function ContentManager() {
               updateField={updateField}
               addSlide={addSlide}
               removeSlide={removeSlide}
+              token={token}
             />
           )}
 
@@ -437,7 +438,7 @@ export default function ContentManager() {
   );
 }
 
-function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
+function CarouselEditor({ slides, updateField, addSlide, removeSlide, token }) {
   const [expandedSlide, setExpandedSlide] = useState(null);
 
   return (
@@ -464,11 +465,19 @@ function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
             onClick={() => setExpandedSlide(expandedSlide === index ? null : index)}
           >
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                expandedSlide === index ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
-                {index + 1}
-              </div>
+              {slide.imageUrl ? (
+                <img 
+                  src={slide.imageUrl} 
+                  alt="" 
+                  className="w-12 h-8 object-cover rounded"
+                />
+              ) : (
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  expandedSlide === index ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {index + 1}
+                </div>
+              )}
               <div>
                 <h5 className="font-medium text-gray-800 text-sm">
                   {slide.title || `Slide ${index + 1}`}
@@ -495,6 +504,12 @@ function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
 
           {expandedSlide === index && (
             <div className="p-4 bg-gray-50 grid gap-4">
+              <ImageUploader
+                label="Image de fond"
+                currentUrl={slide.imageUrl}
+                onImageChange={(url) => updateField(`home.heroSlides[${index}].imageUrl`, url)}
+                token={token}
+              />
               <Field
                 label="Titre principal"
                 value={slide.title}
@@ -507,12 +522,6 @@ function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
                 onChange={(v) => updateField(`home.heroSlides[${index}].subtitle`, v)}
                 textarea
                 placeholder="Ex: Découvrez notre sélection de cigares premium..."
-              />
-              <Field
-                label="URL de l'image de fond"
-                value={slide.imageUrl}
-                onChange={(v) => updateField(`home.heroSlides[${index}].imageUrl`, v)}
-                placeholder="https://... ou /images/..."
               />
             <div className="grid grid-cols-2 gap-4">
               <Field
@@ -844,6 +853,193 @@ function LoginForm({ onLogin }) {
           {loading ? 'Connexion...' : 'Valider'}
         </button>
       </form>
+    </div>
+  );
+}
+
+function ImageUploader({ label, currentUrl, onImageChange, token }) {
+  const [uploading, setUploading] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [assets, setAssets] = useState([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const loadAssets = async () => {
+    setLoadingAssets(true);
+    try {
+      const res = await fetch('/api/cms/assets');
+      if (res.ok) {
+        setAssets(await res.json());
+      }
+    } catch (err) {
+      console.error('Error loading assets:', err);
+    } finally {
+      setLoadingAssets(false);
+    }
+  };
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!token) {
+      alert('Veuillez vous connecter avec le mot de passe CMS');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await fetch('/api/cms/assets', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        onImageChange(data.url);
+        setShowPicker(false);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Erreur lors de l\'upload');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Erreur lors de l\'upload');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const selectAsset = (url) => {
+    onImageChange(url);
+    setShowPicker(false);
+  };
+
+  const removeImage = () => {
+    onImageChange('');
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      
+      {currentUrl ? (
+        <div className="relative inline-block">
+          <img 
+            src={currentUrl} 
+            alt="Preview" 
+            className="w-full max-w-md h-32 object-cover rounded-lg border"
+          />
+          <div className="absolute top-2 right-2 flex gap-1">
+            <button
+              onClick={() => { loadAssets(); setShowPicker(true); }}
+              className="p-1.5 bg-white rounded-lg shadow hover:bg-gray-50"
+              title="Changer l'image"
+            >
+              <Upload size={16} />
+            </button>
+            <button
+              onClick={removeImage}
+              className="p-1.5 bg-white rounded-lg shadow hover:bg-red-50 text-red-500"
+              title="Supprimer l'image"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => { loadAssets(); setShowPicker(true); }}
+          className="w-full max-w-md h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors"
+        >
+          <Upload size={24} className="text-gray-400" />
+          <span className="text-sm text-gray-500">Ajouter une image</span>
+        </button>
+      )}
+
+      {showPicker && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-bold text-lg">Sélectionner une image</h3>
+              <button 
+                onClick={() => setShowPicker(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 border-b">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full py-3 border-2 border-dashed border-primary rounded-lg text-primary hover:bg-primary/5 flex items-center justify-center gap-2 font-medium"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Upload en cours...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={18} />
+                    Uploader une nouvelle image
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                JPG, PNG, WebP ou GIF - Max 5 Mo
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              <h4 className="text-sm font-medium text-gray-600 mb-3">Images existantes</h4>
+              {loadingAssets ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={24} className="animate-spin text-gray-400" />
+                </div>
+              ) : assets.length === 0 ? (
+                <p className="text-center text-gray-400 py-8">Aucune image uploadée</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {assets.map((asset) => (
+                    <button
+                      key={asset.filename}
+                      onClick={() => selectAsset(asset.url)}
+                      className={`relative aspect-video rounded-lg overflow-hidden border-2 hover:border-primary transition-colors ${
+                        currentUrl === asset.url ? 'border-primary ring-2 ring-primary/20' : 'border-gray-200'
+                      }`}
+                    >
+                      <img 
+                        src={asset.url} 
+                        alt="" 
+                        className="w-full h-full object-cover"
+                      />
+                      {currentUrl === asset.url && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                          <CheckCircle className="text-primary" size={24} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
