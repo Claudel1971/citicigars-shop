@@ -101,6 +101,8 @@ const ProductCard = ({ product, onOpenDetails }) => {
             src={produit.imageBundle || mainImage}
             alt={produit.marque}
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
           <div className="absolute top-3 left-3 bg-purple-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg flex items-center gap-2">
             <span className="text-xl">🎁</span>
@@ -180,6 +182,8 @@ const ProductCard = ({ product, onOpenDetails }) => {
           src={currentImage}
           alt={produit.marque}
           className="w-full h-64 object-contain bg-gray-50"
+          loading="lazy"
+          decoding="async"
         />
 
         {(produit.badges?.coty ||
