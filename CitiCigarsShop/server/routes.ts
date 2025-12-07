@@ -5,7 +5,10 @@ import { catalogueData } from "../client/src/data/catalogueData";
 import { bundlesData } from "../client/src/data/bundles";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const CONTENT_FILE = path.join(__dirname, "content.json");
 const ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD || "citicigars2024";
 
