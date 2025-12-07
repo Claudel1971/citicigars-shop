@@ -8,6 +8,7 @@ import { CartProvider } from "@/context/CartContext";
 import { ProductProvider } from "@/context/ProductContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { ConfigProvider } from "@/context/ConfigContext";
+import { ContentProvider } from "@/context/ContentContext";
 
 import Home from "@/pages/Home";
 import Catalogue from "@/pages/Catalogue";
@@ -55,16 +56,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider>
-        <ProductProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <TooltipProvider>
-                <Router />
-                <Toaster />
-              </TooltipProvider>
-            </CartProvider>
-          </WishlistProvider>
-        </ProductProvider>
+        <ContentProvider>
+          <ProductProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <TooltipProvider>
+                  <Router />
+                  <Toaster />
+                </TooltipProvider>
+              </CartProvider>
+            </WishlistProvider>
+          </ProductProvider>
+        </ContentProvider>
       </ConfigProvider>
     </QueryClientProvider>
   );
