@@ -388,6 +388,96 @@ export async function registerRoutes(
     }
   });
 
+  // === CMS CONTENT API ===
+
+  // Helper: Read content file
+  function readContent() {
+    try {
+      if (fs.existsSync(CONTENT_FILE)) {
+        const data = fs.readFileSync(CONTENT_FILE, "utf-8");
+        return JSON.parse(data);
+      }
+    } catch (err) {
+      console.error("Error reading content file:", err);
+    }
+    return null;
+  }
+
+  // Helper: Write content file
+  function writeContent(content: any) {
+    content._meta = {
+      lastUpdated: new Date().toISOString(),
+      updatedBy: "admin"
+    };
+    fs.writeFileSync(CONTENT_FILE, JSON.stringify(content, null, 2), "utf-8");
+  }
+
+  // Helper: Sanitize strings (basic XSS prevention + length limits)
+  function sanitizeString(str: string, maxLength = 1000): string {
+    if (typeof str !== "string") return "";
+    return str
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<[^>]*on\w+\s*=/gi, "<")
+      .slice(0, maxLength);
+  }
+
+  function sanitizeContent(obj: any): any {
+    if (typeof obj === "string") {
+      return sanitizeString(obj);
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(sanitizeContent);
+    }
+    if (obj && typeof obj === "object") {
+      const result: any = {};
+      for (const key of Object.keys(obj)) {
+        if (key !== "_meta") {
+          result[key] = sanitizeContent(obj[key]);
+        }
+      }
+      return result;
+    }
+    return obj;
+  }
+
+  // GET /api/content - Public: retrieve content
+  app.get("/api/content", (req, res) => {
+    const content = readContent();
+    if (!content) {
+      return res.status(500).json({ error: "Content not available" });
+    }
+    res.json(content);
+  });
+
+  // POST /api/content/login - Admin login
+  app.post("/api/content/login", (req, res) => {
+    const { password } = req.body;
+    if (password === ADMIN_PASSWORD) {
+      res.json({ success: true, token: Buffer.from(ADMIN_PASSWORD).toString("base64") });
+    } else {
+      res.status(401).json({ error: "Mot de passe incorrect" });
+    }
+  });
+
+  // PUT /api/content - Admin: update content
+  app.put("/api/content", (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace("Bearer ", "");
+    
+    if (!token || Buffer.from(token, "base64").toString() !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const sanitized = sanitizeContent(req.body);
+      writeContent(sanitized);
+      res.json({ success: true, content: readContent() });
+    } catch (error) {
+      console.error("Error updating content:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
   return httpServer;
 }
 
