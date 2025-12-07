@@ -104,18 +104,29 @@ const ImportExcel = () => {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         
-        const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        const headers = [];
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+          const cell = sheet[cellAddress];
+          headers.push(cell ? String(cell.v).trim() : `__EMPTY_${C}`);
+        }
+        
+        console.log('=== HEADERS BRUTS ===', headers);
+        
+        const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true, header: headers });
+        rawJson.shift();
         
         const json = rawJson.map(row => {
           const normalized = {};
           Object.keys(row).forEach(key => {
-            const cleanKey = key.trim();
+            const cleanKey = String(key).trim();
             normalized[cleanKey] = row[key];
           });
           return normalized;
         });
         
-        const columns = Object.keys(json[0] || {});
+        const columns = headers;
         setRawColumns(columns);
         setRawFirstRow(json[0] || null);
         
