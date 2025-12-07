@@ -1,33 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useContent } from '@/context/ContentContext';
 import generatedImage from '@assets/generated_images/luxury_cigar_lounge_hero_background.png';
 
-const slidesDefaut = [
-  {
-    image: generatedImage,
-    title: "L'Art de la Dégustation",
-    subtitle: "Découvrez notre sélection exclusive de cigares cubains et du nouveau monde.",
-    ctaText: "Explorer le catalogue",
-    ctaLink: "/catalogue"
-  },
-  {
-    image: "https://images.unsplash.com/photo-1533052967778-5932d302867f?q=80&w=2070&auto=format&fit=crop",
-    title: "Promotions Hivernales",
-    subtitle: "Jusqu'à -20% sur une sélection de coffrets prestige.",
-    ctaText: "Voir les offres",
-    ctaLink: "/promotions"
-  },
-  {
-    image: "https://images.unsplash.com/photo-1625468823554-236b96759603?q=80&w=2070&auto=format&fit=crop",
-    title: "Nouveaux Arrivages",
-    subtitle: "Les dernières pépites d'Arturo Fuente et Padron.",
-    ctaText: "Découvrir",
-    ctaLink: "/catalogue"
-  }
+const defaultImages = [
+  generatedImage,
+  "https://images.unsplash.com/photo-1533052967778-5932d302867f?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1625468823554-236b96759603?q=80&w=2070&auto=format&fit=crop"
 ];
 
-export default function HeroCarousel({ slides = slidesDefaut }) {
+export default function HeroCarousel() {
+  const { content } = useContent();
+  
+  const slides = (content?.home?.heroSlides || []).map((slide, index) => ({
+    ...slide,
+    image: defaultImages[index] || defaultImages[0]
+  }));
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [, setLocation] = useLocation();
