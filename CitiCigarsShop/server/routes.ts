@@ -3,6 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { catalogueData } from "../client/src/data/catalogueData";
 import { bundlesData } from "../client/src/data/bundles";
+import * as fs from "fs";
+import * as path from "path";
+
+const CONTENT_FILE = path.join(__dirname, "content.json");
+const ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD || "citicigars2024";
 
 export async function registerRoutes(
   httpServer: Server,
