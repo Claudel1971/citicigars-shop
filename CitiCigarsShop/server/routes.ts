@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { catalogueData } from "../client/src/data/catalogueData";
@@ -45,6 +46,13 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  // === CMS ASSETS STATIC SERVING ===
+  app.use('/cms-assets', express.static(CMS_ASSETS_DIR, {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true
+  }));
   
   // === PRODUCTS API ===
   

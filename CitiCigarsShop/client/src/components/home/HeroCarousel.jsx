@@ -15,7 +15,7 @@ export default function HeroCarousel() {
   
   const slides = (content?.home?.heroSlides || []).map((slide, index) => ({
     ...slide,
-    image: defaultImages[index] || defaultImages[0]
+    image: slide.imageUrl || defaultImages[index] || defaultImages[0]
   }));
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
