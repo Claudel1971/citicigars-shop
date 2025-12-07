@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,9 +18,11 @@ import {
   Thermometer,
   MapPin,
   Info,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import generatedImage from "@assets/generated_images/single_premium_cigar.png";
+import apiService from "@/services/apiService";
 
 function getPuissanceLabel(puissance) {
   const labels = {
@@ -33,9 +35,42 @@ function getPuissanceLabel(puissance) {
   return labels[puissance] || "";
 }
 
+const imageCache = new Map();
+
 const ProductDetail = ({ product, isOpen, onClose }) => {
   const { addToCart } = useCart();
-  const [selectedFormat, setSelectedFormat] = React.useState("unitaire");
+  const [selectedFormat, setSelectedFormat] = useState("unitaire");
+  const [images, setImages] = useState(null);
+  const [imagesLoading, setImagesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !product?.sku) {
+      setImages(null);
+      return;
+    }
+
+    const fetchImages = async () => {
+      if (imageCache.has(product.sku)) {
+        setImages(imageCache.get(product.sku));
+        return;
+      }
+
+      setImagesLoading(true);
+      try {
+        const imgData = await apiService.getProductImages(product.sku);
+        if (imgData) {
+          imageCache.set(product.sku, imgData);
+          setImages(imgData);
+        }
+      } catch (err) {
+        console.error(`Error loading images for ${product.sku}:`, err);
+      } finally {
+        setImagesLoading(false);
+      }
+    };
+
+    fetchImages();
+  }, [isOpen, product?.sku]);
 
   if (!product) return null;
 
@@ -68,22 +103,24 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
     };
   };
 
-  // Image selection based on format
   const getImageByFormat = (fmt) => {
+    if (!images) return generatedImage;
+    
     switch (fmt) {
       case "pack":
         return (
-          product.imagePack ||
-          product.imagePack4 ||
-          product.imagePack5 ||
-          product.imagePrincipale ||
+          images.imagePack ||
+          images.imagePack4 ||
+          images.imagePack5 ||
+          images.imagePrincipale ||
+          images.imageSolo ||
           generatedImage
         );
       case "boite":
-        return product.imageBoite || product.imagePrincipale || generatedImage;
+        return images.imageBoite || images.imagePrincipale || generatedImage;
       case "unitaire":
       default:
-        return product.imageSolo || product.imagePrincipale || generatedImage;
+        return images.imagePrincipale || images.imageSolo || generatedImage;
     }
   };
 
@@ -102,10 +139,15 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
           {/* Left: Image */}
           <div className="relative h-[300px] md:h-full bg-muted flex items-center justify-center p-8 overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] opacity-10 mix-blend-multiply"></div>
+            {imagesLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted/80 z-10">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              </div>
+            )}
             <img
               src={currentImage}
               alt={product.modele}
-              className="max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-700"
+              className={`max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-all duration-700 ${imagesLoading ? 'opacity-30' : 'opacity-100'}`}
             />
 
             {/* BADGES */}
