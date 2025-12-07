@@ -155,7 +155,7 @@ const ImportExcel = () => {
         <p className="text-amber-700">
           SKU, Marque, Ligne / Série, Pays, Vitole, Format, Dimensions (pouces), 
           Dimensions (mm), Lenght, Ring, Qté/boîte, Puissance, Note, Top25, 
-          Rang, Année, p. u., Rabais (%), Qte / pack
+          Rang, Année, <strong>Prix unitaire</strong>, Rabais (%), Qte / pack
         </p>
       </div>
 
