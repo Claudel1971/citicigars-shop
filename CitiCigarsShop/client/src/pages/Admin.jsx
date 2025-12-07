@@ -9,6 +9,7 @@ import UploadImages from '@/components/admin/UploadImages';
 import GestionAssociations from '@/components/admin/GestionAssociations';
 import PackConfig from '@/components/admin/PackConfig';
 import ProductManager from '@/components/admin/ProductManager';
+import ContentManager from '@/components/admin/ContentManager';
 import { Menu } from 'lucide-react';
 
 const PromotionManager = () => <div className="p-8">Gestion des promotions (À venir)</div>;
@@ -164,6 +165,7 @@ const Admin = () => {
               <Route path="/admin/associations" component={GestionAssociations} />
               <Route path="/admin/config" component={PackConfig} />
               <Route path="/admin/products" component={ProductManager} />
+              <Route path="/admin/content" component={ContentManager} />
               
               {/* If we are here, it means we matched /admin/* in App.tsx but nothing specific above */}
               {/* This might be a sub-route not covered or just a trailing slash issue */}
