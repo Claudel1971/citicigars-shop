@@ -96,46 +96,82 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
   if (produit.type === "bundle") {
     return (
-      <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-        <div className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
+        <div
+          className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
+          onClick={() => onOpenDetails && onOpenDetails(produit)}
+        >
           <LazyProductImage
             sku={produit.sku}
             format="principale"
             existingImages={produit.imagePrincipale ? produit : null}
             alt={produit.marque}
-            className="w-full h-full"
+            className="w-full h-64 bg-gray-50"
           />
-          <div className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-            <span>🎁</span>
-            <span>ASSORTIMENT</span>
+
+          <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+              <span>🎁</span>
+              <span>ASSORTIMENT</span>
+            </div>
           </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleWishlist(produit);
+            }}
+            className="absolute top-2 right-2 bg-white bg-opacity-90 p-2 rounded-full hover:bg-opacity-100 transition-all shadow-sm"
+          >
+            {isWishlisted ? (
+              <span className="text-red-500 text-lg">♥</span>
+            ) : (
+              <span className="text-gray-400 text-lg">♡</span>
+            )}
+          </button>
         </div>
-        <div className="p-5 flex flex-col flex-1">
-          <h3 className="text-lg font-bold text-foreground mb-2">
-            {produit.marque} {produit.ligne || produit.modele}
+
+        <div className="p-5">
+          <h3 className="text-xl font-serif font-bold text-primary mb-1 leading-tight group-hover:text-secondary transition-colors">
+            {produit.marque}
+            {produit.ligne ? `, ${produit.ligne}` : ""}
           </h3>
-          <p className="text-muted-foreground mb-4 text-sm flex-1 leading-relaxed">
+
+          <p className="text-sm text-muted-foreground mb-3">
             {produit.description || `Assortiment de ${produit.quantiteBoite || produit.qteBoite || 4} cigares premium`}
           </p>
-          <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg p-4 text-center mb-4">
-            <p className="text-sm opacity-90 mb-1">Prix du bundle</p>
-            <p className="text-3xl font-bold">
-              {formatPrice(produit.prixBundle || produit.prixUnitaire)}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onOpenDetails && onOpenDetails(produit)}
-              className="flex-1 bg-accent text-accent-foreground py-2 rounded hover:bg-accent/80 transition-colors font-medium"
-            >
-              Détails
-            </button>
-            <button
-              onClick={() => handleQuickAdd("bundle", 1)}
-              className="flex-1 bg-primary text-primary-foreground py-2 rounded hover:bg-primary/90 transition-colors font-bold"
-            >
-              Ajouter 🛒
-            </button>
+
+          <div>
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
+              <div className="flex justify-between items-center py-1 px-1">
+                <span className="text-sm font-bold text-primary">
+                  Bundle ({produit.quantiteBoite || produit.qteBoite || 4} cigares) :
+                </span>
+                <span className="text-base font-bold text-primary">
+                  {formatPrice(produit.prixBundle || produit.prixUnitaire)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 text-xs border border-input hover:bg-accent"
+                onClick={() => onOpenDetails && onOpenDetails(produit)}
+              >
+                Détails
+              </Button>
+
+              <Button
+                size="sm"
+                className="flex-1 gap-1 bg-primary hover:bg-primary/90 text-white"
+                onClick={() => handleQuickAdd("bundle", 1)}
+              >
+                <ShoppingCart size={14} />
+                <span className="text-xs">Ajouter</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
