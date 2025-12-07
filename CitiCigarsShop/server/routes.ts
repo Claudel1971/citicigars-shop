@@ -6,11 +6,40 @@ import { bundlesData } from "../client/src/data/bundles";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import multer from "multer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CONTENT_FILE = path.join(__dirname, "content.json");
 const ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD || "citicigars2024";
+const CMS_ASSETS_DIR = path.join(__dirname, "../client/public/cms-assets");
+
+if (!fs.existsSync(CMS_ASSETS_DIR)) {
+  fs.mkdirSync(CMS_ASSETS_DIR, { recursive: true });
+}
+
+const cmsUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, CMS_ASSETS_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const name = path.basename(file.originalname, ext)
+        .replace(/[^a-zA-Z0-9-_]/g, '-')
+        .toLowerCase();
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E6);
+      cb(null, `${name}-${uniqueSuffix}${ext}`);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Type de fichier non autorisé'));
+    }
+  }
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -478,6 +507,81 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating content:", error);
       res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // === CMS ASSETS API ===
+
+  // Helper: Check CMS auth
+  function checkCmsAuth(req: any): boolean {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace("Bearer ", "");
+    return token && Buffer.from(token, "base64").toString() === ADMIN_PASSWORD;
+  }
+
+  // GET /api/cms/assets - List all CMS assets
+  app.get("/api/cms/assets", (req, res) => {
+    try {
+      const files = fs.readdirSync(CMS_ASSETS_DIR);
+      const assets = files
+        .filter(f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f))
+        .map(filename => {
+          const stats = fs.statSync(path.join(CMS_ASSETS_DIR, filename));
+          return {
+            filename,
+            url: `/cms-assets/${filename}`,
+            size: stats.size,
+            uploadedAt: stats.mtime.toISOString()
+          };
+        })
+        .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+      
+      res.json(assets);
+    } catch (error) {
+      console.error("Error listing CMS assets:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des images" });
+    }
+  });
+
+  // POST /api/cms/assets - Upload a new CMS asset
+  app.post("/api/cms/assets", cmsUpload.single("image"), (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Aucun fichier fourni" });
+    }
+
+    const url = `/cms-assets/${req.file.filename}`;
+    res.json({
+      success: true,
+      filename: req.file.filename,
+      url,
+      size: req.file.size
+    });
+  });
+
+  // DELETE /api/cms/assets/:filename - Delete a CMS asset
+  app.delete("/api/cms/assets/:filename", (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    const filename = req.params.filename;
+    const safeFilename = path.basename(filename);
+    const filepath = path.join(CMS_ASSETS_DIR, safeFilename);
+
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: "Fichier non trouvé" });
+    }
+
+    try {
+      fs.unlinkSync(filepath);
+      res.json({ success: true, message: "Image supprimée" });
+    } catch (error) {
+      console.error("Error deleting CMS asset:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
     }
   });
 
