@@ -12,12 +12,14 @@ const FeaturedProducts = () => {
   const [selectedProduct, setSelectedProduct] = React.useState(null);
 
   const featured = React.useMemo(() => {
-    return products.filter(p => p.featured).slice(0, 4);
+    return products.filter(p => p.coupDeCoeur === true).slice(0, 4);
   }, [products]);
 
   if (products.length === 0) return (
       <div className="flex justify-center py-12"><Loader2 className="animate-spin" /></div>
   );
+
+  if (featured.length === 0) return null;
 
   return (
     <section className="py-20 bg-background">
