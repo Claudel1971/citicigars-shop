@@ -543,41 +543,43 @@ const ProductManager = () => {
         {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} affiche{filteredProducts.length > 1 ? 's' : ''}
       </div>
 
-      {pendingCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-50 md:left-64">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-orange-600">
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium">
-                {pendingCount} modification{pendingCount > 1 ? 's' : ''} en attente
-              </span>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={discardChanges}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
-              >
-                <X className="h-4 w-4" />
-                Annuler
-              </button>
-              <button
-                onClick={saveAllChanges}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {saving ? 'Sauvegarde...' : 'Sauvegarder tout'}
-              </button>
-            </div>
+      <div 
+        className={`fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-50 md:left-64 transition-transform duration-200 ${
+          pendingCount > 0 ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-orange-600">
+            <AlertCircle className="h-5 w-5" />
+            <span className="font-medium">
+              {pendingCount} modification{pendingCount > 1 ? 's' : ''} en attente
+            </span>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={discardChanges}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+              Annuler
+            </button>
+            <button
+              onClick={saveAllChanges}
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {saving ? 'Sauvegarde...' : 'Sauvegarder tout'}
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
