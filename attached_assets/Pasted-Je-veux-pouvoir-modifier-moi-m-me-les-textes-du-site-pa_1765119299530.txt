@@ -1,0 +1,96 @@
+Je veux pouvoir modifier moi-même les textes du site (page d’accueil et autres pages) sans repasser par toi à chaque fois. Merci de mettre en place un mini gestionnaire de contenu (CMS très simple) dans le code existant.
+
+🎯 Objectif général
+
+Permettre à un administrateur (moi) de modifier le contenu texte du site (titres, sous-titres, paragraphes, CTA, etc.) via une interface web protégée, sans avoir à modifier le code source.
+
+Les produits/cigares restent gérés comme aujourd’hui. Ce CMS ne concerne que les textes statiques (copy marketing).
+
+1. Architecture proposée (à adapter au stack existant)
+
+Mettre en place un fichier de configuration de contenu (ex : content.json) OU une petite table en base (choisis la solution la plus simple et robuste avec le stack actuel).
+
+Créer une API interne (ex : /api/content) qui :
+
+GET → renvoie le contenu actuel
+
+PUT → met à jour le contenu après validation côté serveur
+
+Toutes les pages front (Home, etc.) doivent lire leurs textes à partir de cette source (fichier/DB via l’API), et ne plus avoir le texte “en dur” dans le JSX.
+
+2. Sections à rendre éditables (minimum)
+
+Pour la page d’accueil, prévoir dans content.json (ou équivalent) des clés comme :
+
+{
+  "home": {
+    "heroTitle": "",
+    "heroSubtitle": "",
+    "heroCtaLabel": "",
+    "introTitle": "",
+    "introText": "",
+    "whyUsTitle": "",
+    "whyUsBlocks": [
+      { "title": "", "text": "" },
+      { "title": "", "text": "" },
+      { "title": "", "text": "" }
+    ],
+    "clubSectionTitle": "",
+    "clubSectionText": "",
+    "contactCtaTitle": "",
+    "contactCtaText": ""
+  },
+  "footer": {
+    "tagline": "",
+    "legalNotice": ""
+  }
+}
+
+
+Tu peux adapter/compléter selon les sections déjà présentes dans le projet.
+
+3. Interface d’administration
+
+Créer une page protégée (ex : /admin/content).
+
+Authentification simple :
+
+Par exemple mot de passe unique via une variable d’environnement (ex : ADMIN_PASSWORD), formulaire “mot de passe” puis création de session minimaliste.
+
+Pas besoin d’un système complet de comptes utilisateurs pour l’instant, mais la page ne doit pas être publique.
+
+Sur /admin/content :
+
+Charger le contenu actuel via l’API.
+
+Afficher des champs de formulaire pour chaque texte (inputs ou textarea).
+
+Bouton “Enregistrer” qui fait un PUT sur l’API et affiche un message de succès/erreur.
+
+Optionnel mais souhaitable : ajout d’un petit indicateur “Dernière mise à jour : …”.
+
+4. Détails UX / techniques
+
+Prévoir une structure extensible : si on ajoute plus tard d’autres pages (ex. “À propos”, “FAQ”), je dois pouvoir simplement ajouter des clés dans le content.json et réutiliser la même logique.
+
+Mettre en place un minimum de validation côté serveur : longueur max des champs, pas de script, etc.
+
+Le front doit gérer le cas où le contenu n’est pas encore rempli (valeurs par défaut).
+
+Merci de commenter le code clé (API, chargement de contenu, page admin) pour que je puisse le faire évoluer plus tard.
+
+5. Livrable attendu
+
+Nouveau fichier de contenu (content.json ou modèle équivalent) + intégration dans les pages existantes.
+
+Route(s) API pour gérer lecture/écriture du contenu.
+
+Page /admin/content fonctionnelle, protégée par mot de passe.
+
+Courte note dans un fichier README_CMS.md expliquant :
+
+comment accéder à l’admin,
+
+comment configurer le mot de passe,
+
+où se trouve la structure de contenu.
