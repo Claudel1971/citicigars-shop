@@ -438,12 +438,14 @@ export default function ContentManager() {
 }
 
 function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
+  const [expandedSlide, setExpandedSlide] = useState(null);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="font-semibold text-gray-800">Slides du Carousel</h4>
-          <p className="text-sm text-gray-500">Gérez les slides de la bannière d'accueil</p>
+          <p className="text-sm text-gray-500">{slides.length} slide(s) - Cliquez pour modifier</p>
         </div>
         <button
           onClick={addSlide}
@@ -454,41 +456,64 @@ function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
       </div>
 
       {slides.map((slide, index) => (
-        <div key={index} className="bg-white border rounded-lg p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h5 className="font-medium text-primary flex items-center gap-2">
-              <Image size={18} />
-              Slide {index + 1}
-            </h5>
-            <button
-              onClick={() => removeSlide(index)}
-              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              title="Supprimer ce slide"
-            >
-              <Trash2 size={18} />
-            </button>
+        <div key={index} className="bg-white border rounded-lg shadow-sm overflow-hidden">
+          <div 
+            className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
+              expandedSlide === index ? 'bg-primary/5 border-b' : 'hover:bg-gray-50'
+            }`}
+            onClick={() => setExpandedSlide(expandedSlide === index ? null : index)}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                expandedSlide === index ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {index + 1}
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-800 text-sm">
+                  {slide.title || `Slide ${index + 1}`}
+                </h5>
+                <p className="text-xs text-gray-500 truncate max-w-xs">
+                  {slide.subtitle?.substring(0, 50) || 'Pas de sous-titre'}...
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); removeSlide(index); }}
+                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="Supprimer ce slide"
+              >
+                <Trash2 size={16} />
+              </button>
+              <ChevronRight 
+                size={18} 
+                className={`text-gray-400 transition-transform ${expandedSlide === index ? 'rotate-90' : ''}`}
+              />
+            </div>
           </div>
 
-          <div className="grid gap-4">
-            <Field
-              label="Titre principal"
-              value={slide.title}
-              onChange={(v) => updateField(`home.heroSlides[${index}].title`, v)}
-              placeholder="Ex: L'Excellence du Cigare"
-            />
-            <Field
-              label="Sous-titre / Description"
-              value={slide.subtitle}
-              onChange={(v) => updateField(`home.heroSlides[${index}].subtitle`, v)}
-              textarea
-              placeholder="Ex: Découvrez notre sélection de cigares premium..."
-            />
-            <Field
-              label="URL de l'image de fond"
-              value={slide.imageUrl}
-              onChange={(v) => updateField(`home.heroSlides[${index}].imageUrl`, v)}
-              placeholder="https://... ou /images/..."
-            />
+          {expandedSlide === index && (
+            <div className="p-4 bg-gray-50 grid gap-4">
+              <Field
+                label="Titre principal"
+                value={slide.title}
+                onChange={(v) => updateField(`home.heroSlides[${index}].title`, v)}
+                placeholder="Ex: L'Excellence du Cigare"
+              />
+              <Field
+                label="Sous-titre / Description"
+                value={slide.subtitle}
+                onChange={(v) => updateField(`home.heroSlides[${index}].subtitle`, v)}
+                textarea
+                placeholder="Ex: Découvrez notre sélection de cigares premium..."
+              />
+              <Field
+                label="URL de l'image de fond"
+                value={slide.imageUrl}
+                onChange={(v) => updateField(`home.heroSlides[${index}].imageUrl`, v)}
+                placeholder="https://... ou /images/..."
+              />
             <div className="grid grid-cols-2 gap-4">
               <Field
                 label="Texte du bouton"
@@ -503,7 +528,8 @@ function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
                 placeholder="Ex: /catalogue"
               />
             </div>
-          </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
