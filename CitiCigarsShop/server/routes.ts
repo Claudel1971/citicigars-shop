@@ -135,6 +135,53 @@ export async function registerRoutes(
     }
   });
 
+  // Import products from Excel
+  app.post("/api/products/import", async (req, res) => {
+    try {
+      const { products } = req.body;
+      
+      if (!products || !Array.isArray(products)) {
+        return res.status(400).json({ error: "Products array required" });
+      }
+
+      const results = {
+        created: 0,
+        updated: 0,
+        errors: [] as string[],
+      };
+
+      for (const product of products) {
+        try {
+          if (!product.sku) {
+            results.errors.push("Produit sans SKU ignoré");
+            continue;
+          }
+
+          const existing = await storage.getProduct(product.sku);
+          
+          if (existing) {
+            await storage.updateProduct(product.sku, product);
+            results.updated++;
+          } else {
+            await storage.createProduct(product);
+            results.created++;
+          }
+        } catch (err) {
+          results.errors.push(`Erreur pour ${product.sku}: ${err}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${results.created} créés, ${results.updated} mis à jour`,
+        ...results,
+      });
+    } catch (error) {
+      console.error("Error importing products:", error);
+      res.status(500).json({ error: "Failed to import products" });
+    }
+  });
+
   // === IMAGES API ===
   
   // Upload images for a product

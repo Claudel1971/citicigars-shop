@@ -87,6 +87,19 @@ class ApiService {
     if (!response.ok) throw new Error('Failed to bulk update prices');
     return response.json();
   }
+
+  async importProducts(products) {
+    const response = await fetch(`${API_BASE}/products/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to import products: ${errorText}`);
+    }
+    return response.json();
+  }
 }
 
 const apiService = new ApiService();

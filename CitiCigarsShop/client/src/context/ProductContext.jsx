@@ -91,6 +91,22 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  const importProducts = async (productsToImport) => {
+    try {
+      setLoading(true);
+      const result = await apiService.importProducts(productsToImport);
+      const loadedProducts = await apiService.getAllProducts();
+      setProducts(loadedProducts);
+      setLoading(false);
+      return result;
+    } catch (error) {
+      console.error("Error importing products:", error);
+      toast.error("Erreur lors de l'import des produits");
+      setLoading(false);
+      throw error;
+    }
+  };
+
   const value = {
     products,
     loading,
@@ -99,6 +115,7 @@ export const ProductProvider = ({ children }) => {
     updateProductImages,
     removeProduitImages,
     deleteProduct,
+    importProducts,
     refreshProducts: async () => {
       const loadedProducts = await apiService.getAllProducts();
       setProducts(loadedProducts);
