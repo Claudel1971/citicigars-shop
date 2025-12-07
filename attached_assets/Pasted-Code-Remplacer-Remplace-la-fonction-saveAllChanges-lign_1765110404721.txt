@@ -1,0 +1,123 @@
+Code à Remplacer
+Remplace la fonction saveAllChanges (lignes 92-170) par ceci :
+javascriptconst saveAllChanges = async () => {
+  if (pendingCount === 0) return;
+  
+  setSaving(true);
+  let successCount = 0;
+  let errorCount = 0;
+
+  try {
+    // Préparer toutes les requêtes
+    const updatePromises = Object.entries(pendingChanges).map(async ([sku, changes]) => {
+      const product = products.find(p => p.sku === sku);
+      if (!product) {
+        console.warn(`Produit ${sku} non trouvé`);
+        return { success: false, sku };
+      }
+
+      // Calculer les données mises à jour
+      const prixUnitaire = changes.prixUnitaire ?? product.prixUnitaire;
+      const rabais = Math.abs(changes.rabais ?? product.rabais ?? 0);
+      
+      const updatedData = {
+        ...changes,
+        prixUnitaire,
+        rabais
+      };
+
+      // Si prix ou rabais modifié, recalculer les prix dérivés
+      if (changes.prixUnitaire !== undefined || changes.rabais !== undefined) {
+        const qtyPack = product.typePack || 4;
+        const qtyBoite = product.qteBoite || 25;
+        
+        // Calculer prix promo avec arrondi 0.50
+        const calculerPrixPromo = (prix, rabaisPct) => {
+          if (rabaisPct === 0) return null;
+          const prixAvecRabais = prix * (1 - rabaisPct / 100);
+          return Math.round(prixAvecRabais * 2) / 2;
+        };
+
+        updatedData.promotions = {
+          unitaire: {
+            actif: rabais > 0,
+            pourcentage: rabais,
+            prixPromo: calculerPrixPromo(prixUnitaire, rabais)
+          },
+          pack: {
+            actif: rabais > 0,
+            pourcentage: rabais,
+            prixPromo: calculerPrixPromo(prixUnitaire * qtyPack, rabais)
+          },
+          boite: {
+            actif: rabais > 0,
+            pourcentage: rabais,
+            prixPromo: calculerPrixPromo(prixUnitaire * qtyBoite, rabais)
+          }
+        };
+
+        updatedData.prixPack = prixUnitaire * qtyPack;
+        updatedData.prixBoite = prixUnitaire * qtyBoite;
+      }
+
+      try {
+        await apiService.updateProduct(sku, updatedData);
+        return { success: true, sku };
+      } catch (error) {
+        console.error(`Erreur sauvegarde ${sku}:`, error);
+        return { success: false, sku, error };
+      }
+    });
+
+    // ✅ CRITIQUE : Exécuter TOUTES les promesses EN PARALLÈLE
+    const results = await Promise.all(updatePromises);
+
+    // Compter les succès et erreurs
+    results.forEach(result => {
+      if (result.success) {
+        successCount++;
+      } else {
+        errorCount++;
+      }
+    });
+
+    // Message de résultat
+    if (errorCount === 0) {
+      alert(`✅ ${successCount} produit(s) sauvegardé(s) avec succès !`);
+    } else {
+      alert(`✅ ${successCount} produit(s) sauvegardé(s)\n❌ ${errorCount} erreur(s)`);
+    }
+
+    // Recharger les produits
+    await loadProducts();
+    
+    // Réinitialiser les modifications en attente
+    setPendingChanges({});
+
+  } catch (error) {
+    console.error('Erreur sauvegarde globale:', error);
+    alert('❌ Erreur lors de la sauvegarde');
+  } finally {
+    setSaving(false);
+  }
+};
+Changements Clés
+AVANT (Lent) :
+javascriptfor (const [sku, changes] of Object.entries(pendingChanges)) {
+  await apiService.updateProduct(sku, updatedData); // ← Attend chaque requête
+}
+// 20 produits = 20 × 2 secondes = 40 secondes !
+APRÈS (Rapide) :
+javascriptconst updatePromises = Object.entries(pendingChanges).map(async ([sku, changes]) => {
+  await apiService.updateProduct(sku, updatedData);
+});
+
+await Promise.all(updatePromises); // ← Toutes en parallèle !
+// 20 produits = 2 secondes (temps de la requête la plus lente)
+
+Performance attendue :
+
+✅ Avant : 20 produits = 40 secondes
+✅ Après : 20 produits = 2-3 secondes
+
+Remplace uniquement la fonction saveAllChanges par ce code et teste !

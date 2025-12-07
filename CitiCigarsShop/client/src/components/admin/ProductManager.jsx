@@ -91,15 +91,16 @@ const ProductManager = () => {
 
   const saveAllChanges = async () => {
     if (pendingCount === 0) return;
-
+    
     setSaving(true);
-    let successCount = 0;
-    let errorCount = 0;
 
     try {
-      for (const [sku, changes] of Object.entries(pendingChanges)) {
+      const updatePromises = Object.entries(pendingChanges).map(async ([sku, changes]) => {
         const product = products.find(p => p.sku === sku);
-        if (!product) continue;
+        if (!product) {
+          console.warn(`Produit ${sku} non trouve`);
+          return { success: false, sku };
+        }
 
         const updatedData = {};
 
@@ -145,24 +146,30 @@ const ProductManager = () => {
 
         try {
           await apiService.updateProduct(sku, updatedData);
-          successCount++;
+          return { success: true, sku };
         } catch (error) {
-          console.error(`Erreur pour ${sku}:`, error);
-          errorCount++;
+          console.error(`Erreur sauvegarde ${sku}:`, error);
+          return { success: false, sku, error };
         }
-      }
+      });
 
-      if (successCount > 0) {
-        toast.success(`${successCount} produit(s) mis a jour avec succes`);
-      }
-      if (errorCount > 0) {
+      const results = await Promise.all(updatePromises);
+
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.filter(r => !r.success).length;
+
+      if (errorCount === 0) {
+        toast.success(`${successCount} produit(s) sauvegarde(s) avec succes`);
+      } else {
+        toast.success(`${successCount} produit(s) sauvegarde(s)`);
         toast.error(`${errorCount} erreur(s) lors de la sauvegarde`);
       }
 
       setPendingChanges({});
       await loadProducts();
+
     } catch (error) {
-      console.error('Erreur sauvegarde:', error);
+      console.error('Erreur sauvegarde globale:', error);
       toast.error('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
