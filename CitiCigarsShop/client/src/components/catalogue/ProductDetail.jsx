@@ -108,19 +108,18 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
     
     switch (fmt) {
       case "pack":
-        return (
-          images.imagePack ||
-          images.imagePack4 ||
-          images.imagePack5 ||
-          images.imagePrincipale ||
-          images.imageSolo ||
-          generatedImage
-        );
+        const packQty = product.quantitePack || product.typePack || 5;
+        if (packQty === 4) {
+          return images.imagePack4 || images.imagePack || generatedImage;
+        } else if (packQty === 5) {
+          return images.imagePack5 || images.imagePack || generatedImage;
+        }
+        return images.imagePack || images.imagePack4 || images.imagePack5 || generatedImage;
       case "boite":
-        return images.imageBoite || images.imagePrincipale || generatedImage;
+        return images.imageBoite || generatedImage;
       case "unitaire":
       default:
-        return images.imagePrincipale || images.imageSolo || generatedImage;
+        return images.imageSolo || generatedImage;
     }
   };
 
