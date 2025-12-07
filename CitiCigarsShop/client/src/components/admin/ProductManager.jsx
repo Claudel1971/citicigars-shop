@@ -114,8 +114,8 @@ const ProductManager = () => {
           const prixBoite = calculerPrixBoite(newPrixUnitaire, qtyBoite, newRabais);
 
           updatedData.prixUnitaire = newPrixUnitaire;
-          updatedData.prixPack = newRabais > 0 ? prixPack : product.prixPack;
-          updatedData.prixBoite = newRabais > 0 ? prixBoite : product.prixBoite;
+          updatedData.prixPack = prixPack;
+          updatedData.prixBoite = prixBoite;
           updatedData.promotions = {
             unitaire: {
               actif: newRabais > 0,
