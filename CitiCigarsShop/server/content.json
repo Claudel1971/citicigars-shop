@@ -5,19 +5,22 @@
         "title": "L'Art de la Dégustation",
         "subtitle": "Découvrez notre sélection exclusive de cigares cubains et du nouveau monde.",
         "ctaText": "Explorer le catalogue",
-        "ctaLink": "/catalogue"
+        "ctaLink": "/catalogue",
+        "imageUrl": ""
       },
       {
-        "title": "Promotions Hivernales",
-        "subtitle": "Jusqu'à -20% sur une sélection de coffrets prestige.",
+        "title": "Promotions de lancement",
+        "subtitle": "Jusqu'à -10% sur une sélection de vitoles prestige.",
         "ctaText": "Voir les offres",
-        "ctaLink": "/promotions"
+        "ctaLink": "/promotions",
+        "imageUrl": ""
       },
       {
         "title": "Nouveaux Arrivages",
-        "subtitle": "Les dernières pépites d'Arturo Fuente et Padron.",
+        "subtitle": "Les dernières pépites d'E.P. Carrillo, My Father e Oliva.",
         "ctaText": "Découvrir",
-        "ctaLink": "/catalogue"
+        "ctaLink": "/catalogue",
+        "imageUrl": ""
       }
     ],
     "brandStory": {
@@ -28,12 +31,35 @@
       "ctaLink": "/about"
     }
   },
+  "promotions": {
+    "banner": {
+      "enabled": false,
+      "title": "",
+      "subtitle": "",
+      "discount": "",
+      "validUntil": ""
+    },
+    "featuredSkus": []
+  },
+  "pages": {
+    "about": {
+      "title": "À Propos de Citi Cigars",
+      "content": ""
+    },
+    "contact": {
+      "title": "Contactez-nous",
+      "address": "",
+      "phone": "+237 675 784 830",
+      "email": "",
+      "hours": ""
+    }
+  },
   "footer": {
     "tagline": "L'excellence du cigare livrée chez vous. Une sélection rigoureuse des meilleurs terroirs pour les amateurs exigeants.",
     "legalNotice": "L'abus de tabac est dangereux pour la santé."
   },
   "_meta": {
-    "lastUpdated": null,
-    "updatedBy": "system"
+    "lastUpdated": "2025-12-07T15:19:08.735Z",
+    "updatedBy": "admin"
   }
 }

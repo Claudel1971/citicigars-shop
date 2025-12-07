@@ -1,7 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Save, RefreshCw, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { 
+  Save, RefreshCw, AlertCircle, CheckCircle, Loader2,
+  Home, Image, Tag, FileText, Settings, ChevronRight,
+  Plus, Trash2, Upload
+} from 'lucide-react';
 
 const API_BASE = '/api';
+
+const MENU_SECTIONS = [
+  { 
+    id: 'home', 
+    label: 'Page d\'Accueil', 
+    icon: Home,
+    subsections: [
+      { id: 'carousel', label: 'Carousel / Bannière' },
+      { id: 'brandStory', label: 'Notre Histoire' }
+    ]
+  },
+  { 
+    id: 'promotions', 
+    label: 'Promotions', 
+    icon: Tag,
+    subsections: [
+      { id: 'promoBanner', label: 'Bannière Promo' },
+      { id: 'promoProducts', label: 'Produits en Promo' }
+    ]
+  },
+  { 
+    id: 'pages', 
+    label: 'Pages', 
+    icon: FileText,
+    subsections: [
+      { id: 'about', label: 'À Propos' },
+      { id: 'contact', label: 'Contact' }
+    ]
+  },
+  { 
+    id: 'footer', 
+    label: 'Footer', 
+    icon: Settings,
+    subsections: []
+  }
+];
 
 export default function ContentManager() {
   const [content, setContent] = useState(null);
@@ -9,6 +49,9 @@ export default function ContentManager() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [token, setToken] = useState(() => sessionStorage.getItem('cms_token'));
+  const [activeSection, setActiveSection] = useState('home');
+  const [activeSubsection, setActiveSubsection] = useState('carousel');
+  const [expandedMenus, setExpandedMenus] = useState(['home']);
 
   useEffect(() => {
     fetchContent();
@@ -20,7 +63,7 @@ export default function ContentManager() {
       const res = await fetch(`${API_BASE}/content`);
       if (res.ok) {
         const data = await res.json();
-        setContent(data);
+        setContent(ensureContentStructure(data));
       }
     } catch (err) {
       console.error('Error loading content:', err);
@@ -28,6 +71,42 @@ export default function ContentManager() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const ensureContentStructure = (data) => {
+    return {
+      home: {
+        heroSlides: data.home?.heroSlides || [
+          { title: '', subtitle: '', ctaText: '', ctaLink: '', imageUrl: '' }
+        ],
+        brandStory: data.home?.brandStory || {
+          icon: '⚜',
+          title: '',
+          text: '',
+          ctaText: '',
+          ctaLink: ''
+        }
+      },
+      promotions: data.promotions || {
+        banner: {
+          enabled: false,
+          title: '',
+          subtitle: '',
+          discount: '',
+          validUntil: ''
+        },
+        featuredSkus: []
+      },
+      pages: data.pages || {
+        about: { title: '', content: '' },
+        contact: { title: '', address: '', phone: '', email: '', hours: '' }
+      },
+      footer: data.footer || {
+        tagline: '',
+        legalNotice: ''
+      },
+      _meta: data._meta
+    };
   };
 
   const handleSave = async () => {
@@ -50,8 +129,9 @@ export default function ContentManager() {
 
       if (res.ok) {
         const data = await res.json();
-        setContent(data.content);
+        setContent(ensureContentStructure(data.content));
         setMessage({ type: 'success', text: 'Contenu enregistré avec succès !' });
+        setTimeout(() => setMessage(null), 3000);
       } else {
         const error = await res.json();
         setMessage({ type: 'error', text: error.error || 'Erreur lors de la sauvegarde' });
@@ -77,6 +157,7 @@ export default function ContentManager() {
         setToken(data.token);
         sessionStorage.setItem('cms_token', data.token);
         setMessage({ type: 'success', text: 'Connecté au CMS !' });
+        setTimeout(() => setMessage(null), 2000);
         return true;
       } else {
         setMessage({ type: 'error', text: 'Mot de passe incorrect' });
@@ -99,6 +180,7 @@ export default function ContentManager() {
           const [arrKey, idx] = key.replace(']', '').split('[');
           obj = obj[arrKey][parseInt(idx)];
         } else {
+          if (!obj[key]) obj[key] = {};
           obj = obj[key];
         }
       }
@@ -106,6 +188,55 @@ export default function ContentManager() {
       obj[lastKey] = value;
       return newContent;
     });
+  };
+
+  const addSlide = () => {
+    setContent(prev => ({
+      ...prev,
+      home: {
+        ...prev.home,
+        heroSlides: [
+          ...prev.home.heroSlides,
+          { title: 'Nouveau Slide', subtitle: '', ctaText: 'Découvrir', ctaLink: '/catalogue', imageUrl: '' }
+        ]
+      }
+    }));
+  };
+
+  const removeSlide = (index) => {
+    if (content.home.heroSlides.length <= 1) {
+      setMessage({ type: 'error', text: 'Vous devez garder au moins un slide' });
+      return;
+    }
+    setContent(prev => ({
+      ...prev,
+      home: {
+        ...prev.home,
+        heroSlides: prev.home.heroSlides.filter((_, i) => i !== index)
+      }
+    }));
+  };
+
+  const toggleMenu = (sectionId) => {
+    setExpandedMenus(prev => 
+      prev.includes(sectionId) 
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
+
+  const handleSectionClick = (section, subsection = null) => {
+    setActiveSection(section.id);
+    if (subsection) {
+      setActiveSubsection(subsection.id);
+    } else if (section.subsections.length > 0) {
+      setActiveSubsection(section.subsections[0].id);
+    } else {
+      setActiveSubsection(null);
+    }
+    if (!expandedMenus.includes(section.id)) {
+      setExpandedMenus(prev => [...prev, section.id]);
+    }
   };
 
   if (loading) {
@@ -130,167 +261,524 @@ export default function ContentManager() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-primary">Gestion du Contenu</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Modifiez les textes du site sans toucher au code
-          </p>
+    <div className="flex h-[calc(100vh-180px)] bg-gray-50 rounded-lg overflow-hidden border">
+      {/* Sidebar Menu */}
+      <div className="w-64 bg-white border-r flex flex-col">
+        <div className="p-4 border-b bg-gray-50">
+          <h2 className="font-serif font-bold text-primary">Gestion du Contenu</h2>
+          <p className="text-xs text-muted-foreground mt-1">Sélectionnez une section</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={fetchContent}
-            className="px-3 py-2 border rounded hover:bg-gray-50 flex items-center gap-2"
-            disabled={loading}
-          >
-            <RefreshCw size={16} /> Recharger
-          </button>
+        
+        <nav className="flex-1 overflow-y-auto p-2">
+          {MENU_SECTIONS.map(section => (
+            <div key={section.id} className="mb-1">
+              <button
+                onClick={() => {
+                  if (section.subsections.length > 0) {
+                    toggleMenu(section.id);
+                  }
+                  handleSectionClick(section);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                  activeSection === section.id 
+                    ? 'bg-primary/10 text-primary font-medium' 
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
+              >
+                <section.icon size={18} />
+                <span className="flex-1 text-sm">{section.label}</span>
+                {section.subsections.length > 0 && (
+                  <ChevronRight 
+                    size={16} 
+                    className={`transition-transform ${expandedMenus.includes(section.id) ? 'rotate-90' : ''}`}
+                  />
+                )}
+              </button>
+              
+              {section.subsections.length > 0 && expandedMenus.includes(section.id) && (
+                <div className="ml-6 mt-1 space-y-1">
+                  {section.subsections.map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => {
+                        setActiveSection(section.id);
+                        setActiveSubsection(sub.id);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                        activeSection === section.id && activeSubsection === sub.id
+                          ? 'bg-primary text-white'
+                          : 'hover:bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        {/* Save Button in Sidebar */}
+        <div className="p-3 border-t bg-gray-50">
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-2"
-            disabled={saving}
+            disabled={saving || !token}
+            className="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 flex items-center justify-center gap-2 disabled:opacity-50 font-medium"
           >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             Enregistrer
           </button>
         </div>
       </div>
 
-      {message && (
-        <div className={`p-4 rounded-lg mb-6 flex items-center gap-2 ${
-          message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-          {message.text}
+      {/* Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="p-4 bg-white border-b flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-lg text-gray-800">
+              {MENU_SECTIONS.find(s => s.id === activeSection)?.label}
+              {activeSubsection && (
+                <span className="text-primary ml-2">
+                  / {MENU_SECTIONS.find(s => s.id === activeSection)?.subsections.find(ss => ss.id === activeSubsection)?.label}
+                </span>
+              )}
+            </h3>
+            {content._meta?.lastUpdated && (
+              <p className="text-xs text-muted-foreground">
+                Dernière MAJ : {new Date(content._meta.lastUpdated).toLocaleString('fr-FR')}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={fetchContent}
+            className="px-3 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm"
+            disabled={loading}
+          >
+            <RefreshCw size={16} /> Recharger
+          </button>
         </div>
-      )}
 
-      {!token && (
-        <LoginForm onLogin={handleLogin} />
-      )}
-
-      {content._meta?.lastUpdated && (
-        <p className="text-xs text-muted-foreground mb-6">
-          Dernière mise à jour : {new Date(content._meta.lastUpdated).toLocaleString('fr-FR')}
-        </p>
-      )}
-
-      <div className="space-y-8">
-        <Section title="Carousel Hero (Page d'accueil)">
-          {content.home?.heroSlides?.map((slide, index) => (
-            <div key={index} className="border rounded-lg p-4 mb-4 bg-gray-50">
-              <h4 className="font-semibold text-sm mb-3 text-primary">Slide {index + 1}</h4>
-              <div className="space-y-3">
-                <Field
-                  label="Titre"
-                  value={slide.title}
-                  onChange={(v) => updateField(`home.heroSlides[${index}].title`, v)}
-                />
-                <Field
-                  label="Sous-titre"
-                  value={slide.subtitle}
-                  onChange={(v) => updateField(`home.heroSlides[${index}].subtitle`, v)}
-                  textarea
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <Field
-                    label="Texte du bouton"
-                    value={slide.ctaText}
-                    onChange={(v) => updateField(`home.heroSlides[${index}].ctaText`, v)}
-                  />
-                  <Field
-                    label="Lien du bouton"
-                    value={slide.ctaLink}
-                    onChange={(v) => updateField(`home.heroSlides[${index}].ctaLink`, v)}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </Section>
-
-        <Section title="Section 'Notre Histoire' (Page d'accueil)">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Field
-                label="Icône"
-                value={content.home?.brandStory?.icon}
-                onChange={(v) => updateField('home.brandStory.icon', v)}
-              />
-              <Field
-                label="Titre"
-                value={content.home?.brandStory?.title}
-                onChange={(v) => updateField('home.brandStory.title', v)}
-              />
-            </div>
-            <Field
-              label="Texte"
-              value={content.home?.brandStory?.text}
-              onChange={(v) => updateField('home.brandStory.text', v)}
-              textarea
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <Field
-                label="Texte du bouton"
-                value={content.home?.brandStory?.ctaText}
-                onChange={(v) => updateField('home.brandStory.ctaText', v)}
-              />
-              <Field
-                label="Lien du bouton"
-                value={content.home?.brandStory?.ctaLink}
-                onChange={(v) => updateField('home.brandStory.ctaLink', v)}
-              />
-            </div>
+        {/* Messages */}
+        {message && (
+          <div className={`mx-4 mt-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
+            message.type === 'success' 
+              ? 'bg-green-50 text-green-700 border border-green-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+            {message.text}
           </div>
-        </Section>
+        )}
 
-        <Section title="Footer">
-          <div className="space-y-4">
-            <Field
-              label="Slogan / Tagline"
-              value={content.footer?.tagline}
-              onChange={(v) => updateField('footer.tagline', v)}
-              textarea
-            />
-            <Field
-              label="Mention légale"
-              value={content.footer?.legalNotice}
-              onChange={(v) => updateField('footer.legalNotice', v)}
-            />
+        {/* Login Form */}
+        {!token && (
+          <div className="m-4">
+            <LoginForm onLogin={handleLogin} />
           </div>
-        </Section>
+        )}
+
+        {/* Content Editor */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeSection === 'home' && activeSubsection === 'carousel' && (
+            <CarouselEditor 
+              slides={content.home?.heroSlides || []}
+              updateField={updateField}
+              addSlide={addSlide}
+              removeSlide={removeSlide}
+            />
+          )}
+
+          {activeSection === 'home' && activeSubsection === 'brandStory' && (
+            <BrandStoryEditor 
+              data={content.home?.brandStory}
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'promotions' && activeSubsection === 'promoBanner' && (
+            <PromoBannerEditor 
+              data={content.promotions?.banner}
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'promotions' && activeSubsection === 'promoProducts' && (
+            <PromoProductsEditor 
+              skus={content.promotions?.featuredSkus || []}
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'pages' && activeSubsection === 'about' && (
+            <AboutPageEditor 
+              data={content.pages?.about}
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'pages' && activeSubsection === 'contact' && (
+            <ContactPageEditor 
+              data={content.pages?.contact}
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'footer' && (
+            <FooterEditor 
+              data={content.footer}
+              updateField={updateField}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }) {
+function CarouselEditor({ slides, updateField, addSlide, removeSlide }) {
   return (
-    <div className="bg-white border rounded-lg p-6 shadow-sm">
-      <h3 className="text-lg font-bold text-primary mb-4 border-b pb-2">{title}</h3>
-      {children}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h4 className="font-semibold text-gray-800">Slides du Carousel</h4>
+          <p className="text-sm text-gray-500">Gérez les slides de la bannière d'accueil</p>
+        </div>
+        <button
+          onClick={addSlide}
+          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+        >
+          <Plus size={16} /> Ajouter un slide
+        </button>
+      </div>
+
+      {slides.map((slide, index) => (
+        <div key={index} className="bg-white border rounded-lg p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h5 className="font-medium text-primary flex items-center gap-2">
+              <Image size={18} />
+              Slide {index + 1}
+            </h5>
+            <button
+              onClick={() => removeSlide(index)}
+              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Supprimer ce slide"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+
+          <div className="grid gap-4">
+            <Field
+              label="Titre principal"
+              value={slide.title}
+              onChange={(v) => updateField(`home.heroSlides[${index}].title`, v)}
+              placeholder="Ex: L'Excellence du Cigare"
+            />
+            <Field
+              label="Sous-titre / Description"
+              value={slide.subtitle}
+              onChange={(v) => updateField(`home.heroSlides[${index}].subtitle`, v)}
+              textarea
+              placeholder="Ex: Découvrez notre sélection de cigares premium..."
+            />
+            <Field
+              label="URL de l'image de fond"
+              value={slide.imageUrl}
+              onChange={(v) => updateField(`home.heroSlides[${index}].imageUrl`, v)}
+              placeholder="https://... ou /images/..."
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Field
+                label="Texte du bouton"
+                value={slide.ctaText}
+                onChange={(v) => updateField(`home.heroSlides[${index}].ctaText`, v)}
+                placeholder="Ex: Découvrir"
+              />
+              <Field
+                label="Lien du bouton"
+                value={slide.ctaLink}
+                onChange={(v) => updateField(`home.heroSlides[${index}].ctaLink`, v)}
+                placeholder="Ex: /catalogue"
+              />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function Field({ label, value, onChange, textarea = false }) {
+function BrandStoryEditor({ data, updateField }) {
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Section "Notre Histoire"</h4>
+      <p className="text-sm text-gray-500 mb-6">Cette section apparaît sur la page d'accueil</p>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Icône / Emoji"
+            value={data?.icon}
+            onChange={(v) => updateField('home.brandStory.icon', v)}
+            placeholder="⚜"
+          />
+          <Field
+            label="Titre"
+            value={data?.title}
+            onChange={(v) => updateField('home.brandStory.title', v)}
+            placeholder="Notre Histoire"
+          />
+        </div>
+        <Field
+          label="Texte descriptif"
+          value={data?.text}
+          onChange={(v) => updateField('home.brandStory.text', v)}
+          textarea
+          placeholder="Depuis plus de 20 ans..."
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Texte du bouton"
+            value={data?.ctaText}
+            onChange={(v) => updateField('home.brandStory.ctaText', v)}
+            placeholder="En savoir plus"
+          />
+          <Field
+            label="Lien du bouton"
+            value={data?.ctaLink}
+            onChange={(v) => updateField('home.brandStory.ctaLink', v)}
+            placeholder="/a-propos"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PromoBannerEditor({ data, updateField }) {
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Bannière Promotionnelle</h4>
+      <p className="text-sm text-gray-500 mb-6">Configurez la bannière de promotion affichée sur le site</p>
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={data?.enabled || false}
+              onChange={(e) => updateField('promotions.banner.enabled', e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300"
+            />
+            <span className="font-medium">Activer la bannière promotionnelle</span>
+          </label>
+        </div>
+
+        <Field
+          label="Titre de la promo"
+          value={data?.title}
+          onChange={(v) => updateField('promotions.banner.title', v)}
+          placeholder="Ex: Soldes d'été"
+        />
+        <Field
+          label="Sous-titre"
+          value={data?.subtitle}
+          onChange={(v) => updateField('promotions.banner.subtitle', v)}
+          placeholder="Ex: Sur une sélection de cigares premium"
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Réduction affichée"
+            value={data?.discount}
+            onChange={(v) => updateField('promotions.banner.discount', v)}
+            placeholder="Ex: -20%"
+          />
+          <Field
+            label="Valable jusqu'au"
+            value={data?.validUntil}
+            onChange={(v) => updateField('promotions.banner.validUntil', v)}
+            placeholder="Ex: 31/12/2024"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PromoProductsEditor({ skus, updateField }) {
+  const [newSku, setNewSku] = useState('');
+
+  const addSku = () => {
+    if (newSku.trim()) {
+      updateField('promotions.featuredSkus', [...skus, newSku.trim()]);
+      setNewSku('');
+    }
+  };
+
+  const removeSku = (index) => {
+    updateField('promotions.featuredSkus', skus.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Produits en Promotion</h4>
+      <p className="text-sm text-gray-500 mb-6">Ajoutez les SKUs des produits à mettre en avant</p>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          value={newSku}
+          onChange={(e) => setNewSku(e.target.value)}
+          placeholder="Entrez un SKU..."
+          className="flex-1 border rounded-lg p-2 text-sm"
+          onKeyPress={(e) => e.key === 'Enter' && addSku()}
+        />
+        <button
+          onClick={addSku}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+        >
+          Ajouter
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {skus.length === 0 ? (
+          <p className="text-gray-400 text-sm italic">Aucun produit en promotion</p>
+        ) : (
+          skus.map((sku, index) => (
+            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <code className="text-sm font-mono">{sku}</code>
+              <button
+                onClick={() => removeSku(index)}
+                className="p-1 text-red-500 hover:bg-red-100 rounded"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AboutPageEditor({ data, updateField }) {
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Page À Propos</h4>
+      <p className="text-sm text-gray-500 mb-6">Contenu de la page "À Propos"</p>
+
+      <div className="space-y-4">
+        <Field
+          label="Titre de la page"
+          value={data?.title}
+          onChange={(v) => updateField('pages.about.title', v)}
+          placeholder="À Propos de Citi Cigars"
+        />
+        <Field
+          label="Contenu"
+          value={data?.content}
+          onChange={(v) => updateField('pages.about.content', v)}
+          textarea
+          placeholder="Présentez votre entreprise..."
+        />
+      </div>
+    </div>
+  );
+}
+
+function ContactPageEditor({ data, updateField }) {
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Page Contact</h4>
+      <p className="text-sm text-gray-500 mb-6">Informations de contact</p>
+
+      <div className="space-y-4">
+        <Field
+          label="Titre de la page"
+          value={data?.title}
+          onChange={(v) => updateField('pages.contact.title', v)}
+          placeholder="Contactez-nous"
+        />
+        <Field
+          label="Adresse"
+          value={data?.address}
+          onChange={(v) => updateField('pages.contact.address', v)}
+          textarea
+          placeholder="123 Rue du Cigare..."
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Téléphone"
+            value={data?.phone}
+            onChange={(v) => updateField('pages.contact.phone', v)}
+            placeholder="+237 6XX XXX XXX"
+          />
+          <Field
+            label="Email"
+            value={data?.email}
+            onChange={(v) => updateField('pages.contact.email', v)}
+            placeholder="contact@citicigars.com"
+          />
+        </div>
+        <Field
+          label="Horaires d'ouverture"
+          value={data?.hours}
+          onChange={(v) => updateField('pages.contact.hours', v)}
+          textarea
+          placeholder="Lun-Ven: 9h-18h..."
+        />
+      </div>
+    </div>
+  );
+}
+
+function FooterEditor({ data, updateField }) {
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Pied de Page (Footer)</h4>
+      <p className="text-sm text-gray-500 mb-6">Textes affichés en bas de chaque page</p>
+
+      <div className="space-y-4">
+        <Field
+          label="Slogan / Tagline"
+          value={data?.tagline}
+          onChange={(v) => updateField('footer.tagline', v)}
+          textarea
+          placeholder="L'excellence du cigare depuis 2003..."
+        />
+        <Field
+          label="Mention légale"
+          value={data?.legalNotice}
+          onChange={(v) => updateField('footer.legalNotice', v)}
+          placeholder="L'abus de tabac est dangereux pour la santé."
+        />
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, textarea = false, placeholder = '' }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
       {textarea ? (
         <textarea
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full border rounded-md p-2 text-sm resize-y min-h-[80px]"
-          rows={3}
+          className="w-full border rounded-lg p-3 text-sm resize-y min-h-[100px] focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          placeholder={placeholder}
+          rows={4}
         />
       ) : (
         <input
           type="text"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full border rounded-md p-2 text-sm"
+          className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          placeholder={placeholder}
         />
       )}
     </div>
@@ -309,8 +797,8 @@ function LoginForm({ onLogin }) {
   };
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
-      <h3 className="font-bold text-amber-800 mb-2">Authentification CMS requise</h3>
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+      <h3 className="font-bold text-amber-800 mb-2">Authentification requise</h3>
       <p className="text-sm text-amber-700 mb-4">
         Entrez le mot de passe CMS pour pouvoir modifier le contenu.
       </p>
@@ -320,12 +808,12 @@ function LoginForm({ onLogin }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Mot de passe CMS"
-          className="flex-1 border rounded p-2 text-sm"
+          className="flex-1 border rounded-lg p-2.5 text-sm"
         />
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 font-medium"
         >
           {loading ? 'Connexion...' : 'Valider'}
         </button>
