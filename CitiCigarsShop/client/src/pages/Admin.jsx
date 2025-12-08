@@ -73,12 +73,25 @@ const Admin = () => {
     };
   }, [isMobile, menuOuvert]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'admin') {
-        setIsAuthenticated(true);
-    } else {
-        alert('Identifiants incorrects (admin/admin)');
+    try {
+      const res = await fetch('/api/content/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.setItem('cms_token', data.token);
+          setIsAuthenticated(true);
+        }
+      } else {
+        alert('Mot de passe incorrect');
+      }
+    } catch (err) {
+      alert('Erreur de connexion');
     }
   };
   
@@ -95,21 +108,13 @@ const Admin = () => {
           <h1 className="text-2xl font-serif font-bold text-center mb-6 text-primary">Admin Login</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Utilisateur</label>
-              <input 
-                type="text" 
-                value={username} 
-                onChange={e => setUsername(e.target.value)} 
-                className="w-full border rounded p-2"
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium mb-1">Mot de passe</label>
               <input 
                 type="password" 
                 value={password} 
                 onChange={e => setPassword(e.target.value)} 
                 className="w-full border rounded p-2"
+                placeholder="Entrez le mot de passe admin"
               />
             </div>
             <button type="submit" className="w-full bg-primary text-primary-foreground py-2 rounded font-bold hover:bg-primary/90">
