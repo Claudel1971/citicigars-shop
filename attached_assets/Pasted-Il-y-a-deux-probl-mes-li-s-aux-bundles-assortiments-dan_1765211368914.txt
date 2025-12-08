@@ -1,0 +1,136 @@
+Il y a deux problèmes liés aux bundles / assortiments dans le catalogue, à corriger dans le front :
+
+1) Modale « Détails » pour les bundles
+Problèmes
+
+Le bouton « Détails » des cartes bundle (type === "bundle") n’ouvre plus la modale.
+
+Quand la modale s’ouvrira, je veux un contenu spécifique pour les bundles :
+
+Afficher l’image principale du bundle (imagePrincipale) + si possible, l’image « Boîte » (imageBoite) dans une petite vignette (ou en dessous).
+
+Afficher la composition du bundle (les cigares individuels qui le composent) sous forme de liste.
+
+Le projet a déjà les infos nécessaires dans les données des bundles : une structure du genre bundle.items ou équivalent (nom du cigare, sku, etc.). Utilise ce qui existe déjà dans les données.
+
+Pour chaque cigare de la liste, affiche :
+
+le nom complet (marque + modèle + éventuellement vitole),
+
+la note CA (rating),
+
+le classement Top 25 le cas échéant :
+
+si rank === 1 → afficher Cigare de l'année (YEAR)
+
+si 2 ≤ rank ≤ 25 → afficher Top 25 #RANG (YEAR)
+
+sinon, ne rien afficher.
+
+Ces infos sont déjà présentes dans les champs type badges.rating, badges.top25, badges.top25Year, badges.top25Rang ou équivalents (c’est déjà utilisé ailleurs dans le catalogue, par exemple sur les cartes standard).
+
+Dans la modale bundle, le bloc de prix doit être simplifié :
+
+Titre : toujours « Prix : » (et non « Bundle (…) »).
+
+Afficher le prix régulier barré + prix promo si une promo est active.
+
+Afficher la pastille de promo (ex. -5%) exactement comme pour les produits standards.
+
+Attendu
+
+Retrouver/brancher le bon handler pour onOpenDetails sur les cartes bundle afin que le clic sur « Détails » ouvre bien la modale (ProductDetail ou autre composant dédié).
+
+Dans le composant de la modale (probablement ProductDetail.jsx ou équivalent), introduire une logique conditionnelle :
+
+si product.type === "standard" → garder le comportement actuel
+
+si product.type === "bundle" → utiliser la nouvelle mise en page décrite ci-dessus (images + liste de composition + prix).
+
+2) Prix & promos des bundles sur la carte produit
+
+Je constate une incohérence entre l’admin et la carte produit pour un bundle (exemple : Oliva, Taste of Oliva Sampler – SKU CTGBDL001) :
+
+Dans l’admin :
+
+prix de référence : 120 000 FCFA
+
+promo : -5 %
+
+prix promo calculé : 114 000 FCFA
+
+Sur la carte produit du bundle dans le catalogue :
+
+le prix affiché est bien 114 000 FCFA
+
+MAIS le prix barré affiché est 113 750 FCFA (ce qui est faux)
+
+la pastille de remise est positionnée en haut à gauche, collée au ruban « ASSORTIMENT », alors que je veux la même position que pour les produits standard (en bas à droite de l’image principale).
+
+Ce que je veux
+
+Utiliser exactement la même logique de calcul & d’affichage des promos que pour les produits standard, mais appliquée aux bundles (type === "bundle") :
+
+Trouver où se trouve le code qui calcule et affiche :
+
+le prix normal,
+
+le prix remisé,
+
+le texte de la pastille (ex. -5%),
+
+la position de cette pastille (en bas à droite de l’image).
+
+Ce code fonctionne déjà correctement pour type === "standard".
+Merci de :
+
+factoriser cette logique dans une fonction utilitaire ou un hook (ex. usePricing(product) ou getDisplayPrices(product))
+
+l’appeler depuis la carte produit – y compris quand product.type === "bundle".
+
+Position de la pastille de remise :
+
+Garder la pastille « ASSORTIMENT » en haut à gauche pour les bundles.
+
+Afficher la pastille -X % (promo) à la même position que pour les autres produits standards : en bas à droite de la zone image.
+
+Ne pas écraser le ruban « ASSORTIMENT ».
+
+Libellé sous l’image (dans la carte) :
+
+Pour un bundle, la ligne de prix doit simplement être :
+Prix : <prix promo> FCFA
+et éventuellement en dessous le prix barré si promo.
+
+Ne pas afficher « Bundle (…) » dans la carte.
+
+Références de code
+
+Le composant de grille est ProductGrid.jsx (déjà opérationnel).
+
+Les cartes sont dans ProductCard.jsx.
+
+La modale de détail est dans ProductDetail.jsx (ou fichier équivalent, à retrouver).
+
+Les bundles sont identifiés par product.type === "bundle".
+Les promos sont stockées dans product.promotions (ex : promotions.unitaire.actif, promotions.unitaire.pourcentage) comme pour les produits standard.
+
+Merci de :
+
+Mettre à jour les composants concernés.
+
+Vérifier, avec l’exemple du bundle CTGBDL001, que :
+
+le prix barré est bien 120 000 FCFA,
+
+le prix affiché en rouge est 114 000 FCFA,
+
+la pastille -5% apparaît en bas à droite de l’image,
+
+le bouton « Détails » ouvre une modale qui affiche :
+
+l’image du bundle,
+
+la composition du bundle avec nom + note CA + Top 25 (si applicable),
+
+un bloc « Prix : » avec l’ancien prix barré + le nouveau prix promo.

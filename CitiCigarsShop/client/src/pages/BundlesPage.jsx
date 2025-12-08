@@ -1,12 +1,14 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useProducts } from '@/context/ProductContext';
 import ProductCard from '@/components/catalogue/ProductCard';
+import ProductDetail from '@/components/catalogue/ProductDetail';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import CartDrawer from '@/components/cart/CartDrawer';
 
 export default function BundlesPage() {
   const { products } = useProducts();
+  const [selectedProduct, setSelectedProduct] = useState(null);
   
   // Filtrer uniquement les bundles (adding a mock filter since current mock data doesn't strictly have 'type')
   // We will assume for now that we might need to mock some if none exist, or filter based on 'format' if needed.
@@ -94,7 +96,11 @@ export default function BundlesPage() {
             {/* Grille Bundles */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayBundles.map(bundle => (
-                <ProductCard key={bundle.sku} product={bundle} />
+                <ProductCard 
+                  key={bundle.sku} 
+                  product={bundle} 
+                  onOpenDetails={setSelectedProduct}
+                />
             ))}
             </div>
             
@@ -109,6 +115,12 @@ export default function BundlesPage() {
       </main>
       <Footer />
       <CartDrawer />
+      
+      <ProductDetail 
+        product={selectedProduct}
+        isOpen={!!selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+      />
     </div>
   );
 }

@@ -68,10 +68,10 @@ const ProductCard = ({ product, onOpenDetails }) => {
     const promo = produit.promotions;
 
     if (produit.type === "bundle") {
-      const basePrice = produit.prixBundle || produit.prixUnitaire;
       const bundlePromo = promo?.bundle;
       const unitPromo = promo?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+      const basePrice = produit.prixBundle || produit.prixUnitaire;
       price = activePromo?.prixPromo ? activePromo.prixPromo : basePrice;
     } else {
       switch (format) {
@@ -118,17 +118,18 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <span>🎁</span>
               <span>ASSORTIMENT</span>
             </div>
-            {(() => {
-              const bundlePromo = produit.promotions?.bundle;
-              const unitPromo = produit.promotions?.unitaire;
-              const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
-              return activePromo?.pourcentage > 0 && (
-                <div className="bg-red-600 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
-                  -{activePromo.pourcentage}%
-                </div>
-              );
-            })()}
           </div>
+          
+          {(() => {
+            const bundlePromo = produit.promotions?.bundle;
+            const unitPromo = produit.promotions?.unitaire;
+            const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+            return activePromo?.pourcentage > 0 && (
+              <div className="absolute bottom-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                -{activePromo.pourcentage}%
+              </div>
+            );
+          })()}
 
           <button
             onClick={(e) => {
@@ -163,18 +164,18 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 </span>
                 <div className="text-right">
                   {(() => {
-                    const basePrice = produit.prixBundle || produit.prixUnitaire;
                     const bundlePromo = produit.promotions?.bundle;
                     const unitPromo = produit.promotions?.unitaire;
                     const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
                     const isPromo = activePromo?.actif && activePromo?.prixPromo;
-                    const finalPrice = isPromo ? activePromo.prixPromo : basePrice;
+                    const basePrice = produit.prixUnitaire || produit.prixBundle;
+                    const finalPrice = isPromo ? activePromo.prixPromo : (produit.prixBundle || basePrice);
                     return (
                       <>
                         <span className={`text-base font-bold ${isPromo ? 'text-red-600' : 'text-primary'}`}>
                           {formatPrice(finalPrice)}
                         </span>
-                        {isPromo && basePrice !== finalPrice && (
+                        {isPromo && basePrice > 0 && basePrice !== finalPrice && (
                           <span className="block text-xs text-muted-foreground line-through">
                             {formatPrice(basePrice)}
                           </span>

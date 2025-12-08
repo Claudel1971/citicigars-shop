@@ -86,11 +86,11 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
   // 🔧 FIX: Use exact prixPromo from database (already rounded), NEVER calculate
   const getPrice = (fmt) => {
     if (isBundle || fmt === "bundle") {
-      const base = product.prixBundle || product.prixUnitaire;
       const bundlePromo = product.promotions?.bundle;
       const unitPromo = product.promotions?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
-      const final = activePromo?.prixPromo ? activePromo.prixPromo : base;
+      const base = product.prixUnitaire || product.prixBundle;
+      const final = activePromo?.prixPromo ? activePromo.prixPromo : (product.prixBundle || base);
       return {
         base,
         final,
