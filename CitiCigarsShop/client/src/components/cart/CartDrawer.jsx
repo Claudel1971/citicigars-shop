@@ -1,19 +1,23 @@
 import React from 'react';
 import { X, Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { useProducts } from '@/context/ProductContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Button from '../shared/Button';
 import { formatPrice } from '@/utils/priceCalculator';
 import { useLocation } from 'wouter';
-import generatedImage from '@assets/generated_images/single_premium_cigar.png'; // Placeholder
+import generatedImage from '@assets/generated_images/single_premium_cigar.png';
 
-const CartItem = ({ item, onUpdateQuantity, onRemove }) => {
+const CartItem = ({ item, product, onUpdateQuantity, onRemove }) => {
+  const imageSrc = product?.imagePrincipale || item.image || generatedImage;
+  const qteBoite = product?.qteBoite || product?.quantiteBoite || item.qteBoite;
+  const typePack = product?.typePack || product?.quantitePack || item.typePack;
   return (
     <div className="flex gap-4 py-4 border-b border-border/50">
       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
         <img 
-          src={item.image || generatedImage} 
+          src={imageSrc} 
           alt={item.modele} 
           className="h-full w-full object-cover"
         />
@@ -23,7 +27,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => {
         <div className="flex justify-between items-start">
           <div>
             <h4 className="font-serif font-bold text-primary text-sm">
-              {item.marque}{item.ligne ? `, ${item.ligne}` : ''} — {item.format === 'unitaire' ? item.modele : item.format === 'pack' ? `Pack de ${item.typePack || '?'}` : `Boîte de ${item.qteBoite || '?'}`}
+              {item.marque}{item.ligne ? `, ${item.ligne}` : ''} — {item.format === 'unitaire' ? item.modele : item.format === 'pack' ? `Pack de ${typePack || '?'}` : `Boîte de ${qteBoite || '?'}`}
             </h4>
             <p className="text-xs text-muted-foreground mt-1 font-mono">SKU: {item.sku}</p>
           </div>
