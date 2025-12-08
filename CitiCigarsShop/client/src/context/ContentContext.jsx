@@ -3,6 +3,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const ContentContext = createContext();
 
 const defaultContent = {
+  header: {
+    logo: {
+      url: "",
+      alt: "Citi Cigars",
+      href: "/"
+    },
+    menuItems: [
+      { label: "ACCUEIL", href: "/", highlight: false, icon: "" },
+      { label: "CIGARES", href: "/catalogue", highlight: false, icon: "" },
+      { label: "NOS ASSORTIMENTS", href: "/assortiments", highlight: true, icon: "🎁" },
+      { label: "PROMOTIONS", href: "/promotions", highlight: false, icon: "" }
+    ]
+  },
   home: {
     heroSlides: [
       {
