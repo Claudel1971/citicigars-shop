@@ -69,8 +69,10 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
     if (produit.type === "bundle") {
       const basePrice = produit.prixBundle || produit.prixUnitaire;
-      const bundlePromo = promo?.bundle || promo?.unitaire;
-      price = bundlePromo?.actif && bundlePromo.prixPromo ? bundlePromo.prixPromo : basePrice;
+      const bundlePromo = promo?.bundle;
+      const unitPromo = promo?.unitaire;
+      const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+      price = activePromo?.prixPromo ? activePromo.prixPromo : basePrice;
     } else {
       switch (format) {
         case "pack":
@@ -116,11 +118,16 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <span>🎁</span>
               <span>ASSORTIMENT</span>
             </div>
-            {(produit.promotions?.bundle?.actif || produit.promotions?.unitaire?.actif) && (
-              <div className="bg-red-600 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
-                -{produit.promotions?.bundle?.pourcentage || produit.promotions?.unitaire?.pourcentage}%
-              </div>
-            )}
+            {(() => {
+              const bundlePromo = produit.promotions?.bundle;
+              const unitPromo = produit.promotions?.unitaire;
+              const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+              return activePromo?.pourcentage > 0 && (
+                <div className="bg-red-600 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
+                  -{activePromo.pourcentage}%
+                </div>
+              );
+            })()}
           </div>
 
           <button
@@ -157,9 +164,11 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 <div className="text-right">
                   {(() => {
                     const basePrice = produit.prixBundle || produit.prixUnitaire;
-                    const promoObj = produit.promotions?.bundle || produit.promotions?.unitaire;
-                    const isPromo = promoObj?.actif && promoObj?.prixPromo;
-                    const finalPrice = isPromo ? promoObj.prixPromo : basePrice;
+                    const bundlePromo = produit.promotions?.bundle;
+                    const unitPromo = produit.promotions?.unitaire;
+                    const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+                    const isPromo = activePromo?.actif && activePromo?.prixPromo;
+                    const finalPrice = isPromo ? activePromo.prixPromo : basePrice;
                     return (
                       <>
                         <span className={`text-base font-bold ${isPromo ? 'text-red-600' : 'text-primary'}`}>

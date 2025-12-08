@@ -87,13 +87,15 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
   const getPrice = (fmt) => {
     if (isBundle || fmt === "bundle") {
       const base = product.prixBundle || product.prixUnitaire;
-      const promoObj = product.promotions?.bundle || product.promotions?.unitaire;
-      const final = promoObj?.actif && promoObj?.prixPromo ? promoObj.prixPromo : base;
+      const bundlePromo = product.promotions?.bundle;
+      const unitPromo = product.promotions?.unitaire;
+      const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+      const final = activePromo?.prixPromo ? activePromo.prixPromo : base;
       return {
         base,
         final,
-        isPromo: promoObj?.actif || false,
-        pct: promoObj?.pourcentage || 0,
+        isPromo: activePromo?.actif || false,
+        pct: activePromo?.pourcentage || 0,
       };
     }
 
@@ -198,21 +200,25 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
             )}
 
             {/* PROMO Badge */}
-            {isBundle ? (
-              (product.promotions?.bundle?.actif || product.promotions?.unitaire?.actif) &&
-              (product.promotions?.bundle?.pourcentage || product.promotions?.unitaire?.pourcentage) > 0 && (
-                <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-                  -{product.promotions?.bundle?.pourcentage || product.promotions?.unitaire?.pourcentage}%
-                </div>
-              )
-            ) : (
-              product.promotions?.unitaire?.actif &&
-              product.promotions.unitaire.pourcentage > 0 && (
-                <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-                  -{product.promotions.unitaire.pourcentage}%
-                </div>
-              )
-            )}
+            {(() => {
+              if (isBundle) {
+                const bundlePromo = product.promotions?.bundle;
+                const unitPromo = product.promotions?.unitaire;
+                const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+                return activePromo?.pourcentage > 0 && (
+                  <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                    -{activePromo.pourcentage}%
+                  </div>
+                );
+              } else {
+                return product.promotions?.unitaire?.actif &&
+                  product.promotions.unitaire.pourcentage > 0 && (
+                    <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                      -{product.promotions.unitaire.pourcentage}%
+                    </div>
+                  );
+              }
+            })()}
           </div>
 
           {/* Right: Content */}
