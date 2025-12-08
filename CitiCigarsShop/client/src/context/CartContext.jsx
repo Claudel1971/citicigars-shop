@@ -45,16 +45,18 @@ export const CartProvider = ({ children }) => {
 
       return [...prev, {
         id: `${product.sku}-${format}`,
-        sku: product.sku, // Ensure SKU is saved
+        sku: product.sku,
         marque: product.marque,
         modele: product.modele,
-        ligne: product.ligne, // Added ligne for display
-        format, // 'unitaire', 'pack', 'boite'
+        ligne: product.ligne,
+        format,
         quantite: quantity,
         prixUnitaire: price,
         prixTotal: price * quantity,
         image: finalImage,
-        type: product.type
+        type: product.type,
+        qteBoite: product.qteBoite || product.quantiteBoite,
+        typePack: product.typePack || product.quantitePack
       }];
     });
     setIsOpen(true);
