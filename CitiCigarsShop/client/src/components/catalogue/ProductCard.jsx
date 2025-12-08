@@ -32,6 +32,32 @@ function getMainImage(p) {
   );
 }
 
+// ---------- Helper nomenclature (titre / pays / vitole) ----------
+const buildProductNaming = (product) => {
+  const { marque, ligne, modele, vitole, format, taille, pays, origine } =
+    product;
+
+  // Ligne 1 : Marque + ligne ou modèle
+  const mainName = [marque, ligne || modele].filter(Boolean).join(", ");
+
+  // Ligne 2 : pays / origine
+  const countryLine = pays || origine || "";
+
+  // Ligne 3 : vitole + format (sans doublon)
+  const vit = (vitole || "").trim();
+  const fmt = (format || taille || "").trim();
+
+  let vitoleLine = "";
+  if (vit && fmt) {
+    vitoleLine =
+      vit.toLowerCase() === fmt.toLowerCase() ? vit : `${vit}, ${fmt}`;
+  } else {
+    vitoleLine = vit || fmt || "";
+  }
+
+  return { mainName, countryLine, vitoleLine };
+};
+
 // Fonctions de calcul des prix
 const arrondirMultiple = (valeur, multiple = 500) => {
   return Math.round(valeur / multiple) * multiple;
@@ -45,17 +71,19 @@ const calculerPrixPromo = (prixUnitaire, rabais) => {
 
 // Prix pack = prix unitaire (arrondi si promo) × quantité pack (pas d'arrondi supplémentaire)
 const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
-  const prixUnitaireEffectif = rabais > 0 
-    ? arrondirMultiple(prixUnitaire * (1 - rabais / 100), 500)
-    : prixUnitaire;
+  const prixUnitaireEffectif =
+    rabais > 0
+      ? arrondirMultiple(prixUnitaire * (1 - rabais / 100), 500)
+      : prixUnitaire;
   return prixUnitaireEffectif * qtyPack;
 };
 
 // Prix boîte = prix unitaire (arrondi si promo) × quantité boîte (pas d'arrondi supplémentaire)
 const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
-  const prixUnitaireEffectif = rabais > 0 
-    ? arrondirMultiple(prixUnitaire * (1 - rabais / 100), 500)
-    : prixUnitaire;
+  const prixUnitaireEffectif =
+    rabais > 0
+      ? arrondirMultiple(prixUnitaire * (1 - rabais / 100), 500)
+      : prixUnitaire;
   return prixUnitaireEffectif * qtyBoite;
 };
 
@@ -67,9 +95,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const isWishlisted = isInWishlist(product.sku);
 
   const produit = { ...product };
-
   const [selectedFormat, setSelectedFormat] = useState("unitaire");
-
   const mainImage = getMainImage(produit);
 
   const imageForFormat = (format) => {
@@ -101,7 +127,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
     if (produit.type === "bundle") {
       const bundlePromo = promo?.bundle;
       const unitPromo = promo?.unitaire;
-      const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
+      const activePromo =
+        (bundlePromo?.actif ? bundlePromo : null) ||
+        (unitPromo?.actif ? unitPromo : null);
       const basePrice = produit.prixUnitaire || produit.prixBundle;
       const rabais = activePromo?.pourcentage || 0;
       price = rabais > 0 ? calculerPrixPromo(basePrice, rabais) : basePrice;
@@ -111,18 +139,24 @@ const ProductCard = ({ product, onOpenDetails }) => {
           price = calculerPrixPack(currentPrixUnitaire, qtyPack, currentRabais);
           break;
         case "boite":
-          price = calculerPrixBoite(currentPrixUnitaire, qtyBoite, currentRabais);
+          price = calculerPrixBoite(
+            currentPrixUnitaire,
+            qtyBoite,
+            currentRabais,
+          );
           break;
         default:
-          price = currentRabais > 0 
-            ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
-            : currentPrixUnitaire;
+          price =
+            currentRabais > 0
+              ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
+              : currentPrixUnitaire;
       }
     }
 
     addToCart(produit, format, quantity, price, imageForFormat(format));
   };
 
+  // ---------- Carte BUNDLE ----------
   if (produit.type === "bundle") {
     return (
       <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
@@ -144,15 +178,19 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <span>ASSORTIMENT</span>
             </div>
           </div>
-          
+
           {(() => {
             const bundlePromo = produit.promotions?.bundle;
             const unitPromo = produit.promotions?.unitaire;
-            const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
-            return activePromo?.pourcentage > 0 && (
-              <div className="absolute bottom-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                -{activePromo.pourcentage}%
-              </div>
+            const activePromo =
+              (bundlePromo?.actif ? bundlePromo : null) ||
+              (unitPromo?.actif ? unitPromo : null);
+            return (
+              activePromo?.pourcentage > 0 && (
+                <div className="absolute bottom-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                  -{activePromo.pourcentage}%
+                </div>
+              )
             );
           })()}
 
@@ -178,22 +216,27 @@ const ProductCard = ({ product, onOpenDetails }) => {
           </h3>
 
           <p className="text-sm text-muted-foreground mb-3">
-            {produit.description || `Assortiment de ${produit.quantiteBoite || produit.qteBoite || 4} cigares premium`}
+            {produit.description ||
+              `Assortiment de ${
+                produit.quantiteBoite || produit.qteBoite || 4
+              } cigares premium`}
           </p>
 
           <div>
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
               <div className="flex justify-between items-center py-1 px-1">
-                <span className="text-sm font-bold text-primary">
-                  Prix :
-                </span>
+                <span className="text-sm font-bold text-primary">Prix :</span>
                 <div className="text-right">
                   {(() => {
                     const bundlePromo = produit.promotions?.bundle;
                     const unitPromo = produit.promotions?.unitaire;
-                    const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
-                    const basePrice = produit.prixUnitaire || produit.prixBundle;
-                    const isPromo = activePromo?.actif && activePromo?.prixPromo;
+                    const activePromo =
+                      (bundlePromo?.actif ? bundlePromo : null) ||
+                      (unitPromo?.actif ? unitPromo : null);
+                    const basePrice =
+                      produit.prixUnitaire || produit.prixBundle;
+                    const isPromo =
+                      activePromo?.actif && activePromo?.prixPromo;
                     return isPromo ? (
                       <>
                         <span className="text-xs line-through text-muted-foreground mr-1">
@@ -238,6 +281,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
     );
   }
 
+  // ---------- Carte PRODUIT STANDARD ----------
+  const { mainName, countryLine, vitoleLine } = buildProductNaming(produit);
+
   return (
     <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
       <div
@@ -266,10 +312,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
             {produit.badges?.top25 && !produit.badges?.coty && (
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <span>
-                  {produit.badges.top25Rang === 1 
+                  {produit.badges.top25Rang === 1
                     ? `★ Cigare de l'année, ${produit.badges.top25Year}`
-                    : `★ #${produit.badges.top25Rang}, ${produit.badges.top25Year}`
-                  }
+                    : `★ #${produit.badges.top25Rang}, ${produit.badges.top25Year}`}
                 </span>
               </div>
             )}
@@ -296,30 +341,29 @@ const ProductCard = ({ product, onOpenDetails }) => {
           )}
         </button>
 
-        {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.pourcentage > 0 && (
+        {produit.promotions?.unitaire?.actif &&
+          produit.promotions.unitaire.pourcentage > 0 && (
             <div className="absolute bottom-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
               -{produit.promotions.unitaire.pourcentage}%
             </div>
-        )}
+          )}
       </div>
 
       <div className="p-5">
+        {/* Ligne 1 : Marque, Ligne / Modèle */}
         <h3 className="text-xl font-serif font-bold text-primary mb-1 leading-tight group-hover:text-secondary transition-colors">
-          {produit.marque}
-          {produit.ligne ? `, ${produit.ligne}` : ""}
-          {produit.origine || produit.pays ? (
-            <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
-              · {produit.origine || produit.pays}
-            </span>
-          ) : null}
+          {mainName}
         </h3>
 
-        {(produit.vitole || produit.format) && (
+        {/* Ligne 2 : Pays / origine */}
+        {countryLine && (
+          <p className="text-sm text-muted-foreground">{countryLine}</p>
+        )}
+
+        {/* Ligne 3 : Vitole + format (sans doublon) + dimensions */}
+        {vitoleLine && (
           <p className="text-sm text-muted-foreground mb-2">
-            {produit.vitole && produit.vitole !== produit.format
-              ? `${produit.vitole}, `
-              : ""}
-            {produit.format || produit.vitole}
+            {vitoleLine}
             {produit.longueur && produit.diametre
               ? ` (${produit.longueur} × ${produit.diametre})`
               : ""}
@@ -344,20 +388,28 @@ const ProductCard = ({ product, onOpenDetails }) => {
           </p>
         </div>
 
-        {/* 🔧 FIX: Removed flex-1 spacer that caused excessive spacing */}
-
         <div>
           {(() => {
             const currentPrixUnitaire = produit.prixUnitaire;
-            const currentRabais = produit.promotions?.unitaire?.pourcentage || 0;
+            const currentRabais =
+              produit.promotions?.unitaire?.pourcentage || 0;
             const qtyPack = produit.quantitePack || produit.typePack || 5;
             const qtyBoite = produit.qteBoite || produit.quantiteBoite || 25;
 
-            const prixFinal = currentRabais > 0 
-              ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
-              : currentPrixUnitaire;
-            const prixPack = calculerPrixPack(currentPrixUnitaire, qtyPack, currentRabais);
-            const prixBoite = calculerPrixBoite(currentPrixUnitaire, qtyBoite, currentRabais);
+            const prixFinal =
+              currentRabais > 0
+                ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
+                : currentPrixUnitaire;
+            const prixPack = calculerPrixPack(
+              currentPrixUnitaire,
+              qtyPack,
+              currentRabais,
+            );
+            const prixBoite = calculerPrixBoite(
+              currentPrixUnitaire,
+              qtyBoite,
+              currentRabais,
+            );
 
             return (
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
