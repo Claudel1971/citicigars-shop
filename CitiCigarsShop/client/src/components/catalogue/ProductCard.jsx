@@ -240,25 +240,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1 text-xs border border-input hover:bg-accent"
-                onClick={() => onOpenDetails && onOpenDetails(produit)}
-              >
-                Détails
-              </Button>
-
-              <Button
-                size="sm"
-                className="flex-1 gap-1 bg-primary hover:bg-primary/90 text-white"
-                onClick={() => handleQuickAdd("bundle", 1)}
-              >
-                <ShoppingCart size={14} />
-                <span className="text-xs">Ajouter</span>
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              className="w-full bg-primary hover:bg-primary/90 text-white"
+              onClick={() => onOpenDetails && onOpenDetails(produit)}
+            >
+              Voir détails
+            </Button>
           </div>
         </div>
       </div>
@@ -463,25 +451,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
             );
           })()}
 
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-1 text-xs border border-input hover:bg-accent"
-              onClick={() => onOpenDetails && onOpenDetails(produit)}
-            >
-              Détails
-            </Button>
-
-            <Button
-              size="sm"
-              className="flex-1 gap-1 bg-primary hover:bg-primary/90 text-white"
-              onClick={() => handleQuickAdd(selectedFormat)}
-            >
-              <ShoppingCart size={14} />
-              <span className="text-xs">Ajouter</span>
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            className="w-full bg-primary hover:bg-primary/90 text-white"
+            onClick={() => onOpenDetails && onOpenDetails(produit)}
+          >
+            Voir détails
+          </Button>
         </div>
       </div>
     </div>
