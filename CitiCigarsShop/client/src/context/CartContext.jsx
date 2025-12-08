@@ -31,17 +31,7 @@ export const CartProvider = ({ children }) => {
       
       toast.success(`${product.marque} ${product.modele} ajouté au panier`);
       
-      // Determine correct image if not overridden
-      const getImageForFormat = (prod, fmt) => {
-        switch(fmt) {
-          case 'pack': return prod.imagePack || prod.imagePrincipale;
-          case 'boite': return prod.imageBoite || prod.imagePrincipale;
-          case 'unitaire':
-          default: return prod.imageSolo || prod.imagePrincipale;
-        }
-      };
-
-      const finalImage = imageOverride || getImageForFormat(product, format);
+      const finalImage = imageOverride || product.imagePrincipale;
 
       return [...prev, {
         id: `${product.sku}-${format}`,
