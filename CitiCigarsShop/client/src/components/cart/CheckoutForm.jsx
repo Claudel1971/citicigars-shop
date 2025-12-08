@@ -1,24 +1,32 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useCart } from '@/context/CartContext';
-import { generateWhatsAppLink } from '@/utils/whatsappGenerator';
-import { formatPrice } from '@/utils/priceCalculator';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import Button from '../shared/Button';
-import { MessageCircle, ArrowLeft } from 'lucide-react';
-import { useLocation } from 'wouter';
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useCart } from "@/context/CartContext";
+import { generateWhatsAppLink } from "@/utils/whatsappGenerator";
+import { formatPrice } from "@/utils/priceCalculator";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import Button from "../shared/Button";
+import { MessageCircle, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
+import generatedImage from "@assets/generated_images/single_premium_cigar.png";
 
 const formSchema = z.object({
   nom: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   telephone: z.string().min(10, "Numéro de téléphone invalide"),
   ville: z.string().min(2, "La ville est requise"),
   notes: z.string().optional(),
-  cgv: z.boolean().refine(val => val === true, "Vous devez accepter les CGV"),
+  cgv: z.boolean().refine((val) => val === true, "Vous devez accepter les CGV"),
 });
 
 const CheckoutForm = () => {
@@ -32,35 +40,43 @@ const CheckoutForm = () => {
       telephone: "",
       ville: "",
       notes: "",
-      cgv: false
-    }
+      cgv: false,
+    },
   });
 
   const onSubmit = (data) => {
     const link = generateWhatsAppLink(items, total, data);
-    window.open(link, '_blank');
+    window.open(link, "_blank");
     clearCart();
-    setLocation('/'); // Redirect home after checkout
+    setLocation("/"); // Redirect home after checkout
   };
 
   if (items.length === 0) {
     return (
       <div className="container py-20 text-center">
         <h2 className="text-2xl font-serif mb-4">Votre panier est vide</h2>
-        <Button onClick={() => setLocation('/catalogue')}>Retour au catalogue</Button>
+        <Button onClick={() => setLocation("/catalogue")}>
+          Retour au catalogue
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="container max-w-4xl py-12 px-4">
-      <Button variant="ghost" onClick={() => setLocation('/catalogue')} className="mb-8 gap-2">
+      <Button
+        variant="ghost"
+        onClick={() => setLocation("/catalogue")}
+        className="mb-8 gap-2"
+      >
         <ArrowLeft size={16} /> Continuer les achats
       </Button>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         <div>
-          <h2 className="text-3xl font-serif font-bold text-primary mb-6">Finaliser la commande</h2>
+          <h2 className="text-3xl font-serif font-bold text-primary mb-6">
+            Finaliser la commande
+          </h2>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -76,7 +92,7 @@ const CheckoutForm = () => {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="telephone"
@@ -112,7 +128,10 @@ const CheckoutForm = () => {
                   <FormItem>
                     <FormLabel>Notes spéciales (Optionnel)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Code porte, instructions de livraison..." {...field} />
+                      <Textarea
+                        placeholder="Code porte, instructions de livraison..."
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -132,15 +151,23 @@ const CheckoutForm = () => {
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>
-                        J'accepte les conditions générales de vente
+                        J&apos;accepte les conditions générales de vente
                       </FormLabel>
                     </div>
                   </FormItem>
                 )}
               />
-                {form.formState.errors.cgv && <p className="text-destructive text-sm">{form.formState.errors.cgv.message}</p>}
+              {form.formState.errors.cgv && (
+                <p className="text-destructive text-sm">
+                  {form.formState.errors.cgv.message}
+                </p>
+              )}
 
-              <Button type="submit" size="lg" className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2">
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2"
+              >
                 <MessageCircle /> Commander via WhatsApp
               </Button>
             </form>
@@ -148,12 +175,40 @@ const CheckoutForm = () => {
         </div>
 
         <div className="bg-muted/20 p-8 rounded-lg h-fit border border-border">
-          <h3 className="text-xl font-serif font-bold mb-6 border-b pb-4">Récapitulatif</h3>
+          <h3 className="text-xl font-serif font-bold mb-6 border-b pb-4">
+            Récapitulatif
+          </h3>
           <div className="space-y-4 mb-6">
-            {items.map(item => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span>{item.quantite}x {item.marque} {item.modele} ({item.format})</span>
-                <span className="font-mono font-medium">{formatPrice(item.prixTotal)}</span>
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-md overflow-hidden bg-muted">
+                    <img
+                      src={item.image || item.imagePrincipale || generatedImage}
+                      alt={item.marque}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {item.quantite}× {item.marque}
+                      {item.modele ? `, ${item.modele}` : ""}
+                      {item.format ? ` — ${item.format}` : ""}
+                    </span>
+                    {item.sku && (
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        SKU : {item.sku}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <span className="font-mono font-medium">
+                  {formatPrice(item.prixTotal)}
+                </span>
               </div>
             ))}
           </div>
@@ -162,7 +217,8 @@ const CheckoutForm = () => {
             <span>{formatPrice(total)}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            * Le paiement et la livraison seront arrangés directement via WhatsApp avec notre service commercial.
+            * Le paiement et la livraison seront arrangés directement via
+            WhatsApp avec notre service commercial.
           </p>
         </div>
       </div>

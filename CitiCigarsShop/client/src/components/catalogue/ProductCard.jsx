@@ -32,32 +32,6 @@ function getMainImage(p) {
   );
 }
 
-// ---------- Helper nomenclature (titre / pays / vitole) ----------
-const buildProductNaming = (product) => {
-  const { marque, ligne, modele, vitole, format, taille, pays, origine } =
-    product;
-
-  // Ligne 1 : Marque + ligne ou modèle
-  const mainName = [marque, ligne || modele].filter(Boolean).join(", ");
-
-  // Ligne 2 : pays / origine
-  const countryLine = pays || origine || "";
-
-  // Ligne 3 : vitole + format (sans doublon)
-  const vit = (vitole || "").trim();
-  const fmt = (format || taille || "").trim();
-
-  let vitoleLine = "";
-  if (vit && fmt) {
-    vitoleLine =
-      vit.toLowerCase() === fmt.toLowerCase() ? vit : `${vit}, ${fmt}`;
-  } else {
-    vitoleLine = vit || fmt || "";
-  }
-
-  return { mainName, countryLine, vitoleLine };
-};
-
 // Fonctions de calcul des prix
 const arrondirMultiple = (valeur, multiple = 500) => {
   return Math.round(valeur / multiple) * multiple;
@@ -95,7 +69,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const isWishlisted = isInWishlist(product.sku);
 
   const produit = { ...product };
+
   const [selectedFormat, setSelectedFormat] = useState("unitaire");
+
   const mainImage = getMainImage(produit);
 
   const imageForFormat = (format) => {
@@ -115,6 +91,16 @@ const ProductCard = ({ product, onOpenDetails }) => {
   };
 
   const currentImage = imageForFormat(selectedFormat);
+
+  // Image principale utilisée pour le panier / checkout
+  const cartImage =
+    produit.imagePrincipale ||
+    produit.imageSolo ||
+    produit.imagePack ||
+    produit.imagePack4 ||
+    produit.imagePack5 ||
+    produit.imageBoite ||
+    generatedImage;
 
   const handleQuickAdd = (format, quantity = 1) => {
     let price;
@@ -153,10 +139,10 @@ const ProductCard = ({ product, onOpenDetails }) => {
       }
     }
 
-    addToCart(produit, format, quantity, price, imageForFormat(format));
+    // On envoie toujours l'image principale au panier
+    addToCart(produit, format, quantity, price, cartImage);
   };
 
-  // ---------- Carte BUNDLE ----------
   if (produit.type === "bundle") {
     return (
       <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
@@ -281,9 +267,6 @@ const ProductCard = ({ product, onOpenDetails }) => {
     );
   }
 
-  // ---------- Carte PRODUIT STANDARD ----------
-  const { mainName, countryLine, vitoleLine } = buildProductNaming(produit);
-
   return (
     <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
       <div
@@ -305,7 +288,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
             {produit.badges?.coty && (
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <Crown className="w-3 h-3" />
-                <span>Cigare de l'année ({produit.badges.top25Year})</span>
+                <span>Cigare de l&apos;année ({produit.badges.top25Year})</span>
               </div>
             )}
 
@@ -350,20 +333,22 @@ const ProductCard = ({ product, onOpenDetails }) => {
       </div>
 
       <div className="p-5">
-        {/* Ligne 1 : Marque, Ligne / Modèle */}
         <h3 className="text-xl font-serif font-bold text-primary mb-1 leading-tight group-hover:text-secondary transition-colors">
-          {mainName}
+          {produit.marque}
+          {produit.ligne ? `, ${produit.ligne}` : ""}
+          {(produit.origine || produit.pays) && (
+            <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
+              · {produit.origine || produit.pays}
+            </span>
+          )}
         </h3>
 
-        {/* Ligne 2 : Pays / origine */}
-        {countryLine && (
-          <p className="text-sm text-muted-foreground">{countryLine}</p>
-        )}
-
-        {/* Ligne 3 : Vitole + format (sans doublon) + dimensions */}
-        {vitoleLine && (
+        {(produit.vitole || produit.format) && (
           <p className="text-sm text-muted-foreground mb-2">
-            {vitoleLine}
+            {produit.vitole && produit.vitole !== produit.format
+              ? `${produit.vitole}, `
+              : ""}
+            {produit.format || produit.vitole}
             {produit.longueur && produit.diametre
               ? ` (${produit.longueur} × ${produit.diametre})`
               : ""}

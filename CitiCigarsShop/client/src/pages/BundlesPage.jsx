@@ -54,7 +54,7 @@ export default function BundlesPage() {
       <Header />
       <main className="flex-1">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-12">
+        <div className="bg-destructive text-white py-12">
             <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
                 🎁 Découvrez Nos Assortiments
