@@ -59,8 +59,7 @@ const Header = () => {
               href={link.href} 
               className={cn(
                 "text-sm font-medium transition-colors hover:text-secondary uppercase tracking-wider",
-                location === link.href ? "text-secondary font-bold" : "text-muted-foreground",
-                link.highlight && "text-amber-600 font-bold hover:text-amber-700"
+                location === link.href ? "text-secondary font-bold" : "text-muted-foreground"
               )}
             >
               {link.icon && <span className="mr-1">{link.icon}</span>}
@@ -110,10 +109,7 @@ const Header = () => {
               <Link 
                 key={link.href || index} 
                 href={link.href} 
-                className={cn(
-                  "text-lg font-medium py-2 px-4 hover:bg-accent rounded-md",
-                  link.highlight && "text-amber-600 font-bold"
-                )}
+                className="text-lg font-medium py-2 px-4 hover:bg-accent rounded-md"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.icon && <span className="mr-1">{link.icon}</span>}
