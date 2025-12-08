@@ -129,28 +129,36 @@ export default function UpdatePrices() {
           };
         }
 
+        const arrondir500 = (val) => Math.round(val / 500) * 500;
+
         if (row.rabaisUnitaire > 0) {
           updatedProduct.promotions.unitaire.actif = true;
           updatedProduct.promotions.unitaire.pourcentage = row.rabaisUnitaire;
+          updatedProduct.promotions.unitaire.prixPromo = arrondir500(updatedProduct.prixUnitaire * (1 - row.rabaisUnitaire / 100));
         } else {
           updatedProduct.promotions.unitaire.actif = false;
           updatedProduct.promotions.unitaire.pourcentage = 0;
+          updatedProduct.promotions.unitaire.prixPromo = null;
         }
 
         if (row.rabaisPack > 0) {
           updatedProduct.promotions.pack.actif = true;
           updatedProduct.promotions.pack.pourcentage = row.rabaisPack;
+          updatedProduct.promotions.pack.prixPromo = arrondir500(updatedProduct.prixPack * (1 - row.rabaisPack / 100));
         } else {
           updatedProduct.promotions.pack.actif = false;
           updatedProduct.promotions.pack.pourcentage = 0;
+          updatedProduct.promotions.pack.prixPromo = null;
         }
 
         if (row.rabaisBoite > 0) {
           updatedProduct.promotions.boite.actif = true;
           updatedProduct.promotions.boite.pourcentage = row.rabaisBoite;
+          updatedProduct.promotions.boite.prixPromo = arrondir500(updatedProduct.prixBoite * (1 - row.rabaisBoite / 100));
         } else {
           updatedProduct.promotions.boite.actif = false;
           updatedProduct.promotions.boite.pourcentage = 0;
+          updatedProduct.promotions.boite.prixPromo = null;
         }
 
         await updateProduct(updatedProduct);
