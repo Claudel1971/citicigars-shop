@@ -266,14 +266,17 @@ const ProductCard = ({ product, onOpenDetails }) => {
             {produit.badges?.top25 && !produit.badges?.coty && (
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <span>
-                  ★ TOP {produit.badges.top25Rang} ({produit.badges.top25Year})
+                  {produit.badges.top25Rang === 1 
+                    ? `★ Cigare de l'année, ${produit.badges.top25Year}`
+                    : `★ #${produit.badges.top25Rang}, ${produit.badges.top25Year}`
+                  }
                 </span>
               </div>
             )}
 
             {produit.badges?.rating && produit.badges.rating !== "NA" && (
-              <div className="bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-semibold text-amber-700 border border-amber-200 shadow-sm">
-                CA {produit.badges.rating} pts
+              <div className="bg-white/95 backdrop-blur-sm w-8 h-8 rounded-full text-sm font-bold text-amber-700 border border-amber-200 shadow-sm flex items-center justify-center">
+                {produit.badges.rating}
               </div>
             )}
           </div>
