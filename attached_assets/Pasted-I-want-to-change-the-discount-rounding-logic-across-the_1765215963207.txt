@@ -1,0 +1,212 @@
+I want to change the discount rounding logic across the whole project.
+
+Business rule (VERY IMPORTANT):
+The discounted price must now be rounded to the nearest multiple of 500 (not 250 anymore).
+
+Mathematically:
+discounted = price * (1 - percentage / 100)
+Then:
+finalPrice = round(discounted / 500) * 500
+
+Please update all the following places accordingly and keep the code clean and consistent:
+
+1) src/utils/priceCalculator.js
+
+Replace the current calculateDiscountedPrice which uses 250 with a helper and 500-based rounding.
+
+Current (approximate) logic:
+
+export const calculateDiscountedPrice = (price, percentage) => {
+  if (!percentage || percentage <= 0) return price;
+  const discounted = price * (1 - percentage / 100);
+  return Math.round(discounted / 250) * 250;
+};
+
+
+Change it to:
+
+export const arrondir500 = (val) => {
+  return Math.round(val / 500) * 500;
+};
+
+export const calculateDiscountedPrice = (price, percentage) => {
+  if (!percentage || percentage <= 0) return price;
+  const discounted = price * (1 - percentage / 100);
+  return arrondir500(discounted);
+};
+
+
+If other utilities in this file still use /250, update them to use /500 or reuse arrondir500.
+
+2) src/components/admin/ProductManager.jsx
+
+I already have helpers like:
+
+const arrondirMultiple = (valeur, multiple = 250) => {
+  return Math.round(valeur / multiple) * multiple;
+};
+const calculerPrixPromo = (prixUnitaire, rabais) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  if (rabaisPositif === 0) return null;
+  const prixAvecRabais = prixUnitaire * (1 - rabaisPositif / 100);
+  return arrondirMultiple(prixAvecRabais, 250);
+};
+const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  const prixBase = prixUnitaire * qtyPack;
+  if (rabaisPositif > 0) {
+    const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 250);
+  }
+  return prixBase;
+};
+const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  const prixBase = prixUnitaire * qtyBoite;
+  if (rabaisPositif > 0) {
+    const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 250);
+  }
+  return prixBase;
+};
+
+
+Update it to use 500 instead of 250:
+
+const arrondirMultiple = (valeur, multiple = 500) => {
+  return Math.round(valeur / multiple) * multiple;
+};
+
+const calculerPrixPromo = (prixUnitaire, rabais) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  if (rabaisPositif === 0) return null;
+  const prixAvecRabais = prixUnitaire * (1 - rabaisPositif / 100);
+  return arrondirMultiple(prixAvecRabais, 500);
+};
+
+const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  const prixBase = prixUnitaire * qtyPack;
+  if (rabaisPositif > 0) {
+    const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 500);
+  }
+  return prixBase;
+};
+
+const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
+  const rabaisPositif = normaliserRabais(rabais);
+  const prixBase = prixUnitaire * qtyBoite;
+  if (rabaisPositif > 0) {
+    const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
+    return arrondirMultiple(prixAvecRabais, 500);
+  }
+  return prixBase;
+};
+
+
+Make sure there is no remaining reference to 250 in this file.
+
+3) src/components/admin/ImportExcel.jsx
+
+In the promotions object, the promo prices currently use /250:
+
+promotions: {
+  unitaire: {
+    actif: rabais > 0,
+    pourcentage: rabais,
+    prixPromo: rabais > 0 
+      ? Math.round(prixUnitaire * (1 - rabais / 100) / 250) * 250 
+      : null
+  },
+  pack: {
+    actif: rabais > 0,
+    pourcentage: rabais,
+    prixPromo: rabais > 0 
+      ? Math.round(prixPack * (1 - rabais / 100) / 250) * 250 
+      : null
+  },
+  boite: {
+    actif: rabais > 0,
+    pourcentage: rabais,
+    prixPromo: rabais > 0 
+      ? Math.round(prixBoite * (1 - rabais / 100) / 250) * 250 
+      : null
+  }
+}
+
+
+Replace every /250)*250 with /500)*500:
+
+promotions: {
+  unitaire: {
+    actif: rabais > 0,
+    pourcentage: rabais,
+    prixPromo: rabais > 0 
+      ? Math.round(prixUnitaire * (1 - rabais / 100) / 500) * 500 
+      : null
+  },
+  pack: {
+    actif: rabais > 0,
+    pourcentage: rabais,
+    prixPromo: rabais > 0 
+      ? Math.round(prixPack * (1 - rabais / 100) / 500) * 500 
+      : null
+  },
+  boite: {
+    actif: rabais > 0,
+    pourcentage: rabais,
+    prixPromo: rabais > 0 
+      ? Math.round(prixBoite * (1 - rabais / 100) / 500) * 500 
+      : null
+  }
+}
+
+4) src/components/admin/UpdatePricesExcel.jsx
+
+There is also a formula like this:
+
+const calculatedPromo = r.prixPromo !== null 
+  ? r.prixPromo 
+  : (r.rabais > 0 && prixUnitaire > 0) 
+    ? Math.round(prixUnitaire * (1 - r.rabais / 100) / 250) * 250 
+    : null;
+
+
+Change 250 → 500:
+
+const calculatedPromo = r.prixPromo !== null 
+  ? r.prixPromo 
+  : (r.rabais > 0 && prixUnitaire > 0) 
+    ? Math.round(prixUnitaire * (1 - r.rabais / 100) / 500) * 500 
+    : null;
+
+5) Global search & verify
+
+Please also:
+
+Do a full-text search in the project for:
+
+"/250) * 250"
+
+"/250)*250"
+
+"multiple = 250"
+
+Replace them consistently with 500-based logic as described above.
+
+Make sure there is no remaining business logic using 250 as the rounding step for discounted prices.
+
+6) Quick tests to confirm
+
+After your changes, please add small console tests or unit tests to verify these example cases:
+
+price = 14000, discount = 5%
+→ raw = 14 000 × 0.95 = 13 300
+→ should become 13 500 (nearest multiple of 500)
+
+price = 17000, discount = 5%
+→ raw = 17 000 × 0.95 = 16 150
+→ should become 16 000 (nearest multiple of 500)
+
+Use these values to confirm that all layers (front display, admin, import, and Excel update) give the same discounted price.

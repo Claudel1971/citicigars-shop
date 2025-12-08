@@ -16,10 +16,14 @@ export const formatPrice = (price) => {
   }).format(price).replace('XOF', 'FCFA');
 };
 
+export const arrondir500 = (val) => {
+  return Math.round(val / 500) * 500;
+};
+
 export const calculateDiscountedPrice = (price, percentage) => {
   if (!percentage || percentage <= 0) return price;
   const discounted = price * (1 - percentage / 100);
-  return Math.round(discounted / 250) * 250;
+  return arrondir500(discounted);
 };
 
 export const determinerTypePack = (format, config) => {
