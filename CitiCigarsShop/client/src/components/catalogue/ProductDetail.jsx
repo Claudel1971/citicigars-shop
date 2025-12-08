@@ -498,15 +498,15 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                   <div className="flex items-baseline gap-2">
                     {currentPrice.isPromo && currentPrice.base !== currentPrice.final ? (
                       <>
-                        <span className="text-xs font-serif text-muted-foreground line-through">
+                        <span className="text-xs text-muted-foreground line-through">
                           {formatPrice(currentPrice.base)}
                         </span>
-                        <span className="text-2xl font-serif font-bold text-destructive">
+                        <span className="text-sm font-bold text-destructive">
                           {formatPrice(currentPrice.final)}
                         </span>
                       </>
                     ) : (
-                      <span className="text-2xl font-serif font-bold text-primary">
+                      <span className="text-sm font-bold text-primary">
                         {formatPrice(currentPrice.final)}
                       </span>
                     )}
