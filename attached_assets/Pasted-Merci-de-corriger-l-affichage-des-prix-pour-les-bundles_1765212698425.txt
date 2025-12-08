@@ -1,0 +1,73 @@
+Merci de corriger l’affichage des prix pour les bundles / assortiments afin qu’il soit parfaitement cohérent avec les produits standards.
+
+1. Carte produit – bundles
+
+Comportement attendu (à copier sur les bundles) :
+Regarde la carte produit d’un cigare standard en front (ex. Oliva, Master Blends 3). Le bloc prix doit être identique pour les bundles :
+
+S’il y a une remise :
+
+Afficher d’abord le prix régulier barré, puis le prix réduit en rouge, exactement dans le même ordre et avec les mêmes classes CSS / Tailwind que pour les produits standards.
+
+La couleur de la police du prix réduit doit être strictement la même que celle utilisée sur la carte produit standard (ne réinventer aucune couleur, réutiliser les mêmes classes).
+
+S’il n’y a PAS de remise :
+
+Afficher un seul prix, avec le même style que le prix “normal” des produits standards.
+
+Aujourd’hui, sur un bundle comme Oliva, Taste of Oliva Sampler, le prix réduit apparaît avant le prix barré : il faut inverser l’ordre pour calquer le comportement des produits unitaires.
+
+2. Taille de la police – prix barré
+
+Pour tous les types de produits (cigares unitaires, boîtes, bundles) :
+
+Augmenter la taille de la police du prix régulier barré d’un cran (≈ +2 pt).
+
+Concrètement, si tu utilises Tailwind, passe d’une classe de type text-xs à text-sm, ou d’un text-sm à text-base (à choisir en cohérence avec l’échelle existante), tout en gardant le line-through.
+
+L’objectif : rendre le prix régulier barré un peu plus lisible, tout en restant discret.
+
+3. Modale de détail – bundles
+
+Quand on clique sur Détails d’un bundle (ex. Oliva, Taste of Oliva Sampler), la modale affiche aujourd’hui deux blocs prix :
+
+Un bloc central “Prix … FCFA” (celui que j’ai barré en rouge sur la capture).
+
+En bas, le bloc “PRIX TOTAL … FCFA” avec le prix régulier barré et le prix remisé.
+
+Je veux supprimer le bloc central (celui avec le label “Prix”), qui est redondant.
+
+Ne garder que :
+
+L’image du bundle (pack ou boîte).
+
+La composition du bundle (déjà OK) :
+1x Nom du cigare — note CA : xx — #rang, (année) quand applicable.
+
+En bas de la modale, un seul bloc “PRIX TOTAL” :
+
+même logique que sur la carte : prix régulier barré à gauche, prix remisé en rouge à droite (si remise), sinon un seul prix.
+
+Merci de :
+
+Localiser les composants concernés (probablement ProductCard, ProductDetail ou un composant spécifique aux bundles, type BundleDetailModal / BundlePriceBlock).
+
+Factoriser le bloc de prix si nécessaire pour que produit standard et bundle utilisent exactement la même structure et les mêmes classes pour l’affichage des prix.
+
+Ne pas toucher à la logique métier (calcul de remises, etc.), seulement à la présentation.
+
+Quand c’est fait, teste explicitement avec :
+
+un cigare standard remisé (ex. Oliva, Master Blends 3),
+
+le bundle Oliva, Taste of Oliva Sampler remisé,
+
+pour vérifier :
+
+ordre des prix (barré → remisé),
+
+couleurs cohérentes,
+
+taille augmentée du prix barré,
+
+suppression du bloc prix redondant dans la modale du bundle.

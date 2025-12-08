@@ -170,17 +170,19 @@ const ProductCard = ({ product, onOpenDetails }) => {
                     const isPromo = activePromo?.actif && activePromo?.prixPromo;
                     const basePrice = produit.prixUnitaire || produit.prixBundle;
                     const finalPrice = isPromo ? activePromo.prixPromo : basePrice;
-                    return (
+                    return isPromo ? (
                       <>
-                        <span className={`text-base font-bold ${isPromo ? 'text-red-600' : 'text-primary'}`}>
+                        <span className="text-sm line-through text-muted-foreground mr-1">
+                          {formatPrice(basePrice)}
+                        </span>
+                        <span className="text-base font-bold text-destructive">
                           {formatPrice(finalPrice)}
                         </span>
-                        {isPromo && basePrice > 0 && basePrice !== finalPrice && (
-                          <span className="block text-xs text-muted-foreground line-through">
-                            {formatPrice(basePrice)}
-                          </span>
-                        )}
                       </>
+                    ) : (
+                      <span className="text-base font-bold text-primary">
+                        {formatPrice(finalPrice)}
+                      </span>
                     );
                   })()}
                 </div>
@@ -334,7 +336,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <div className="text-right">
                 {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.pourcentage > 0 ? (
                   <>
-                    <span className="text-[10px] line-through text-muted-foreground mr-1">
+                    <span className="text-sm line-through text-muted-foreground mr-1">
                       {formatPrice(produit.prixUnitaire)}
                     </span>
                     <span className="text-base font-bold text-destructive">
