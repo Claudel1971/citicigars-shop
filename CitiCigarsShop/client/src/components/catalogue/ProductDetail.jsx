@@ -128,7 +128,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
     if (!images) return generatedImage;
     
     if (isBundle || fmt === "bundle") {
-      return images.imageBoite || images.imagePrincipale || generatedImage;
+      return images.imagePrincipale || images.imageBoite || generatedImage;
     }
     
     switch (fmt) {
