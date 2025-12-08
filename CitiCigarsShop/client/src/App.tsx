@@ -16,6 +16,7 @@ import WishlistPage from "@/pages/WishlistPage";
 import Admin from "@/pages/Admin";
 import BundlesPage from "@/pages/BundlesPage";
 import PromotionsPage from "@/pages/PromotionsPage";
+import AboutPage from "@/pages/AboutPage";
 import CheckoutForm from "@/components/cart/CheckoutForm";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/promotions" component={PromotionsPage} />
       <Route path="/assortiments" component={BundlesPage} />
       <Route path="/wishlist" component={WishlistPage} />
+      <Route path="/about" component={AboutPage} />
       
       <Route path="/checkout">
          <div className="min-h-screen flex flex-col">
