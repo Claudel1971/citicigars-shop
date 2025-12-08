@@ -92,15 +92,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
   const currentImage = imageForFormat(selectedFormat);
 
-  // Image principale utilisée pour le panier / checkout
-  const cartImage =
-    produit.imagePrincipale ||
-    produit.imageSolo ||
-    produit.imagePack ||
-    produit.imagePack4 ||
-    produit.imagePack5 ||
-    produit.imageBoite ||
-    generatedImage;
+  // Image pour le panier selon le format
+  const getCartImage = (format) => {
+    if (produit.type === 'bundle') {
+      return produit.imageBoite || produit.imagePrincipale || generatedImage;
+    }
+    return imageForFormat(format) || generatedImage;
+  };
 
   const handleQuickAdd = (format, quantity = 1) => {
     let price;
@@ -139,8 +137,8 @@ const ProductCard = ({ product, onOpenDetails }) => {
       }
     }
 
-    // On envoie toujours l'image principale au panier
-    addToCart(produit, format, quantity, price, cartImage);
+    // On envoie l'image correspondant au format sélectionné
+    addToCart(produit, format, quantity, price, getCartImage(format));
   };
 
   if (produit.type === "bundle") {
