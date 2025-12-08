@@ -128,6 +128,10 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
     if (!images) return generatedImage;
     
     if (isBundle || fmt === "bundle") {
+      const hasBothImages = images.imagePrincipale && images.imageBoite;
+      if (hasBothImages) {
+        return images.imageBoite;
+      }
       return images.imagePrincipale || images.imageBoite || generatedImage;
     }
     
