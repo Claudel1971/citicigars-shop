@@ -172,15 +172,15 @@ const ProductCard = ({ product, onOpenDetails }) => {
                     const finalPrice = isPromo ? activePromo.prixPromo : basePrice;
                     return isPromo ? (
                       <>
-                        <span className="text-sm line-through text-muted-foreground mr-1">
+                        <span className="text-xs line-through text-muted-foreground mr-1">
                           {formatPrice(basePrice)}
                         </span>
-                        <span className="text-xs font-bold text-destructive">
+                        <span className="text-sm font-bold text-destructive">
                           {formatPrice(finalPrice)}
                         </span>
                       </>
                     ) : (
-                      <span className="text-xs font-bold text-primary">
+                      <span className="text-sm font-bold text-primary">
                         {formatPrice(finalPrice)}
                       </span>
                     );
@@ -336,15 +336,15 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <div className="text-right">
                 {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.pourcentage > 0 ? (
                   <>
-                    <span className="text-sm line-through text-muted-foreground mr-1">
+                    <span className="text-xs line-through text-muted-foreground mr-1">
                       {formatPrice(produit.prixUnitaire)}
                     </span>
-                    <span className="text-xs font-bold text-destructive">
+                    <span className="text-sm font-bold text-destructive">
                       {formatPrice(produit.promotions.unitaire.prixPromo)}
                     </span>
                   </>
                 ) : (
-                  <span className="text-xs font-bold text-primary">
+                  <span className="text-sm font-bold text-primary">
                     {formatPrice(produit.prixUnitaire)}
                   </span>
                 )}
@@ -364,7 +364,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 >
                   Pack ({produit.quantitePack || produit.typePack || 5}) :
                 </span>
-                <span className="text-xs font-semibold text-orange-800">
+                <span className="text-sm font-semibold text-orange-800">
                   {formatPrice(
                     produit.promotions?.pack?.actif &&
                       produit.promotions.pack.prixPromo
@@ -388,7 +388,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                 >
                   Boîte ({produit.quantiteBoite || produit.qteBoite || 10}) :
                 </span>
-                <span className="text-xs font-semibold text-orange-800">
+                <span className="text-sm font-semibold text-orange-800">
                   {formatPrice(
                     produit.promotions?.boite?.actif &&
                       produit.promotions.boite.prixPromo
