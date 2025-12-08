@@ -2,12 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { 
   Save, RefreshCw, AlertCircle, CheckCircle, Loader2,
   Home, Image, Tag, FileText, Settings, ChevronRight,
-  Plus, Trash2, Upload
+  Plus, Trash2, Upload, Menu, GripVertical, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 const API_BASE = '/api';
 
 const MENU_SECTIONS = [
+  { 
+    id: 'header', 
+    label: 'Header / Navigation', 
+    icon: Menu,
+    subsections: [
+      { id: 'logo', label: 'Logo' },
+      { id: 'menuItems', label: 'Menu de Navigation' }
+    ]
+  },
   { 
     id: 'home', 
     label: 'Page d\'Accueil', 
@@ -75,6 +84,19 @@ export default function ContentManager() {
 
   const ensureContentStructure = (data) => {
     return {
+      header: data.header || {
+        logo: {
+          url: '',
+          alt: 'Citi Cigars',
+          href: '/'
+        },
+        menuItems: [
+          { label: 'ACCUEIL', href: '/', highlight: false, icon: '' },
+          { label: 'CIGARES', href: '/catalogue', highlight: false, icon: '' },
+          { label: 'NOS ASSORTIMENTS', href: '/assortiments', highlight: true, icon: '🎁' },
+          { label: 'PROMOTIONS', href: '/promotions', highlight: false, icon: '' }
+        ]
+      },
       home: {
         heroSlides: data.home?.heroSlides || [
           { title: '', subtitle: '', ctaText: '', ctaLink: '', imageUrl: '' }
@@ -381,6 +403,22 @@ export default function ContentManager() {
 
         {/* Content Editor */}
         <div className="flex-1 overflow-y-auto p-4">
+          {activeSection === 'header' && activeSubsection === 'logo' && (
+            <HeaderLogoEditor 
+              data={content.header?.logo}
+              updateField={updateField}
+              token={token}
+            />
+          )}
+
+          {activeSection === 'header' && activeSubsection === 'menuItems' && (
+            <HeaderMenuEditor 
+              menuItems={content.header?.menuItems || []}
+              updateField={updateField}
+              setContent={setContent}
+            />
+          )}
+
           {activeSection === 'home' && activeSubsection === 'carousel' && (
             <CarouselEditor 
               slides={content.home?.heroSlides || []}
@@ -1040,6 +1078,202 @@ function ImageUploader({ label, currentUrl, onImageChange, token }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function HeaderLogoEditor({ data, updateField, token }) {
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">Logo du Site</h4>
+      <p className="text-sm text-gray-500 mb-6">
+        Uploadez votre logo pour remplacer le texte "CITI CIGARS" dans le header. 
+        L'image s'adaptera automatiquement à la hauteur de la barre de navigation.
+      </p>
+
+      <div className="space-y-4">
+        <ImageUploader
+          label="Image du Logo"
+          currentUrl={data?.url}
+          onImageChange={(url) => updateField('header.logo.url', url)}
+          token={token}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Texte alternatif (accessibilité)"
+            value={data?.alt}
+            onChange={(v) => updateField('header.logo.alt', v)}
+            placeholder="Citi Cigars"
+          />
+          <Field
+            label="Lien du logo"
+            value={data?.href}
+            onChange={(v) => updateField('header.logo.href', v)}
+            placeholder="/"
+          />
+        </div>
+
+        {data?.url && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm font-medium text-gray-700 mb-2">Aperçu dans le header :</p>
+            <div className="flex items-center gap-2 h-12 bg-white border rounded px-4">
+              <img 
+                src={data.url} 
+                alt={data?.alt || 'Logo'} 
+                className="h-full max-h-10 object-contain"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HeaderMenuEditor({ menuItems, updateField, setContent }) {
+  const addMenuItem = () => {
+    setContent(prev => ({
+      ...prev,
+      header: {
+        ...prev.header,
+        menuItems: [
+          ...prev.header.menuItems,
+          { label: 'NOUVEAU', href: '/', highlight: false, icon: '' }
+        ]
+      }
+    }));
+  };
+
+  const removeMenuItem = (index) => {
+    if (menuItems.length <= 1) {
+      return;
+    }
+    setContent(prev => ({
+      ...prev,
+      header: {
+        ...prev.header,
+        menuItems: prev.header.menuItems.filter((_, i) => i !== index)
+      }
+    }));
+  };
+
+  const moveMenuItem = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= menuItems.length) return;
+    
+    setContent(prev => {
+      const items = [...prev.header.menuItems];
+      [items[index], items[newIndex]] = [items[newIndex], items[index]];
+      return {
+        ...prev,
+        header: {
+          ...prev.header,
+          menuItems: items
+        }
+      };
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h4 className="font-semibold text-gray-800">Menu de Navigation</h4>
+          <p className="text-sm text-gray-500">
+            Gérez les liens du menu principal. Utilisez les flèches pour réorganiser l'ordre.
+          </p>
+        </div>
+        <button
+          onClick={addMenuItem}
+          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+        >
+          <Plus size={16} /> Ajouter un lien
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {menuItems.map((item, index) => (
+          <div 
+            key={index} 
+            className="bg-white border rounded-lg p-4 shadow-sm"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => moveMenuItem(index, 'up')}
+                  disabled={index === 0}
+                  className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Monter"
+                >
+                  <ArrowUp size={16} />
+                </button>
+                <button
+                  onClick={() => moveMenuItem(index, 'down')}
+                  disabled={index === menuItems.length - 1}
+                  className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Descendre"
+                >
+                  <ArrowDown size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 grid grid-cols-2 gap-4">
+                <Field
+                  label="Libellé (en majuscules)"
+                  value={item.label}
+                  onChange={(v) => updateField(`header.menuItems[${index}].label`, v)}
+                  placeholder="ACCUEIL"
+                />
+                <Field
+                  label="URL / Lien"
+                  value={item.href}
+                  onChange={(v) => updateField(`header.menuItems[${index}].href`, v)}
+                  placeholder="/"
+                />
+                <Field
+                  label="Icône / Emoji (optionnel)"
+                  value={item.icon}
+                  onChange={(v) => updateField(`header.menuItems[${index}].icon`, v)}
+                  placeholder="🎁"
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Style</label>
+                  <label className="flex items-center gap-2 cursor-pointer mt-2">
+                    <input
+                      type="checkbox"
+                      checked={item.highlight || false}
+                      onChange={(e) => updateField(`header.menuItems[${index}].highlight`, e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    <span className="text-sm">Mettre en surbrillance (orange)</span>
+                  </label>
+                </div>
+              </div>
+
+              <button
+                onClick={() => removeMenuItem(index)}
+                disabled={menuItems.length <= 1}
+                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Supprimer"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+
+            {item.highlight && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-amber-600 font-bold">
+                    {item.icon} {item.label}
+                  </span>
+                  <span className="text-gray-400">← Aperçu du style surbrillance</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
