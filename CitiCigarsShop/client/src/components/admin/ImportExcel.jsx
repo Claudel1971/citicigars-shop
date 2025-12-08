@@ -71,17 +71,17 @@ const ImportExcel = () => {
         unitaire: {
           actif: rabais > 0,
           pourcentage: rabais,
-          prixPromo: rabais > 0 ? Math.round(prixUnitaire * (1 - rabais / 100) / 500) * 500 : null
+          prixPromo: rabais > 0 ? Math.round(prixUnitaire * (1 - rabais / 100) / 50) * 50 : null
         },
         pack: {
           actif: rabais > 0,
           pourcentage: rabais,
-          prixPromo: rabais > 0 ? Math.round(prixPack * (1 - rabais / 100) / 500) * 500 : null
+          prixPromo: rabais > 0 ? Math.round(prixPack * (1 - rabais / 100) / 50) * 50 : null
         },
         boite: {
           actif: rabais > 0,
           pourcentage: rabais,
-          prixPromo: rabais > 0 ? Math.round(prixBoite * (1 - rabais / 100) / 500) * 500 : null
+          prixPromo: rabais > 0 ? Math.round(prixBoite * (1 - rabais / 100) / 50) * 50 : null
         }
       },
       

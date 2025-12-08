@@ -16,7 +16,7 @@ const ProductManager = () => {
     return Math.abs(rabais);
   };
 
-  const arrondirMultiple = (valeur, multiple = 500) => {
+  const arrondirMultiple = (valeur, multiple = 50) => {
     return Math.round(valeur / multiple) * multiple;
   };
 
@@ -24,7 +24,7 @@ const ProductManager = () => {
     const rabaisPositif = normaliserRabais(rabais);
     if (rabaisPositif === 0) return null;
     const prixAvecRabais = prixUnitaire * (1 - rabaisPositif / 100);
-    return arrondirMultiple(prixAvecRabais, 500);
+    return arrondirMultiple(prixAvecRabais, 50);
   };
 
   const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
@@ -32,7 +32,7 @@ const ProductManager = () => {
     const prixBase = prixUnitaire * qtyPack;
     if (rabaisPositif > 0) {
       const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
-      return arrondirMultiple(prixAvecRabais, 500);
+      return arrondirMultiple(prixAvecRabais, 50);
     }
     return prixBase;
   };
@@ -42,7 +42,7 @@ const ProductManager = () => {
     const prixBase = prixUnitaire * qtyBoite;
     if (rabaisPositif > 0) {
       const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
-      return arrondirMultiple(prixAvecRabais, 500);
+      return arrondirMultiple(prixAvecRabais, 50);
     }
     return prixBase;
   };

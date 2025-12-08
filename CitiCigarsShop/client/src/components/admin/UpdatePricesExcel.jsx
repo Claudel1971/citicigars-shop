@@ -125,7 +125,7 @@ const UpdatePricesExcel = () => {
           const calculatedPromo = r.prixPromo !== null 
             ? r.prixPromo 
             : (r.rabais > 0 && prixUnitaire > 0) 
-              ? Math.round(prixUnitaire * (1 - r.rabais / 100) / 500) * 500 
+              ? Math.round(prixUnitaire * (1 - r.rabais / 100) / 50) * 50 
               : null;
           update.promotions = {
             unitaire: { 
