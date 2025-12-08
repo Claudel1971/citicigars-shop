@@ -1,0 +1,105 @@
+Je veux que la barre de menu / header soit gérée proprement dans le CMS et que le texte “CITI CIGARS” soit remplacé par mon logo (image).
+
+1. Objectif général
+
+Composant concerné : le header / navbar principal du site (fond dégradé rose/violet, menu ACCUEIL – CIGARES – 🎁 NOS ASSORTIMENTS – PROMOTIONS – cœur – panier).
+
+Actuellement, le logo est simplement le texte “CITI CIGARS”.
+
+Je veux :
+
+Afficher mon logo image à la place du texte.
+
+Pouvoir gérer le header depuis le CMS (logo + items de menu).
+
+2. Logo à la place de “CITI CIGARS”
+
+Ajouter dans le code du header un composant <img> pour le logo :
+
+Source du logo à récupérer dans le CMS (cf. point 3).
+
+Taille cohérente avec la hauteur de la barre (par ex. max-height ~40px sur desktop, un peu plus petit sur mobile).
+
+Garder un léger padding à gauche pour que ça respire.
+
+Le texte “CITI CIGARS” doit être retiré visuellement :
+
+Pas besoin d’afficher le nom en texte si le logo est présent.
+
+On peut garder un aria-label="Citi Cigars" sur le lien du logo pour l’accessibilité.
+
+Le logo doit être cliquable et renvoyer vers la page d’accueil.
+
+3. Gestion du header dans le CMS
+
+Je veux pouvoir gérer ces éléments dans le CMS (panel admin) :
+
+Logo
+
+Ajouter dans la configuration du site un champ “Logo” (upload d’image).
+
+Champs souhaités :
+
+logoUrl : URL de l’image du logo.
+
+logoAlt : texte alternatif (ex : “Citi Cigars”).
+
+éventuellement logoHref (URL cible, par défaut “/”).
+
+Le header doit utiliser ces valeurs (et fallback sur un logo par défaut si rien n’est configuré).
+
+Menu principal
+
+Je veux que les items de menu soient définis/éditables dans le CMS, sous forme de liste :
+
+label (texte à afficher : “ACCUEIL”, “CIGARES”, “NOS ASSORTIMENTS”, “PROMOTIONS”…)
+
+slug/URL (ex: /, /catalogue, /assortiments, /promotions)
+
+option “icone” (booléen) + type d’icône pour le cas particulier de “🎁 NOS ASSORTIMENTS”.
+
+Utiliser ces données dans le header pour générer automatiquement le menu, dans l’ordre défini.
+
+Respecter le style actuel :
+
+Majuscules,
+
+espacement entre les items,
+
+couleur du texte,
+
+item “NOS ASSORTIMENTS” en surbrillance orange avec l’emoji cadeau 🎁 (géré via la config si possible).
+
+Icônes cœur & panier
+
+Laisser le cœur (favoris) et le panier comme ils sont actuellement (icônes à droite).
+
+Si techniquement simple, prévoir aussi leurs liens dans la config CMS (ex. /favoris, /panier), sinon laisser les URLs codées en dur pour l’instant.
+
+4. Responsive & UX
+
+Sur desktop : garder le layout actuel (logo à gauche, menu au centre, icônes à droite).
+
+Sur mobile :
+
+Si un menu hamburger existe déjà, s’assurer que le logo image s’affiche correctement (taille raisonnable, pas déformée).
+
+Le menu doit continuer à fonctionner avec les items issus du CMS.
+
+5. Critères d’acceptation
+
+Le texte “CITI CIGARS” a disparu du header et est remplacé par mon logo image, cliquable vers la home.
+
+Dans le CMS, je peux :
+
+uploader/modifier le logo,
+
+changer son alt text (et idéalement l’URL cible),
+
+éditer les items de menu (label + URL + ordre, avec mise en avant de “NOS ASSORTIMENTS”).
+
+Le header reste visuellement identique ou très proche de la version actuelle côté public (même dégradé, même style), mais avec le logo à la place du texte.
+
+Le tout fonctionne correctement sur desktop et mobile.
+
+Tu peux ajuster un ou deux détails si besoin (par exemple si tu sais déjà comment tu veux nommer les champs du CMS), mais l’essentiel est là.
