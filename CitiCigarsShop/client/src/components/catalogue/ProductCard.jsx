@@ -296,8 +296,8 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <span>
                   {produit.badges.top25Rang === 1
-                    ? `★ Cigare de l'année, ${produit.badges.top25Year}`
-                    : `★ #${produit.badges.top25Rang}, ${produit.badges.top25Year}`}
+                    ? `Cigare de l'année, ${produit.badges.top25Year}`
+                    : `#${produit.badges.top25Rang}, ${produit.badges.top25Year}`}
                 </span>
               </div>
             )}
