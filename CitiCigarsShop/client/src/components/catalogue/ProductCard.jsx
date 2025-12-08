@@ -32,7 +32,7 @@ function getMainImage(p) {
   );
 }
 
-// Fonctions de calcul identiques à l'admin
+// Fonctions de calcul des prix
 const arrondirMultiple = (valeur, multiple = 500) => {
   return Math.round(valeur / multiple) * multiple;
 };
@@ -43,22 +43,20 @@ const calculerPrixPromo = (prixUnitaire, rabais) => {
   return arrondirMultiple(prixAvecRabais, 500);
 };
 
+// Prix pack = prix unitaire (arrondi si promo) × quantité pack (pas d'arrondi supplémentaire)
 const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
-  const prixBase = prixUnitaire * qtyPack;
-  if (rabais > 0) {
-    const prixAvecRabais = prixBase * (1 - rabais / 100);
-    return arrondirMultiple(prixAvecRabais, 500);
-  }
-  return prixBase;
+  const prixUnitaireEffectif = rabais > 0 
+    ? arrondirMultiple(prixUnitaire * (1 - rabais / 100), 500)
+    : prixUnitaire;
+  return prixUnitaireEffectif * qtyPack;
 };
 
+// Prix boîte = prix unitaire (arrondi si promo) × quantité boîte (pas d'arrondi supplémentaire)
 const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
-  const prixBase = prixUnitaire * qtyBoite;
-  if (rabais > 0) {
-    const prixAvecRabais = prixBase * (1 - rabais / 100);
-    return arrondirMultiple(prixAvecRabais, 500);
-  }
-  return prixBase;
+  const prixUnitaireEffectif = rabais > 0 
+    ? arrondirMultiple(prixUnitaire * (1 - rabais / 100), 500)
+    : prixUnitaire;
+  return prixUnitaireEffectif * qtyBoite;
 };
 
 const ProductCard = ({ product, onOpenDetails }) => {

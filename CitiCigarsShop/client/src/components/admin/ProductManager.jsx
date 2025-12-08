@@ -27,24 +27,22 @@ const ProductManager = () => {
     return arrondirMultiple(prixAvecRabais, 500);
   };
 
+  // Prix pack = prix unitaire (arrondi si promo) × quantité pack (pas d'arrondi supplémentaire)
   const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
     const rabaisPositif = normaliserRabais(rabais);
-    const prixBase = prixUnitaire * qtyPack;
-    if (rabaisPositif > 0) {
-      const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
-      return arrondirMultiple(prixAvecRabais, 500);
-    }
-    return prixBase;
+    const prixUnitaireEffectif = rabaisPositif > 0 
+      ? arrondirMultiple(prixUnitaire * (1 - rabaisPositif / 100), 500)
+      : prixUnitaire;
+    return prixUnitaireEffectif * qtyPack;
   };
 
+  // Prix boîte = prix unitaire (arrondi si promo) × quantité boîte (pas d'arrondi supplémentaire)
   const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
     const rabaisPositif = normaliserRabais(rabais);
-    const prixBase = prixUnitaire * qtyBoite;
-    if (rabaisPositif > 0) {
-      const prixAvecRabais = prixBase * (1 - rabaisPositif / 100);
-      return arrondirMultiple(prixAvecRabais, 500);
-    }
-    return prixBase;
+    const prixUnitaireEffectif = rabaisPositif > 0 
+      ? arrondirMultiple(prixUnitaire * (1 - rabaisPositif / 100), 500)
+      : prixUnitaire;
+    return prixUnitaireEffectif * qtyBoite;
   };
 
   const getProductWithChanges = (sku) => {
