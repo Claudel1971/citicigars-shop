@@ -10,9 +10,31 @@ import { useLocation } from 'wouter';
 import generatedImage from '@assets/generated_images/single_premium_cigar.png';
 
 const CartItem = ({ item, product, onUpdateQuantity, onRemove }) => {
-  const imageSrc = product?.imagePrincipale || item.image || generatedImage;
   const qteBoite = product?.qteBoite || product?.quantiteBoite || item.qteBoite;
   const typePack = product?.typePack || product?.quantitePack || item.typePack;
+
+  const getImageForFormat = () => {
+    if (!product) return item.image || generatedImage;
+    
+    const isBundle = product.type === 'bundle' || item.type === 'bundle';
+    
+    if (isBundle) {
+      return product.imageBoite || product.imagePrincipale || item.image || generatedImage;
+    }
+    
+    switch (item.format) {
+      case 'unitaire':
+        return product.imageSolo || product.imagePrincipale || item.image || generatedImage;
+      case 'pack':
+        return product.imagePack || product.imagePrincipale || item.image || generatedImage;
+      case 'boite':
+        return product.imageBoite || product.imagePrincipale || item.image || generatedImage;
+      default:
+        return product.imagePrincipale || item.image || generatedImage;
+    }
+  };
+
+  const imageSrc = getImageForFormat();
   return (
     <div className="flex gap-4 py-4 border-b border-border/50">
       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
