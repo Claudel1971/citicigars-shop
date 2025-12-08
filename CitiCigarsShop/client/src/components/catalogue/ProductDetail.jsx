@@ -283,11 +283,19 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                     </h5>
                     <div className="bg-accent/50 rounded-lg p-3 space-y-0">
                       {product.composition.map((item, idx) => {
-                        const hasRating = item.rating && item.rating !== "NA";
-                        const isCoty = item.coty === true;
-                        const isTop25 = item.top25 === true || (typeof item.top25 === "string" && item.top25.includes("Top"));
-                        const top25Year = item.top25Year || item.year;
-                        const top25Rang = item.top25Rang || item.rang;
+                        const ratingStr = item.rating || "";
+                        const ratingMatch = ratingStr.match(/(\d+)/);
+                        const ratingNum = ratingMatch ? ratingMatch[1] : null;
+                        
+                        const top25Str = item.top25 || "";
+                        const isCoty = top25Str.toLowerCase().includes("coty");
+                        const cotyMatch = top25Str.match(/(\d{4})/);
+                        const cotyYear = cotyMatch ? cotyMatch[1] : null;
+                        
+                        const rankMatch = top25Str.match(/#(\d+)/);
+                        const yearMatch = top25Str.match(/(\d{4})/);
+                        const top25Rank = rankMatch ? rankMatch[1] : null;
+                        const top25Year = yearMatch ? yearMatch[1] : null;
                         
                         return (
                           <div
@@ -298,22 +306,22 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                               {item.quantite}x {item.marque} {item.modele}
                             </span>
                             <span className="text-xs text-muted-foreground mt-1 sm:mt-0 sm:text-right">
-                              {hasRating && (
+                              {ratingNum && (
                                 <span className="text-amber-700 font-semibold">
-                                  note CA : {item.rating}
+                                  note CA : {ratingNum}
                                 </span>
                               )}
-                              {hasRating && (isCoty || isTop25) && (
+                              {ratingNum && (isCoty || top25Rank) && (
                                 <span className="mx-1">·</span>
                               )}
-                              {isCoty && top25Year && (
+                              {isCoty && cotyYear && (
                                 <span className="text-amber-600 font-bold">
-                                  Cigare de l'année, {top25Year}
+                                  Cigare de l'année, {cotyYear}
                                 </span>
                               )}
-                              {!isCoty && isTop25 && top25Rang && top25Year && (
+                              {!isCoty && top25Rank && top25Year && (
                                 <span className="text-amber-600 font-bold">
-                                  #{top25Rang}, ({top25Year})
+                                  #{top25Rank}, ({top25Year})
                                 </span>
                               )}
                             </span>
