@@ -589,7 +589,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 <Button
                   size="lg"
                   onClick={handleAddToCart}
-                  className="flex-1 gap-2"
+                  className="flex-1 gap-2 bg-[#B87333] hover:bg-[#9A5F2A] text-white"
                 >
                   <ShoppingCart size={18} /> Ajouter
                 </Button>
