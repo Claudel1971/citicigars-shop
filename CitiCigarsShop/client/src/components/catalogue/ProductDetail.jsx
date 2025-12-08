@@ -132,7 +132,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
       if (hasBothImages) {
         return images.imageBoite;
       }
-      return images.imagePrincipale || images.imageBoite || generatedImage;
+      return images.imagePrincipale || images.imageBoite || images.imagePack || generatedImage;
     }
     
     switch (fmt) {
