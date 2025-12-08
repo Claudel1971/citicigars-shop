@@ -66,7 +66,14 @@ const CartItem = ({ item, product, onUpdateQuantity, onRemove }) => {
 
 const CartDrawer = () => {
   const { isOpen, setIsOpen, items, updateQuantity, removeFromCart, total } = useCart();
+  const { products } = useProducts();
   const [, setLocation] = useLocation();
+
+  const productBySku = React.useMemo(() => {
+    const map = {};
+    products.forEach(p => { map[p.sku] = p; });
+    return map;
+  }, [products]);
 
   const handleCheckout = () => {
     setIsOpen(false);
@@ -95,7 +102,8 @@ const CartDrawer = () => {
               {items.map(item => (
                 <CartItem 
                   key={item.id} 
-                  item={item} 
+                  item={item}
+                  product={productBySku[item.sku]}
                   onUpdateQuantity={updateQuantity} 
                   onRemove={removeFromCart} 
                 />
