@@ -26,7 +26,7 @@ const FeaturedProducts = () => {
       <div className="container px-4 md:px-8">
         <div className="flex justify-between items-end mb-10">
           <div>
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-2">Coup de Cœur</h2>
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-2">Nos coups de cœur</h2>
             <p className="text-muted-foreground">Notre sélection du moment pour les amateurs avertis.</p>
           </div>
           <Button variant="ghost" onClick={() => setLocation('/catalogue')} className="hidden md:flex">
