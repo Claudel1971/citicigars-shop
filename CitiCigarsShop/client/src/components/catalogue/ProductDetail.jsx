@@ -90,7 +90,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
       const unitPromo = product.promotions?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
       const base = product.prixUnitaire || product.prixBundle;
-      const final = activePromo?.prixPromo ? activePromo.prixPromo : (product.prixBundle || base);
+      const final = activePromo?.prixPromo ? activePromo.prixPromo : base;
       return {
         base,
         final,

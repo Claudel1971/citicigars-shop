@@ -71,7 +71,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
       const bundlePromo = promo?.bundle;
       const unitPromo = promo?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
-      const basePrice = produit.prixBundle || produit.prixUnitaire;
+      const basePrice = produit.prixUnitaire || produit.prixBundle;
       price = activePromo?.prixPromo ? activePromo.prixPromo : basePrice;
     } else {
       switch (format) {
@@ -169,7 +169,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                     const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
                     const isPromo = activePromo?.actif && activePromo?.prixPromo;
                     const basePrice = produit.prixUnitaire || produit.prixBundle;
-                    const finalPrice = isPromo ? activePromo.prixPromo : (produit.prixBundle || basePrice);
+                    const finalPrice = isPromo ? activePromo.prixPromo : basePrice;
                     return (
                       <>
                         <span className={`text-base font-bold ${isPromo ? 'text-red-600' : 'text-primary'}`}>
