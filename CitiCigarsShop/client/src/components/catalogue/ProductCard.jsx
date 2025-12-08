@@ -32,6 +32,35 @@ function getMainImage(p) {
   );
 }
 
+// Fonctions de calcul identiques à l'admin
+const arrondirMultiple = (valeur, multiple = 500) => {
+  return Math.round(valeur / multiple) * multiple;
+};
+
+const calculerPrixPromo = (prixUnitaire, rabais) => {
+  if (!rabais || rabais <= 0) return null;
+  const prixAvecRabais = prixUnitaire * (1 - rabais / 100);
+  return arrondirMultiple(prixAvecRabais, 500);
+};
+
+const calculerPrixPack = (prixUnitaire, qtyPack, rabais = 0) => {
+  const prixBase = prixUnitaire * qtyPack;
+  if (rabais > 0) {
+    const prixAvecRabais = prixBase * (1 - rabais / 100);
+    return arrondirMultiple(prixAvecRabais, 500);
+  }
+  return prixBase;
+};
+
+const calculerPrixBoite = (prixUnitaire, qtyBoite = 25, rabais = 0) => {
+  const prixBase = prixUnitaire * qtyBoite;
+  if (rabais > 0) {
+    const prixAvecRabais = prixBase * (1 - rabais / 100);
+    return arrondirMultiple(prixAvecRabais, 500);
+  }
+  return prixBase;
+};
+
 const ProductCard = ({ product, onOpenDetails }) => {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
@@ -66,31 +95,30 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const handleQuickAdd = (format, quantity = 1) => {
     let price;
     const promo = produit.promotions;
+    const currentPrixUnitaire = produit.prixUnitaire;
+    const currentRabais = promo?.unitaire?.pourcentage || 0;
+    const qtyPack = produit.quantitePack || produit.typePack || 5;
+    const qtyBoite = produit.qteBoite || produit.quantiteBoite || 25;
 
     if (produit.type === "bundle") {
       const bundlePromo = promo?.bundle;
       const unitPromo = promo?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
       const basePrice = produit.prixUnitaire || produit.prixBundle;
-      price = (activePromo?.actif && activePromo?.prixPromo)
-        ? activePromo.prixPromo
-        : basePrice;
+      const rabais = activePromo?.pourcentage || 0;
+      price = rabais > 0 ? calculerPrixPromo(basePrice, rabais) : basePrice;
     } else {
       switch (format) {
         case "pack":
-          price = (promo?.pack?.actif && promo.pack.prixPromo)
-            ? promo.pack.prixPromo
-            : produit.prixPack;
+          price = calculerPrixPack(currentPrixUnitaire, qtyPack, currentRabais);
           break;
         case "boite":
-          price = (promo?.boite?.actif && promo.boite.prixPromo)
-            ? promo.boite.prixPromo
-            : produit.prixBoite;
+          price = calculerPrixBoite(currentPrixUnitaire, qtyBoite, currentRabais);
           break;
         default:
-          price = (promo?.unitaire?.actif && promo.unitaire.prixPromo)
-            ? promo.unitaire.prixPromo
-            : produit.prixUnitaire;
+          price = currentRabais > 0 
+            ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
+            : currentPrixUnitaire;
       }
     }
 
@@ -318,97 +346,86 @@ const ProductCard = ({ product, onOpenDetails }) => {
         {/* 🔧 FIX: Removed flex-1 spacer that caused excessive spacing */}
 
         <div>
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
-            <div
-              className="flex justify-between items-center py-1 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
-              onClick={() => setSelectedFormat("unitaire")}
-            >
-              <span
-                className={cn(
-                  "text-sm text-gray-600",
-                  selectedFormat === "unitaire" && "font-bold text-primary",
-                )}
-              >
-                Unité :
-              </span>
-              <div className="text-right">
-                {produit.promotions?.unitaire?.actif && produit.promotions.unitaire.prixPromo ? (
-                  <>
-                    <span className="text-xs line-through text-muted-foreground mr-1">
-                      {formatPrice(produit.prixUnitaire)}
-                    </span>
-                    <span className="text-sm font-bold text-destructive">
-                      {formatPrice(produit.promotions.unitaire.prixPromo)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-sm font-bold text-primary">
-                    {formatPrice(produit.prixUnitaire)}
-                  </span>
-                )}
-              </div>
-            </div>
+          {(() => {
+            const currentPrixUnitaire = produit.prixUnitaire;
+            const currentRabais = produit.promotions?.unitaire?.pourcentage || 0;
+            const qtyPack = produit.quantitePack || produit.typePack || 5;
+            const qtyBoite = produit.qteBoite || produit.quantiteBoite || 25;
 
-            {produit.prixPack > 0 && (
-              <div
-                className="flex justify-between items-center py-1 border-t border-amber-200 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
-                onClick={() => setSelectedFormat("pack")}
-              >
-                <span
-                  className={cn(
-                    "text-sm text-gray-600",
-                    selectedFormat === "pack" && "font-bold text-primary",
-                  )}
-                >
-                  Pack ({produit.quantitePack || produit.typePack || 5}) :
-                </span>
-                {produit.promotions?.pack?.actif && produit.promotions.pack.prixPromo ? (
-                  <>
-                    <span className="text-xs line-through text-muted-foreground mr-1">
-                      {formatPrice(produit.prixPack)}
-                    </span>
-                    <span className="text-sm font-bold text-destructive">
-                      {formatPrice(produit.promotions.pack.prixPromo)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-sm font-semibold text-orange-800">
-                    {formatPrice(produit.prixPack)}
-                  </span>
-                )}
-              </div>
-            )}
+            const prixFinal = currentRabais > 0 
+              ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
+              : currentPrixUnitaire;
+            const prixPack = calculerPrixPack(currentPrixUnitaire, qtyPack, currentRabais);
+            const prixBoite = calculerPrixBoite(currentPrixUnitaire, qtyBoite, currentRabais);
 
-            {produit.prixBoite > 0 && (
-              <div
-                className="flex justify-between items-center py-1 border-t border-amber-200 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
-                onClick={() => setSelectedFormat("boite")}
-              >
-                <span
-                  className={cn(
-                    "text-sm text-gray-600",
-                    selectedFormat === "boite" && "font-bold text-primary",
-                  )}
+            return (
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
+                <div
+                  className="flex justify-between items-center py-1 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
+                  onClick={() => setSelectedFormat("unitaire")}
                 >
-                  Boîte ({produit.quantiteBoite || produit.qteBoite || 10}) :
-                </span>
-                {produit.promotions?.boite?.actif && produit.promotions.boite.prixPromo ? (
-                  <>
-                    <span className="text-xs line-through text-muted-foreground mr-1">
-                      {formatPrice(produit.prixBoite)}
-                    </span>
-                    <span className="text-sm font-bold text-destructive">
-                      {formatPrice(produit.promotions.boite.prixPromo)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-sm font-semibold text-orange-800">
-                    {formatPrice(produit.prixBoite)}
+                  <span
+                    className={cn(
+                      "text-sm text-gray-600",
+                      selectedFormat === "unitaire" && "font-bold text-primary",
+                    )}
+                  >
+                    Unité :
                   </span>
-                )}
+                  <div className="text-right">
+                    {currentRabais > 0 ? (
+                      <>
+                        <span className="text-xs line-through text-muted-foreground mr-1">
+                          {formatPrice(currentPrixUnitaire)}
+                        </span>
+                        <span className="text-sm font-bold text-destructive">
+                          {formatPrice(prixFinal)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-bold text-primary">
+                        {formatPrice(currentPrixUnitaire)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="flex justify-between items-center py-1 border-t border-amber-200 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
+                  onClick={() => setSelectedFormat("pack")}
+                >
+                  <span
+                    className={cn(
+                      "text-sm text-gray-600",
+                      selectedFormat === "pack" && "font-bold text-primary",
+                    )}
+                  >
+                    Pack ({qtyPack}) :
+                  </span>
+                  <span className="text-sm font-semibold text-orange-800">
+                    {formatPrice(prixPack)}
+                  </span>
+                </div>
+
+                <div
+                  className="flex justify-between items-center py-1 border-t border-amber-200 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
+                  onClick={() => setSelectedFormat("boite")}
+                >
+                  <span
+                    className={cn(
+                      "text-sm text-gray-600",
+                      selectedFormat === "boite" && "font-bold text-primary",
+                    )}
+                  >
+                    Boîte ({qtyBoite}) :
+                  </span>
+                  <span className="text-sm font-semibold text-orange-800">
+                    {formatPrice(prixBoite)}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           <div className="flex gap-2">
             <Button
