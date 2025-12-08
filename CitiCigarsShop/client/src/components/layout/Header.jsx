@@ -3,38 +3,68 @@ import { Link, useLocation } from 'wouter';
 import { ShoppingCart, Heart, Menu, X } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useContent } from '@/context/ContentContext';
 import { cn } from '@/lib/utils';
 
 const Header = () => {
   const [location] = useLocation();
   const { itemCount, setIsOpen } = useCart();
   const { wishlist } = useWishlist();
+  const { content } = useContent();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const navLinks = [
-    { href: '/', label: 'Accueil' },
-    { href: '/catalogue', label: 'Cigares' },
-    { href: '/assortiments', label: '🎁 Nos Assortiments' },
-    { href: '/promotions', label: 'Promotions' },
+  const defaultNavLinks = [
+    { href: '/', label: 'ACCUEIL', highlight: false, icon: '' },
+    { href: '/catalogue', label: 'CIGARES', highlight: false, icon: '' },
+    { href: '/assortiments', label: 'NOS ASSORTIMENTS', highlight: true, icon: '🎁' },
+    { href: '/promotions', label: 'PROMOTIONS', highlight: false, icon: '' },
   ];
+
+  const rawNavLinks = content?.header?.menuItems || defaultNavLinks;
+  const navLinks = rawNavLinks.map(item => ({
+    href: item.href || '/',
+    label: item.label || '',
+    highlight: item.highlight === true,
+    icon: item.icon || ''
+  }));
+  const logo = content?.header?.logo || { url: '', alt: 'Citi Cigars', href: '/' };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-20 items-center justify-between px-4 md:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-serif text-2xl font-bold text-primary tracking-wide">
-            <span className="text-3xl text-secondary">⚜</span> CITI CIGARS
+        <Link 
+          href={logo.href || "/"} 
+          className="flex items-center gap-2 h-full py-2"
+          aria-label={logo.alt || "Citi Cigars"}
+        >
+          {logo.url ? (
+            <img 
+              src={logo.url} 
+              alt={logo.alt || "Citi Cigars"} 
+              className="h-full max-h-14 md:max-h-16 w-auto object-contain"
+            />
+          ) : (
+            <span className="font-serif text-2xl font-bold text-primary tracking-wide flex items-center gap-2">
+              <span className="text-3xl text-secondary">⚜</span> CITI CIGARS
+            </span>
+          )}
         </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map(link => (
-            <Link key={link.href} href={link.href} className={cn(
+          {navLinks.map((link, index) => (
+            <Link 
+              key={link.href || index} 
+              href={link.href} 
+              className={cn(
                 "text-sm font-medium transition-colors hover:text-secondary uppercase tracking-wider",
                 location === link.href ? "text-secondary font-bold" : "text-muted-foreground",
-                link.href === '/assortiments' && "text-amber-600 font-bold hover:text-amber-700"
-              )}>
-                {link.label}
+                link.highlight && "text-amber-600 font-bold hover:text-amber-700"
+              )}
+            >
+              {link.icon && <span className="mr-1">{link.icon}</span>}
+              {link.label}
             </Link>
           ))}
         </nav>
@@ -76,9 +106,18 @@ const Header = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t p-4 bg-background">
           <nav className="flex flex-col gap-4">
-            {navLinks.map(link => (
-              <Link key={link.href} href={link.href} className="text-lg font-medium py-2 px-4 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>
-                  {link.label}
+            {navLinks.map((link, index) => (
+              <Link 
+                key={link.href || index} 
+                href={link.href} 
+                className={cn(
+                  "text-lg font-medium py-2 px-4 hover:bg-accent rounded-md",
+                  link.highlight && "text-amber-600 font-bold"
+                )}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {link.icon && <span className="mr-1">{link.icon}</span>}
+                {link.label}
               </Link>
             ))}
           </nav>
