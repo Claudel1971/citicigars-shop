@@ -450,23 +450,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
             {/* Footer: Price & Add to Cart */}
             <div className="mt-auto pt-6 border-t border-border">
               <div className="flex gap-2 mb-4">
-                {isBundle ? (
-                  <button
-                    className="flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                  >
-                    <span className="block text-xs mb-1">
-                      Prix
-                    </span>
-                    <span className="font-bold">
-                      {formatPrice(currentPrice.final)}
-                    </span>
-                    {currentPrice.isPromo && currentPrice.base !== currentPrice.final && (
-                      <span className="block text-xs text-muted-foreground line-through">
-                        {formatPrice(currentPrice.base)}
-                      </span>
-                    )}
-                  </button>
-                ) : (
+                {isBundle ? null : (
                   ["unitaire", "pack", "boite"]
                     .filter((fmt) => {
                       if (fmt === "pack") return product.prixPack > 0;
@@ -510,15 +494,20 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                     Prix Total
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-serif font-bold text-primary">
-                      {formatPrice(currentPrice.final)}
-                    </span>
-                    {currentPrice.isPromo &&
-                      currentPrice.base !== currentPrice.final && (
-                        <span className="text-sm text-muted-foreground line-through decoration-destructive/50">
+                    {currentPrice.isPromo && currentPrice.base !== currentPrice.final ? (
+                      <>
+                        <span className="text-sm text-muted-foreground line-through">
                           {formatPrice(currentPrice.base)}
                         </span>
-                      )}
+                        <span className="text-2xl font-serif font-bold text-destructive">
+                          {formatPrice(currentPrice.final)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-2xl font-serif font-bold text-primary">
+                        {formatPrice(currentPrice.final)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Button
