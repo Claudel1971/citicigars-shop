@@ -4,8 +4,9 @@ import {
   Home, Image, Tag, FileText, Settings, ChevronRight,
   Plus, Trash2, Upload, Menu, GripVertical, ArrowUp, ArrowDown
 } from 'lucide-react';
+import { API_URL } from '@/config';
 
-const API_BASE = '/api';
+const API_BASE = `${API_URL}/api`;
 
 const MENU_SECTIONS = [
   { 
@@ -983,7 +984,7 @@ function ImageUploader({ label, currentUrl, onImageChange, token }) {
   const loadAssets = async () => {
     setLoadingAssets(true);
     try {
-      const res = await fetch('/api/cms/assets');
+      const res = await fetch(`${API_URL}/api/cms/assets`);
       if (res.ok) {
         setAssets(await res.json());
       }
@@ -1008,7 +1009,7 @@ function ImageUploader({ label, currentUrl, onImageChange, token }) {
       const formData = new FormData();
       formData.append('image', file);
 
-      const res = await fetch('/api/cms/assets', {
+      const res = await fetch(`${API_URL}/api/cms/assets`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData

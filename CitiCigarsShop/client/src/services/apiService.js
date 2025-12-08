@@ -1,4 +1,6 @@
-const API_BASE = '/api';
+import { API_URL } from '../config';
+
+const API_BASE = `${API_URL}/api`;
 
 class ApiService {
   async getAllProducts() {

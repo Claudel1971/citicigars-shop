@@ -11,6 +11,7 @@ import PackConfig from '@/components/admin/PackConfig';
 import ProductManager from '@/components/admin/ProductManager';
 import ContentManager from '@/components/admin/ContentManager';
 import { Menu } from 'lucide-react';
+import { API_URL } from '@/config';
 
 const PromotionManager = () => <div className="p-8">Gestion des promotions (À venir)</div>;
 
@@ -76,7 +77,7 @@ const Admin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/content/login', {
+      const res = await fetch(`${API_URL}/api/content/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })

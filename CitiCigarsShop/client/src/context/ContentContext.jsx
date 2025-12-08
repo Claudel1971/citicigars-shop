@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 const ContentContext = createContext();
 
@@ -58,7 +59,7 @@ export function ContentProvider({ children }) {
   useEffect(() => {
     const fetchContent = async () => {
       try {
-        const res = await fetch('/api/content');
+        const res = await fetch(`${API_URL}/api/content`);
         if (res.ok) {
           const data = await res.json();
           setContent(data);
