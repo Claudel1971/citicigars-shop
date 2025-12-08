@@ -1,0 +1,107 @@
+Tu es le développeur principal de mon projet CitiCigars (React + Vite, contexte ProductContext, produits et bundles en IndexedDB).
+
+Objectif général : corriger et améliorer l’affichage des bundles dans la modale de détail produit.
+
+1. Localiser le composant
+
+Trouve le composant qui gère la modale de détail produit (actuellement appelé quelque chose comme ProductDetail.jsx dans src/components/...).
+
+Ce composant reçoit déjà un product et une prop isOpen / onClose.
+
+Dans ce composant, il y a un comportement particulier pour les produits dont product.type === "bundle" (ou champ équivalent). C’est ce cas qu’il faut corriger.
+
+2. Réparer le bouton « Détail » pour les bundles
+
+Dans la modale, il existe un bouton « Détail » pour les bundles qui ne fait plus rien quand on clique.
+
+Corrige ce comportement :
+
+Ajoute un état local dans la modale (par exemple const [showBundleDetails, setShowBundleDetails] = useState(false);).
+
+Le bouton « Détail » doit ouvrir / fermer la section de détail du bundle (toggle).
+
+Si nécessaire, extrais la logique dans un sous-composant BundleDetailSection ou similaire, mais ce n’est pas obligatoire.
+
+3. Contenu de la section détail pour les bundles
+
+Quand il s’agit d’un product.type === "bundle" et que la section détail est ouverte, afficher :
+
+Les visuels :
+
+l’image principale du bundle (pack),
+
+la photo « boîte fermée » si disponible (même champ que pour les produits standards, souvent imageBoite ou équivalent).
+
+La composition du bundle :
+
+Le bundle doit déjà contenir une structure (par exemple product.items, product.contenu, product.bundleItems, etc.).
+
+Pour chaque cigare de la composition, affiche une ligne avec :
+
+le nom complet du cigare (marque + ligne / modèle + éventuellement format),
+
+la note CA si disponible (champ du produit de base : rating, noteCA ou similaire),
+
+le classement éventuel dans le Top 25 :
+
+si rang = 1 → afficher : Cigare de l'année (YEAR)
+
+sinon si rang > 1 → afficher : #RANG (YEAR)
+
+Sers-toi des mêmes champs que ceux utilisés pour les badges CA/Top25 sur les ProductCard (ex. product.rating, product.top25, product.top25Year, product.rank ou équivalent).
+
+Si certaines infos sont absentes pour un cigare, affiche simplement ce qui est disponible (ne casse pas le rendu).
+
+Style :
+
+Présente la composition sous forme de petite liste ou tableau lisible (nom + note + top 25) dans un encadré clair.
+
+Garde un style cohérent avec le reste du site (typo, couleurs, bordures).
+
+4. Libellé du prix pour les bundles
+
+Aujourd’hui, le prix du bundle est affiché avec un libellé du type :
+Bundle (Nom du cigare) ou similaire.
+
+Remplace ce libellé par « Prix » tout simplement pour les bundles.
+
+Garde la même typographie et mise en forme que pour les produits standards.
+
+5. Gestion des promotions sur les bundles
+
+Lorsque le bundle est en promotion (mêmes champs que pour les produits standards, par ex. product.promotions, product.promotions.unitaire, etc.) :
+
+Affiche le prix régulier barré.
+
+Affiche le prix réduit de façon plus visible (gras / couleur principale).
+
+Affiche les pastilles d’arabais (badges de promotion) comme pour les produits standards.
+
+Si des composants ou helpers existent déjà pour ça (par ex. PromotionBadge, getDisplayPrice, etc.), réutilise-les plutôt que de dupliquer la logique.
+
+Si aucune promotion n’est active, affiche simplement le prix normal sans badge ni prix barré.
+
+6. Règles de compatibilité
+
+Très important : ces modifications doivent s’appliquer uniquement aux produits product.type === "bundle".
+Les produits standards doivent garder leur comportement actuel dans la modale.
+
+Ne touche pas au fonctionnement global du contexte produits (ProductContext) ni à l’IndexedDB.
+
+Ne supprime aucune image ni logique existante d’affichage des images principales / solo / pack / boîte.
+
+7. Vérifications à faire
+
+Ouvre au moins un produit standard dans la modale → vérifier que rien n’a été cassé.
+
+Ouvre au moins un bundle :
+
+le bouton « Détail » ouvre bien la section de composition,
+
+les images bundle + boîte s’affichent,
+
+la liste de composition affiche : nom du cigare + note CA + Top 25 éventuel (Cigare de l'année (YEAR) ou #RANG (YEAR)),
+
+le bloc de prix affiche : Prix, et, en cas de promo, le prix barré + prix réduit + pastille(s) d’arabais.
+
+Si tu dois créer de nouvelles petites fonctions utilitaires ou sous-composants, fais-le proprement dans des fichiers cohérents et documente brièvement la logique avec des commentaires.

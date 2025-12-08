@@ -68,7 +68,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
     const promo = produit.promotions;
 
     if (produit.type === "bundle") {
-      price = produit.prixBundle || produit.prixUnitaire;
+      const basePrice = produit.prixBundle || produit.prixUnitaire;
+      const bundlePromo = promo?.bundle || promo?.unitaire;
+      price = bundlePromo?.actif && bundlePromo.prixPromo ? bundlePromo.prixPromo : basePrice;
     } else {
       switch (format) {
         case "pack":
@@ -114,6 +116,11 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <span>🎁</span>
               <span>ASSORTIMENT</span>
             </div>
+            {(produit.promotions?.bundle?.actif || produit.promotions?.unitaire?.actif) && (
+              <div className="bg-red-600 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
+                -{produit.promotions?.bundle?.pourcentage || produit.promotions?.unitaire?.pourcentage}%
+              </div>
+            )}
           </div>
 
           <button
@@ -145,11 +152,28 @@ const ProductCard = ({ product, onOpenDetails }) => {
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
               <div className="flex justify-between items-center py-1 px-1">
                 <span className="text-sm font-bold text-primary">
-                  Bundle ({produit.quantiteBoite || produit.qteBoite || 4} cigares) :
+                  Prix :
                 </span>
-                <span className="text-base font-bold text-primary">
-                  {formatPrice(produit.prixBundle || produit.prixUnitaire)}
-                </span>
+                <div className="text-right">
+                  {(() => {
+                    const basePrice = produit.prixBundle || produit.prixUnitaire;
+                    const promoObj = produit.promotions?.bundle || produit.promotions?.unitaire;
+                    const isPromo = promoObj?.actif && promoObj?.prixPromo;
+                    const finalPrice = isPromo ? promoObj.prixPromo : basePrice;
+                    return (
+                      <>
+                        <span className={`text-base font-bold ${isPromo ? 'text-red-600' : 'text-primary'}`}>
+                          {formatPrice(finalPrice)}
+                        </span>
+                        {isPromo && basePrice !== finalPrice && (
+                          <span className="block text-xs text-muted-foreground line-through">
+                            {formatPrice(basePrice)}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 

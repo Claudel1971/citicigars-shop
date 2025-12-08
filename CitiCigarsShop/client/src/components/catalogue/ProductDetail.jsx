@@ -86,11 +86,14 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
   // 🔧 FIX: Use exact prixPromo from database (already rounded), NEVER calculate
   const getPrice = (fmt) => {
     if (isBundle || fmt === "bundle") {
+      const base = product.prixBundle || product.prixUnitaire;
+      const promoObj = product.promotions?.bundle || product.promotions?.unitaire;
+      const final = promoObj?.actif && promoObj?.prixPromo ? promoObj.prixPromo : base;
       return {
-        base: product.prixBundle || product.prixUnitaire,
-        final: product.prixBundle || product.prixUnitaire,
-        isPromo: false,
-        pct: 0,
+        base,
+        final,
+        isPromo: promoObj?.actif || false,
+        pct: promoObj?.pourcentage || 0,
       };
     }
 
@@ -194,13 +197,22 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               </div>
             )}
 
-            {/* PROMO Badge - masqué pour les bundles */}
-            {!isBundle && product.promotions?.unitaire?.actif &&
+            {/* PROMO Badge */}
+            {isBundle ? (
+              (product.promotions?.bundle?.actif || product.promotions?.unitaire?.actif) &&
+              (product.promotions?.bundle?.pourcentage || product.promotions?.unitaire?.pourcentage) > 0 && (
+                <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                  -{product.promotions?.bundle?.pourcentage || product.promotions?.unitaire?.pourcentage}%
+                </div>
+              )
+            ) : (
+              product.promotions?.unitaire?.actif &&
               product.promotions.unitaire.pourcentage > 0 && (
                 <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                   -{product.promotions.unitaire.pourcentage}%
                 </div>
-              )}
+              )
+            )}
           </div>
 
           {/* Right: Content */}
@@ -437,11 +449,16 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                     className="flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-all border-primary bg-primary/5 text-primary ring-1 ring-primary"
                   >
                     <span className="block text-xs mb-1">
-                      Bundle ({product.quantiteBoite || product.qteBoite || 4} cigares)
+                      Prix
                     </span>
                     <span className="font-bold">
-                      {formatPrice(product.prixBundle || product.prixUnitaire)}
+                      {formatPrice(currentPrice.final)}
                     </span>
+                    {currentPrice.isPromo && currentPrice.base !== currentPrice.final && (
+                      <span className="block text-xs text-muted-foreground line-through">
+                        {formatPrice(currentPrice.base)}
+                      </span>
+                    )}
                   </button>
                 ) : (
                   ["unitaire", "pack", "boite"]
