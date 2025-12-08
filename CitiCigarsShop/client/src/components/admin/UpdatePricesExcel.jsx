@@ -121,11 +121,17 @@ const UpdatePricesExcel = () => {
         if (r.prixBoite !== null) update.prixBoite = r.prixBoite;
         
         if (r.rabais > 0 || r.prixPromo !== null) {
+          const prixUnitaire = r.prixUnitaire ?? r.currentProduct?.prixUnitaire ?? 0;
+          const calculatedPromo = r.prixPromo !== null 
+            ? r.prixPromo 
+            : (r.rabais > 0 && prixUnitaire > 0) 
+              ? Math.round(prixUnitaire * (1 - r.rabais / 100) / 250) * 250 
+              : null;
           update.promotions = {
             unitaire: { 
               actif: true, 
               pourcentage: r.rabais,
-              prixPromo: r.prixPromo
+              prixPromo: calculatedPromo
             },
             pack: { actif: false, pourcentage: 0 },
             boite: { actif: false, pourcentage: 0 }

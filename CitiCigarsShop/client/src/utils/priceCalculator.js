@@ -18,7 +18,8 @@ export const formatPrice = (price) => {
 
 export const calculateDiscountedPrice = (price, percentage) => {
   if (!percentage || percentage <= 0) return price;
-  return price * (1 - percentage / 100);
+  const discounted = price * (1 - percentage / 100);
+  return Math.round(discounted / 250) * 250;
 };
 
 export const determinerTypePack = (format, config) => {
