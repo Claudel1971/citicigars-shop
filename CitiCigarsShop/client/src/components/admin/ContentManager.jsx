@@ -49,6 +49,16 @@ const MENU_SECTIONS = [
     label: 'Footer', 
     icon: Settings,
     subsections: []
+  },
+  { 
+    id: 'legal', 
+    label: 'Légal', 
+    icon: FileText,
+    subsections: [
+      { id: 'cgv', label: 'Conditions Générales' },
+      { id: 'privacy', label: 'Politique de Confidentialité' },
+      { id: 'mentions', label: 'Mentions Légales' }
+    ]
   }
 ];
 
@@ -126,6 +136,11 @@ export default function ContentManager() {
       footer: data.footer || {
         tagline: '',
         legalNotice: ''
+      },
+      legal: data.legal || {
+        cgv: { title: 'Conditions Générales de Vente', content: '' },
+        privacy: { title: 'Politique de Confidentialité', content: '' },
+        mentions: { title: 'Mentions Légales', content: '' }
       },
       _meta: data._meta
     };
@@ -467,6 +482,30 @@ export default function ContentManager() {
           {activeSection === 'footer' && (
             <FooterEditor 
               data={content.footer}
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'legal' && activeSubsection === 'cgv' && (
+            <LegalPageEditor 
+              data={content.legal?.cgv}
+              pageKey="cgv"
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'legal' && activeSubsection === 'privacy' && (
+            <LegalPageEditor 
+              data={content.legal?.privacy}
+              pageKey="privacy"
+              updateField={updateField}
+            />
+          )}
+
+          {activeSection === 'legal' && activeSubsection === 'mentions' && (
+            <LegalPageEditor 
+              data={content.legal?.mentions}
+              pageKey="mentions"
               updateField={updateField}
             />
           )}
@@ -828,6 +867,45 @@ function FooterEditor({ data, updateField }) {
           onChange={(v) => updateField('footer.legalNotice', v)}
           placeholder="L'abus de tabac est dangereux pour la santé."
         />
+      </div>
+    </div>
+  );
+}
+
+function LegalPageEditor({ data, pageKey, updateField }) {
+  const pageLabels = {
+    cgv: 'Conditions Générales de Vente',
+    privacy: 'Politique de Confidentialité',
+    mentions: 'Mentions Légales'
+  };
+
+  return (
+    <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <h4 className="font-semibold text-gray-800 mb-4">{pageLabels[pageKey]}</h4>
+      <p className="text-sm text-gray-500 mb-6">
+        Cette page sera accessible depuis le footer du site
+      </p>
+
+      <div className="space-y-4">
+        <Field
+          label="Titre de la page"
+          value={data?.title}
+          onChange={(v) => updateField(`legal.${pageKey}.title`, v)}
+          placeholder={pageLabels[pageKey]}
+        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Contenu</label>
+          <textarea
+            value={data?.content || ''}
+            onChange={(e) => updateField(`legal.${pageKey}.content`, e.target.value)}
+            className="w-full border rounded-lg p-3 text-sm resize-y min-h-[400px] focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
+            placeholder="Saisissez le contenu de la page..."
+            rows={20}
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            Utilisez des sauts de ligne pour séparer les paragraphes. Le texte sera formaté automatiquement.
+          </p>
+        </div>
       </div>
     </div>
   );
