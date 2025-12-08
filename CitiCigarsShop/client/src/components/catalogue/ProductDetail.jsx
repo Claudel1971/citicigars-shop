@@ -9,7 +9,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart } from "@/context/CartContext";
 import Button from "../shared/Button";
-import { formatPrice, calculateDiscountedPrice } from "@/utils/priceCalculator";
+import { formatPrice } from "@/utils/priceCalculator";
 import {
   ShoppingCart,
   Heart,
@@ -83,21 +83,18 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
 
   if (!product) return null;
 
-  // Calcul du prix avec fallback arrondi à 500 si prixPromo manquant
+  // Utilise directement les prixPromo stockés dans la base de données
   const getPrice = (fmt) => {
     if (isBundle || fmt === "bundle") {
       const bundlePromo = product.promotions?.bundle;
       const unitPromo = product.promotions?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
       const base = product.prixUnitaire || product.prixBundle;
-      let final = base;
-      if (activePromo?.actif && activePromo?.pourcentage > 0) {
-        final = activePromo.prixPromo || calculateDiscountedPrice(base, activePromo.pourcentage);
-      }
+      const isPromo = activePromo?.actif && activePromo?.prixPromo;
       return {
         base,
-        final,
-        isPromo: activePromo?.actif || false,
+        final: isPromo ? activePromo.prixPromo : base,
+        isPromo: isPromo || false,
         pct: activePromo?.pourcentage || 0,
       };
     }
@@ -117,16 +114,12 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
         promoObj = product.promotions?.unitaire;
     }
 
-    // Use prixPromo if available, otherwise calculate with rounding to 500
-    let final = base;
-    if (promoObj?.actif && promoObj?.pourcentage > 0) {
-      final = promoObj.prixPromo || calculateDiscountedPrice(base, promoObj.pourcentage);
-    }
+    const isPromo = promoObj?.actif && promoObj?.prixPromo;
 
     return {
       base,
-      final,
-      isPromo: promoObj?.actif || false,
+      final: isPromo ? promoObj.prixPromo : base,
+      isPromo: isPromo || false,
       pct: promoObj?.pourcentage || 0,
     };
   };
