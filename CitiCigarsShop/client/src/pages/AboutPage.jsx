@@ -33,7 +33,7 @@ const AboutPage = () => {
                 ) : (
                   <div className="space-y-6 text-muted-foreground">
                     <p className="text-lg leading-relaxed">
-                      {brandStory.text || "Citi Cigars est né d'une passion pour les terroirs d'exception. Nous parcourons le monde pour sélectionner les vitoles qui racontent une histoire, celle du temps, de la patience et du savoir-faire."}
+                      {brandStory.text || "CitiCigars est né d'une passion pour les terroirs d'exception. Nous parcourons le monde pour sélectionner les vitoles qui racontent une histoire, celle du temps, de la patience et du savoir-faire."}
                     </p>
                     <p className="text-lg leading-relaxed">
                       Notre mission est de vous offrir les meilleurs cigares du monde, soigneusement sélectionnés parmi les plus prestigieuses manufactures de Cuba, du Nicaragua, de la République Dominicaine et du Honduras.

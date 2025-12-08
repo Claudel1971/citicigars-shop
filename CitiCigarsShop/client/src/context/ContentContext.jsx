@@ -6,7 +6,7 @@ const defaultContent = {
   header: {
     logo: {
       url: "",
-      alt: "Citi Cigars",
+      alt: "CitiCigars",
       href: "/"
     },
     menuItems: [
@@ -40,7 +40,7 @@ const defaultContent = {
     brandStory: {
       icon: "⚜",
       title: "L'Excellence sans Compromis",
-      text: "Citi Cigars est né d'une passion pour les terroirs d'exception. Nous parcourons le monde pour sélectionner les vitoles qui racontent une histoire, celle du temps, de la patience et du savoir-faire.",
+      text: "CitiCigars est né d'une passion pour les terroirs d'exception. Nous parcourons le monde pour sélectionner les vitoles qui racontent une histoire, celle du temps, de la patience et du savoir-faire.",
       ctaText: "Notre Histoire",
       ctaLink: "/about"
     }

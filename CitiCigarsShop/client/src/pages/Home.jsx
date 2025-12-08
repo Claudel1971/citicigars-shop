@@ -28,7 +28,7 @@ const Home = () => {
               <span className="text-secondary text-4xl font-serif block mb-4">{brandStory.icon || '⚜'}</span>
               <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">{brandStory.title || "L'Excellence sans Compromis"}</h2>
               <p className="text-lg text-primary-foreground/80 leading-relaxed mb-8">
-                {brandStory.text || "Citi Cigars est né d'une passion pour les terroirs d'exception."}
+                {brandStory.text || "CitiCigars est né d'une passion pour les terroirs d'exception."}
               </p>
               {brandStory.ctaText && (
                 <button 

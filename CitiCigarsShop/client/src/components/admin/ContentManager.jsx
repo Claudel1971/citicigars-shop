@@ -87,7 +87,7 @@ export default function ContentManager() {
       header: data.header || {
         logo: {
           url: '',
-          alt: 'Citi Cigars',
+          alt: 'CitiCigars',
           href: '/'
         },
         menuItems: [
@@ -748,7 +748,7 @@ function AboutPageEditor({ data, updateField }) {
           label="Titre de la page"
           value={data?.title}
           onChange={(v) => updateField('pages.about.title', v)}
-          placeholder="À Propos de Citi Cigars"
+          placeholder="À Propos de CitiCigars"
         />
         <Field
           label="Contenu"
@@ -1104,7 +1104,7 @@ function HeaderLogoEditor({ data, updateField, token }) {
             label="Texte alternatif (accessibilité)"
             value={data?.alt}
             onChange={(v) => updateField('header.logo.alt', v)}
-            placeholder="Citi Cigars"
+            placeholder="CitiCigars"
           />
           <Field
             label="Lien du logo"

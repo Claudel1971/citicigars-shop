@@ -1,4 +1,4 @@
-// IndexedDB Service for Citi Cigars
+// IndexedDB Service for CitiCigars
 const DB_NAME = "CitiCigarsDB";
 const DB_VERSION = 1;
 

@@ -27,7 +27,7 @@ const Header = () => {
     highlight: item.highlight === true,
     icon: item.icon || ''
   }));
-  const logo = content?.header?.logo || { url: '', alt: 'Citi Cigars', href: '/' };
+  const logo = content?.header?.logo || { url: '', alt: 'CitiCigars', href: '/' };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -36,12 +36,12 @@ const Header = () => {
         <Link 
           href={logo.href || "/"} 
           className="flex items-center gap-2"
-          aria-label={logo.alt || "Citi Cigars"}
+          aria-label={logo.alt || "CitiCigars"}
         >
           {logo.url ? (
             <img 
               src={logo.url} 
-              alt={logo.alt || "Citi Cigars"} 
+              alt={logo.alt || "CitiCigars"} 
               className="h-auto max-h-24 md:max-h-28 w-auto object-contain"
             />
           ) : (
