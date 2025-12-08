@@ -9,7 +9,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart } from "@/context/CartContext";
 import Button from "../shared/Button";
-import { formatPrice } from "@/utils/priceCalculator";
+import { formatPrice, calculateDiscountedPrice } from "@/utils/priceCalculator";
 import {
   ShoppingCart,
   Heart,
@@ -83,14 +83,17 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
 
   if (!product) return null;
 
-  // 🔧 FIX: Use exact prixPromo from database (already rounded), NEVER calculate
+  // Calcul du prix avec fallback arrondi à 500 si prixPromo manquant
   const getPrice = (fmt) => {
     if (isBundle || fmt === "bundle") {
       const bundlePromo = product.promotions?.bundle;
       const unitPromo = product.promotions?.unitaire;
       const activePromo = (bundlePromo?.actif ? bundlePromo : null) || (unitPromo?.actif ? unitPromo : null);
       const base = product.prixUnitaire || product.prixBundle;
-      const final = activePromo?.prixPromo ? activePromo.prixPromo : base;
+      let final = base;
+      if (activePromo?.actif && activePromo?.pourcentage > 0) {
+        final = activePromo.prixPromo || calculateDiscountedPrice(base, activePromo.pourcentage);
+      }
       return {
         base,
         final,
@@ -114,9 +117,11 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
         promoObj = product.promotions?.unitaire;
     }
 
-    // Use exact prixPromo if promo is active, otherwise use base price
-    const final =
-      promoObj?.actif && promoObj?.prixPromo ? promoObj.prixPromo : base;
+    // Use prixPromo if available, otherwise calculate with rounding to 500
+    let final = base;
+    if (promoObj?.actif && promoObj?.pourcentage > 0) {
+      final = promoObj.prixPromo || calculateDiscountedPrice(base, promoObj.pourcentage);
+    }
 
     return {
       base,
