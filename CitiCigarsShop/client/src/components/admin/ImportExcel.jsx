@@ -20,6 +20,9 @@ const ImportExcel = () => {
   };
 
   const mapExcelRowToProduct = (row) => {
+    const sku = row['SKU'] || row['sku'];
+    const isBundle = sku && sku.startsWith('CTGBDL');
+    
     const rabais = normaliserRabais(row['Rabais (%)'] || row['Rabais'] || row['rabais'] || row['Rabais(%)'] || 0);
     const prixUnitaire = parseInt(row['prix_unitaire'] || row['Prix_unitaire'] || row['Prix unitaire'] || row['prix unitaire'] || row['Prix Unitaire'] || row['p. u.'] || row['p.u.'] || row['p. u'] || row['pu'] || row['P. U.'] || row['P.U.'] || row['Prix_Unit'] || row['Prix Unit'] || row['prixUnitaire'] || 0);
     const qtyPack = parseInt(row['Qte / pack'] || row['Qte/pack'] || row['Qte_Pack'] || row['typePack'] || row['Qté/pack'] || 4);
@@ -32,7 +35,8 @@ const ImportExcel = () => {
     const hasValidRating = ratingValue && ratingValue !== 'NA' && ratingValue !== 'N/A';
 
     return {
-      sku: row['SKU'] || row['sku'],
+      sku: sku,
+      type: isBundle ? 'bundle' : 'standard',
       marque: row['Marque'] || row['marque'],
       ligne: row['Ligne / Série'] || row['Ligne/Série'] || row['Ligne'] || row['Serie'] || row['Série'] || row['ligne'] || null,
       pays: row['Pays'] || row['pays'] || row['Origine'] || row['origine'] || null,
