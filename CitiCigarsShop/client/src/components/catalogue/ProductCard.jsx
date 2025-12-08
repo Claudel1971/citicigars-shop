@@ -242,7 +242,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
             <Button
               size="sm"
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+              className="w-full bg-[#8B5A2B] hover:bg-[#704A23] text-white"
               onClick={() => onOpenDetails && onOpenDetails(produit)}
             >
               Voir détails
@@ -453,7 +453,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
           <Button
             size="sm"
-            className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+            className="w-full bg-[#8B5A2B] hover:bg-[#704A23] text-white"
             onClick={() => onOpenDetails && onOpenDetails(produit)}
           >
             Voir détails
