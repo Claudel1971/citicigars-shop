@@ -1,0 +1,159 @@
+Je souhaite ajuster la Modal de détail produit (ProductDetail) pour les bundles uniquement.
+
+1. Contexte
+
+Les produits simples restent inchangés.
+
+Les bundles ont type: "bundle" (voir bundlesData et le ProductContext où on fait ...bundle, type: "bundle").
+
+Dans la Modal des bundles, j’ai annoté une capture écran :
+
+Les éléments à supprimer pour les bundles sont marqués d’une croix rouge.
+
+Les noms des cigares contenus dans le bundle (liste) sont entourés en vert.
+
+Merci de t’y référer pour le visuel précis.
+
+2. Comportement demandé pour les BUNDLES (product.type === "bundle")
+
+Masquer / retirer dans la Modal tous les éléments marqués d’une croix rouge sur le screenshot pour les bundles uniquement.
+
+⚠️ Important : ces éléments doivent rester visibles pour les produits standards (type !== "bundle").
+Par exemple (à adapter selon le code réel après inspection) :
+
+S’il y a un bloc “format, longueur × ring gauge” spécifique au cigare individuel, on le cache pour les bundles.
+
+S’il y a un bloc de prix “Unité / Pack / Boîte” propre à un cigare unique, on ne l’affiche pas pour les bundles et on garde uniquement le prix global du bundle (si présent).
+
+De manière générale, toute info qui n’est pas pertinente pour un bundle est retirée, conformément aux croix rouges de la capture.
+
+Conserver :
+
+Le titre du bundle (marque / nom du bundle).
+
+Le visuel du bundle.
+
+Le prix du bundle (s’il existe).
+
+La liste des cigares qui composent le bundle (zone encadrée en vert sur le screenshot).
+
+3. Ajout d’infos “note CA / Top 25” pour chaque cigare du bundle
+
+Dans la liste des cigares composant le bundle (zone verte) :
+
+À droite de chaque nom de cigare, ajouter dynamiquement :
+
+La note CA :
+
+Texte exact : note CA : <note>
+Exemple : note CA : 96
+
+Le classement Top 25, si existant :
+
+Si le cigare est #1 (Cigar of the Year) :
+
+Texte exact : Cigare de l'année, <année>
+Exemple : Cigare de l'année, 2018
+
+Sinon, si le cigare est dans le Top 25 :
+
+Texte exact : #<rang>, (<année>)
+Exemple : #3, (2024)
+
+Source des données
+
+Les cigares individuels ont déjà un objet badges dans la base produits (voir initialisation dans ProductContext / catalogueData) avec au moins :
+
+badges.rating → note CA (nombre)
+
+badges.coty (bool) → indique si “Cigare de l’année”
+
+badges.top25 (bool)
+
+badges.top25Year
+
+badges.top25Rang
+
+Les bundles ont, dans bundlesData, la liste des cigares inclus (structure à vérifier : par ex. tableau d’objets avec sku ou équivalent).
+
+Pour chaque entrée de la liste du bundle :
+
+Récupérer le cigare correspondant dans la liste products (via sku ou clé identifiante).
+
+Lire ses badges pour construire la mention :
+
+Toujours afficher note CA : <rating> si rating existant.
+
+Ajouter la mention COTY ou Top25 si les champs sont présents.
+
+Affichage / responsive
+
+Mise en forme souhaitée (ligne de liste) :
+
+<Nom du cigare> — note CA : 96 · Cigare de l'année, 2018
+
+
+ou
+
+<Nom du cigare> — note CA : 94 · #3, (2024)
+
+
+ou, si seulement la note :
+
+<Nom du cigare> — note CA : 92
+
+
+Sur desktop : idéalement, le texte “note CA / Top 25” doit apparaître à droite du nom sur la même ligne (séparé par un tiret ou un point médian), avec une typographie un peu plus légère (par ex. texte secondaire).
+
+Sur mobile : si l’espace est trop réduit, tu peux autoriser un retour à la ligne (nom du cigare en première ligne, “note CA / Top 25” en dessous), mais toujours collé au même item.
+
+Si aucune info badges n’est disponible :
+
+Afficher seulement le nom du cigare (comme aujourd’hui), sans texte “note CA”.
+
+4. Implémentation technique suggérée
+
+Fichier principal à modifier : ProductDetail.jsx (ou le composant équivalent de la Modal).
+
+Détection bundle :
+
+const isBundle = product?.type === "bundle";
+
+
+Pour accéder aux données produits (badges) dans la Modal, si ce n’est pas déjà le cas :
+
+Importer useProducts dans ProductDetail :
+
+import { useProducts } from "@/context/ProductContext";
+const { products } = useProducts();
+
+
+Dans la section qui affiche la liste des cigares du bundle, faire une fonction utilitaire qui prend l’élément du bundle (ex : item.sku) et retrouve le produit correspondant dans products pour lire badges.
+
+Bien cloisonner :
+
+if (!isBundle) { ... } → garder le layout actuel des cigares individuels.
+
+if (isBundle) { ... } → appliquer le layout “spécial bundle” + ajout des infos “note CA / Top 25”.
+
+5. Critères d’acceptation
+
+Pour un cigare standard : la Modal est visuellement identique à aujourd’hui.
+
+Pour un bundle :
+
+Les éléments barrés d’une croix rouge sur mon screenshot ont disparu.
+
+La liste des cigares du bundle affiche bien, pour chaque ligne :
+
+Le nom du cigare.
+
+note CA : <note> quand la note existe.
+
+Cigare de l'année, <année> si badges.coty est vrai.
+
+Sinon, #<rang>, (<année>) si badges.top25 est vrai.
+
+Aucun crash si un cigare du bundle n’a pas de badges : la ligne s’affiche au minimum avec le nom.
+
+Affichage lisible en desktop et en mobile (pas de chevauchement de texte).

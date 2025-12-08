@@ -171,29 +171,31 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               className={`max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-all duration-700 ${imagesLoading ? 'opacity-30' : 'opacity-100'}`}
             />
 
-            {/* BADGES */}
-            <div className="absolute top-4 left-4 flex flex-col items-start gap-2">
-              {product.badges?.coty && (
-                <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-                  <span>🏆 Cigare de l'année ({product.badges.top25Year})</span>
-                </div>
-              )}
+            {/* BADGES - masqués pour les bundles */}
+            {!isBundle && (
+              <div className="absolute top-4 left-4 flex flex-col items-start gap-2">
+                {product.badges?.coty && (
+                  <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                    <span>🏆 Cigare de l'année ({product.badges.top25Year})</span>
+                  </div>
+                )}
 
-              {product.badges?.top25 && !product.badges?.coty && (
-                <div className="bg-gradient-to-r from-amber-700 to-yellow-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                  ⭐ TOP {product.badges.top25Rang} ({product.badges.top25Year})
-                </div>
-              )}
+                {product.badges?.top25 && !product.badges?.coty && (
+                  <div className="bg-gradient-to-r from-amber-700 to-yellow-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
+                    ⭐ TOP {product.badges.top25Rang} ({product.badges.top25Year})
+                  </div>
+                )}
 
-              {product.badges?.rating && (
-                <div className="bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-semibold text-amber-700 border border-amber-200 shadow-sm">
-                  CA {product.badges.rating} pts
-                </div>
-              )}
-            </div>
+                {product.badges?.rating && product.badges.rating !== "NA" && (
+                  <div className="bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-semibold text-amber-700 border border-amber-200 shadow-sm">
+                    CA {product.badges.rating} pts
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* PROMO Badge - only show if actually active */}
-            {product.promotions?.unitaire?.actif &&
+            {/* PROMO Badge - masqué pour les bundles */}
+            {!isBundle && product.promotions?.unitaire?.actif &&
               product.promotions.unitaire.pourcentage > 0 && (
                 <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                   -{product.promotions.unitaire.pourcentage}%
@@ -206,17 +208,19 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
             <div className="mb-6">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
-                  {/* Ligne 1: Marque, Ligne · Pays */}
+                  {/* Ligne 1: Marque, Ligne · Pays (pays masqué pour bundles) */}
                   <h3 className="text-xl font-serif font-bold text-primary mb-1 leading-tight">
                     {product.marque}
                     {product.ligne && `, ${product.ligne}`}
-                    <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
-                      · {product.origine || product.pays}
-                    </span>
+                    {!isBundle && (product.origine || product.pays) && (
+                      <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
+                        · {product.origine || product.pays}
+                      </span>
+                    )}
                   </h3>
 
-                  {/* Ligne 2: Vitole/Format avec dimensions */}
-                  {(product.vitole || product.format) && (
+                  {/* Ligne 2: Vitole/Format avec dimensions - masqué pour bundles */}
+                  {!isBundle && (product.vitole || product.format) && (
                     <p className="text-sm text-muted-foreground mb-2">
                       {product.vitole && product.vitole !== product.format
                         ? `${product.vitole}, `
@@ -228,24 +232,26 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                     </p>
                   )}
 
-                  {/* Ligne 3: Barre de puissance */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((niveau) => (
-                        <div
-                          key={niveau}
-                          className={`w-4 h-1.5 rounded-[1px] border ${
-                            niveau <= product.puissance
-                              ? "bg-[#B37A2A] border-[#B37A2A]"
-                              : "bg-transparent border-[#E6D2B5]"
-                          }`}
-                        />
-                      ))}
+                  {/* Ligne 3: Barre de puissance - masquée pour bundles */}
+                  {!isBundle && (
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((niveau) => (
+                          <div
+                            key={niveau}
+                            className={`w-4 h-1.5 rounded-[1px] border ${
+                              niveau <= product.puissance
+                                ? "bg-[#B37A2A] border-[#B37A2A]"
+                                : "bg-transparent border-[#E6D2B5]"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {getPuissanceLabel(product.puissance)}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">
-                      {getPuissanceLabel(product.puissance)}
-                    </span>
-                  </div>
+                  )}
                 </div>
 
                 {/* Wishlist button */}
@@ -267,7 +273,58 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               )}
             </div>
 
-            {/* Tabs */}
+            {/* Tabs - pour bundles, on affiche directement la composition */}
+            {isBundle ? (
+              <div className="flex-1 mb-8">
+                {product.composition && product.composition.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-primary text-sm flex items-center gap-2">
+                      <span>📦</span> Composition du bundle
+                    </h5>
+                    <div className="bg-accent/50 rounded-lg p-3 space-y-0">
+                      {product.composition.map((item, idx) => {
+                        const hasRating = item.rating && item.rating !== "NA";
+                        const isCoty = item.coty === true;
+                        const isTop25 = item.top25 === true || (typeof item.top25 === "string" && item.top25.includes("Top"));
+                        const top25Year = item.top25Year || item.year;
+                        const top25Rang = item.top25Rang || item.rang;
+                        
+                        return (
+                          <div
+                            key={idx}
+                            className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-sm text-foreground border-b border-border py-2 last:border-0"
+                          >
+                            <span className="font-medium">
+                              {item.quantite}x {item.marque} {item.modele}
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-1 sm:mt-0 sm:text-right">
+                              {hasRating && (
+                                <span className="text-amber-700 font-semibold">
+                                  note CA : {item.rating}
+                                </span>
+                              )}
+                              {hasRating && (isCoty || isTop25) && (
+                                <span className="mx-1">·</span>
+                              )}
+                              {isCoty && top25Year && (
+                                <span className="text-amber-600 font-bold">
+                                  Cigare de l'année, {top25Year}
+                                </span>
+                              )}
+                              {!isCoty && isTop25 && top25Rang && top25Year && (
+                                <span className="text-amber-600 font-bold">
+                                  #{top25Rang}, ({top25Year})
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
             <Tabs defaultValue="tasting" className="flex-1 mb-8">
               <TabsList className="grid w-full grid-cols-3 mb-4">
                 <TabsTrigger value="tasting">Dégustation</TabsTrigger>
@@ -348,53 +405,21 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 value="details"
                 className="space-y-4 animate-in fade-in slide-in-from-bottom-2"
               >
-                {isBundle && product.composition && product.composition.length > 0 ? (
-                  <div className="space-y-3">
-                    <h5 className="font-bold text-primary text-sm flex items-center gap-2">
-                      <span>📦</span> Composition du bundle
-                    </h5>
-                    <div className="bg-accent/50 rounded-lg p-3 space-y-2">
-                      {product.composition.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-start text-sm text-foreground border-b border-border pb-2 last:border-0 last:pb-0"
-                        >
-                          <span className="flex-1">
-                            <span className="font-medium">{item.quantite}x</span>{" "}
-                            {item.marque} {item.modele}
-                          </span>
-                          <div className="flex flex-col items-end gap-1">
-                            {item.rating && (
-                              <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-xs">
-                                {item.rating}
-                              </span>
-                            )}
-                            {item.top25 && (
-                              <span className="text-xs text-amber-600 font-bold">
-                                {item.top25}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-muted-foreground">Cape:</span>
-                    <span className="font-medium">Habano Ecuador</span>
-                    <span className="text-muted-foreground">Sous-cape:</span>
-                    <span className="font-medium">Dominican Republic</span>
-                    <span className="text-muted-foreground">Tripe:</span>
-                    <span className="font-medium">Nicaragua / Dominican</span>
-                    <span className="text-muted-foreground">Ring Gauge:</span>
-                    <span className="font-medium">
-                      {product.diametre || "N/A"}
-                    </span>
-                  </div>
-                )}
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <span className="text-muted-foreground">Cape:</span>
+                  <span className="font-medium">Habano Ecuador</span>
+                  <span className="text-muted-foreground">Sous-cape:</span>
+                  <span className="font-medium">Dominican Republic</span>
+                  <span className="text-muted-foreground">Tripe:</span>
+                  <span className="font-medium">Nicaragua / Dominican</span>
+                  <span className="text-muted-foreground">Ring Gauge:</span>
+                  <span className="font-medium">
+                    {product.diametre || "N/A"}
+                  </span>
+                </div>
               </TabsContent>
             </Tabs>
+            )}
 
             {/* Footer: Price & Add to Cart */}
             <div className="mt-auto pt-6 border-t border-border">
