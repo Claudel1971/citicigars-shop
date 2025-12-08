@@ -1,15 +1,35 @@
 {
   "header": {
     "logo": {
-      "url": "",
+      "url": "/cms-assets/logo-1765225010939-865950.jpg",
       "alt": "Citi Cigars",
       "href": "/"
     },
     "menuItems": [
-      { "label": "ACCUEIL", "href": "/", "highlight": false, "icon": "" },
-      { "label": "CIGARES", "href": "/catalogue", "highlight": false, "icon": "" },
-      { "label": "NOS ASSORTIMENTS", "href": "/assortiments", "highlight": true, "icon": "🎁" },
-      { "label": "PROMOTIONS", "href": "/promotions", "highlight": false, "icon": "" }
+      {
+        "label": "ACCUEIL",
+        "href": "/",
+        "highlight": false,
+        "icon": ""
+      },
+      {
+        "label": "CIGARES",
+        "href": "/catalogue",
+        "highlight": false,
+        "icon": ""
+      },
+      {
+        "label": "NOS ASSORTIMENTS",
+        "href": "/assortiments",
+        "highlight": true,
+        "icon": "🎁"
+      },
+      {
+        "label": "PROMOTIONS",
+        "href": "/promotions",
+        "highlight": false,
+        "icon": ""
+      }
     ]
   },
   "home": {
@@ -72,7 +92,7 @@
     "legalNotice": "L'abus de tabac est dangereux pour la santé."
   },
   "_meta": {
-    "lastUpdated": "2025-12-07T21:54:30.581Z",
+    "lastUpdated": "2025-12-08T20:16:59.160Z",
     "updatedBy": "admin"
   }
 }

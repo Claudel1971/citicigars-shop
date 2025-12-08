@@ -31,18 +31,18 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-20 items-center justify-between px-4 md:px-8">
+      <div className="container flex h-24 items-center justify-between px-4 md:px-8">
         {/* Logo */}
         <Link 
           href={logo.href || "/"} 
-          className="flex items-center gap-2 h-full py-2"
+          className="flex items-center gap-2 h-full py-1"
           aria-label={logo.alt || "Citi Cigars"}
         >
           {logo.url ? (
             <img 
               src={logo.url} 
               alt={logo.alt || "Citi Cigars"} 
-              className="h-full max-h-14 md:max-h-16 w-auto object-contain"
+              className="h-auto max-h-20 md:max-h-[4.5rem] w-auto object-contain"
             />
           ) : (
             <span className="font-serif text-2xl font-bold text-primary tracking-wide flex items-center gap-2">
