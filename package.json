@@ -12,7 +12,9 @@
   "dependencies": {
     "@types/compression": "^1.8.1",
     "@types/multer": "^2.0.0",
+    "@types/node": "^24.10.2",
     "compression": "^1.8.1",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.3"
   }
 }
