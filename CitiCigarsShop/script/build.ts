@@ -53,11 +53,12 @@ async function buildAll() {
     bundle: true,
     format: "cjs",
     outfile: "dist/index.cjs",
+    target: "node18",
     define: {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
-    external: externals,
+    packages: "external",
     logLevel: "info",
     alias: {
       "@shared": path.resolve("shared"),
