@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useContent } from '@/context/ContentContext';
-import generatedImage from '@assets/generated_images/luxury_cigar_lounge_hero_background.png';
+import generatedImage from '@assets/generated_images/luxury_cigar_lounge_hero_background.webp';
 
 const defaultImages = [
   generatedImage,

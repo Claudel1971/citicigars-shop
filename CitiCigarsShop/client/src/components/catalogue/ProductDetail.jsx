@@ -6,7 +6,7 @@ import Button from "../shared/Button";
 import { formatPrice } from "@/utils/priceCalculator";
 import { ShoppingCart, Heart, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import generatedImage from "@assets/generated_images/single_premium_cigar.png";
+import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 import apiService from "@/services/apiService";
 
 function getPuissanceLabel(puissance) {

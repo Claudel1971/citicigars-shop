@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Button from '../shared/Button';
 import { formatPrice } from '@/utils/priceCalculator';
 import { useLocation } from 'wouter';
-import generatedImage from '@assets/generated_images/single_premium_cigar.png';
+import generatedImage from '@assets/generated_images/single_premium_cigar.webp';
 
 const CartItem = ({ item, product, onUpdateQuantity, onRemove }) => {
   const qteBoite = product?.qteBoite || product?.quantiteBoite || item.qteBoite;

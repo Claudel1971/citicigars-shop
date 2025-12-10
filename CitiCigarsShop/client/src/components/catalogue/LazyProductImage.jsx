@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import apiService from "@/services/apiService";
-import generatedImage from "@assets/generated_images/single_premium_cigar.png";
+import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 
 const imageCache = new Map();
 

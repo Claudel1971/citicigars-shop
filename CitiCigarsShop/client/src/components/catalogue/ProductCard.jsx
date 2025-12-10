@@ -5,7 +5,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useConfig } from "@/context/ConfigContext";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/utils/priceCalculator";
-import generatedImage from "@assets/generated_images/single_premium_cigar.png";
+import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 import Button from "../shared/Button";
 import LazyProductImage from "./LazyProductImage";
 

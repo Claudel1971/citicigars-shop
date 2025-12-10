@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Button from "../shared/Button";
 import { MessageCircle, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
-import generatedImage from "@assets/generated_images/single_premium_cigar.png";
+import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 
 const formSchema = z.object({
   nom: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
