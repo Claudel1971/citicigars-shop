@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   ].filter(Boolean);
   
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
+  if (origin && allowedOrigins.some(allowed => allowed && origin.startsWith(allowed.replace(/\/$/, '')))) {
     res.header('Access-Control-Allow-Origin', origin);
   }
   
