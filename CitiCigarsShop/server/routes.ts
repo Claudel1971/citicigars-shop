@@ -6,14 +6,12 @@ import { catalogueData } from "../client/src/data/catalogueData";
 import { bundlesData } from "../client/src/data/bundles";
 import * as fs from "fs";
 import * as path from "path";
-import { fileURLToPath } from "url";
 import multer from "multer";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const CONTENT_FILE = path.join(__dirname, "content.json");
+const ROOT_DIR = process.cwd();
+const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
 const ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD || "citicigars2024";
-const CMS_ASSETS_DIR = path.join(__dirname, "../client/public/cms-assets");
+const CMS_ASSETS_DIR = path.resolve(ROOT_DIR, "client/public/cms-assets");
 
 if (!fs.existsSync(CMS_ASSETS_DIR)) {
   fs.mkdirSync(CMS_ASSETS_DIR, { recursive: true });
