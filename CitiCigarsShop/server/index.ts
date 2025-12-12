@@ -14,6 +14,10 @@ const httpServer = createServer(app);
 app.use((req, res, next) => {
   const allowedOrigins = [
     process.env.FRONTEND_URL,
+    'https://citicigars.com',
+    'https://www.citicigars.com',
+    'http://citicigars.com',
+    'http://www.citicigars.com',
     'http://localhost:5000',
     'http://localhost:3000'
   ].filter(Boolean);
