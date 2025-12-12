@@ -1,12 +1,16 @@
 import { db } from "./db.mysql";
 import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import crypto from "crypto";
 import { 
   users, products, productImages,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type ProductImage, type InsertProductImage
 } from "../shared/schema.mysql";
+
+function generateId(): string {
+  return crypto.randomUUID();
+}
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -37,7 +41,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = nanoid(36);
+    const id = generateId();
     await db.insert(users).values({ ...insertUser, id });
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -76,7 +80,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addImage(image: InsertProductImage): Promise<ProductImage> {
-    const id = nanoid(36);
+    const id = generateId();
     await db.insert(productImages).values({ ...image, id });
     const [created] = await db.select().from(productImages).where(eq(productImages.id, id));
     return created;

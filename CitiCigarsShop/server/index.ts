@@ -1,13 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
-import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
-
-// Enable gzip compression for all responses (reduces size by 60-70%)
-app.use(compression());
 
 // Health check endpoint for UptimeRobot (lightweight, fast response)
 app.get("/health", (_req, res) => {
