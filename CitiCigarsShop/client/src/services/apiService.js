@@ -25,6 +25,19 @@ class ApiService {
     return response.json();
   }
 
+  async createProduct(product) {
+    const response = await fetch(`${API_BASE}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to create product');
+    }
+    return response.json();
+  }
+
   async deleteProduct(sku) {
     const response = await fetch(`${API_BASE}/products/${sku}`, {
       method: 'DELETE',

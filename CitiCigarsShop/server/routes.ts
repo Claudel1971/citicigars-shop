@@ -107,6 +107,27 @@ export async function registerRoutes(
     }
   });
 
+  // Create product
+  app.post("/api/products", async (req, res) => {
+    try {
+      const product = req.body;
+      if (!product.sku || !product.marque) {
+        return res.status(400).json({ error: "SKU et marque sont requis" });
+      }
+      
+      const existing = await storage.getProduct(product.sku);
+      if (existing) {
+        return res.status(409).json({ error: "Un produit avec ce SKU existe déjà" });
+      }
+      
+      const created = await storage.createProduct(product);
+      res.status(201).json(created);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res.status(500).json({ error: "Failed to create product" });
+    }
+  });
+
   // Update product
   app.put("/api/products/:sku", async (req, res) => {
     try {

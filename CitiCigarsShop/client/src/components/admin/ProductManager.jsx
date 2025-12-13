@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import apiService from '@/services/apiService';
-import { Search, Loader2, Package, Save, X, AlertCircle } from 'lucide-react';
+import { Search, Loader2, Package, Save, X, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ProductManager = () => {
@@ -10,6 +10,19 @@ const ProductManager = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingChanges, setPendingChanges] = useState({});
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingProduct, setCreatingProduct] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState(null);
+  const [newProduct, setNewProduct] = useState({
+    sku: '',
+    marque: '',
+    ligne: '',
+    pays: 'Cuba',
+    prixUnitaire: 0,
+    qteBoite: 25,
+    typePack: 4,
+    inCatalogue: true,
+  });
 
   const normaliserRabais = (rabais) => {
     if (!rabais || rabais === 0) return 0;
@@ -191,6 +204,61 @@ const ProductManager = () => {
     loadProducts();
   }, []);
 
+  const handleCreateProduct = async () => {
+    if (!newProduct.sku || !newProduct.marque) {
+      toast.error('SKU et marque sont requis');
+      return;
+    }
+    
+    setCreatingProduct(true);
+    try {
+      await apiService.createProduct({
+        ...newProduct,
+        prixUnitaire: parseInt(newProduct.prixUnitaire) || 0,
+        qteBoite: parseInt(newProduct.qteBoite) || 25,
+        typePack: parseInt(newProduct.typePack) || 4,
+        type: 'standard',
+        promotions: {
+          unitaire: { actif: false, pourcentage: 0 },
+          pack: { actif: false, pourcentage: 0 },
+          boite: { actif: false, pourcentage: 0 },
+        },
+      });
+      toast.success('Produit cree avec succes');
+      setShowCreateModal(false);
+      setNewProduct({
+        sku: '',
+        marque: '',
+        ligne: '',
+        pays: 'Cuba',
+        prixUnitaire: 0,
+        qteBoite: 25,
+        typePack: 4,
+        inCatalogue: true,
+      });
+      await loadProducts();
+    } catch (error) {
+      toast.error(error.message || 'Erreur lors de la creation');
+    } finally {
+      setCreatingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (sku) => {
+    if (!confirm(`Supprimer definitivement le produit ${sku} ?`)) return;
+    
+    setDeletingProduct(sku);
+    try {
+      await apiService.deleteProduct(sku);
+      toast.success('Produit supprime');
+      await loadProducts();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setDeletingProduct(null);
+    }
+  };
+
   const filteredProducts = useMemo(() => {
     let result = products.map(p => {
       const changes = pendingChanges[p.sku] || {};
@@ -254,13 +322,22 @@ const ProductManager = () => {
 
   return (
     <div className="p-6 max-w-full pb-24">
-      <div className="mb-6">
-        <h1 className="text-2xl font-serif font-bold text-primary mb-2">
-          Gestion des Produits
-        </h1>
-        <p className="text-muted-foreground">
-          Modifiez vos produits librement. Les changements ne seront enregistres qu'apres avoir clique sur "Sauvegarder".
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-primary mb-2">
+            Gestion des Produits
+          </h1>
+          <p className="text-muted-foreground">
+            Modifiez vos produits librement. Les changements ne seront enregistres qu'apres avoir clique sur "Sauvegarder".
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          Ajouter un produit
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
@@ -346,12 +423,13 @@ const ProductManager = () => {
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase">Stock</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase">Catalogue</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase">Coup de coeur</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={11} className="px-4 py-12 text-center text-muted-foreground">
                     <Package className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>Aucun produit trouve</p>
                   </td>
@@ -528,6 +606,21 @@ const ProductManager = () => {
                           </span>
                         </label>
                       </td>
+
+                      <td className="px-3 py-3 text-center">
+                        <button
+                          onClick={() => handleDeleteProduct(produit.sku)}
+                          disabled={deletingProduct === produit.sku}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Supprimer ce produit"
+                        >
+                          {deletingProduct === produit.sku ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -578,6 +671,140 @@ const ProductManager = () => {
           </div>
         </div>
       </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-serif font-bold text-primary">Ajouter un produit</h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
+                <input
+                  type="text"
+                  value={newProduct.sku}
+                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+                  placeholder="Ex: MON-NOUVEAU-CIGARE"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Marque *</label>
+                <input
+                  type="text"
+                  value={newProduct.marque}
+                  onChange={(e) => setNewProduct({ ...newProduct, marque: e.target.value })}
+                  placeholder="Ex: Cohiba"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ligne</label>
+                <input
+                  type="text"
+                  value={newProduct.ligne}
+                  onChange={(e) => setNewProduct({ ...newProduct, ligne: e.target.value })}
+                  placeholder="Ex: Behike"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pays</label>
+                <select
+                  value={newProduct.pays}
+                  onChange={(e) => setNewProduct({ ...newProduct, pays: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="Cuba">Cuba</option>
+                  <option value="Nicaragua">Nicaragua</option>
+                  <option value="Republique Dominicaine">Republique Dominicaine</option>
+                  <option value="Honduras">Honduras</option>
+                  <option value="Mexique">Mexique</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
+                  <input
+                    type="number"
+                    value={newProduct.prixUnitaire}
+                    onChange={(e) => setNewProduct({ ...newProduct, prixUnitaire: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Qte Boite</label>
+                  <input
+                    type="number"
+                    value={newProduct.qteBoite}
+                    onChange={(e) => setNewProduct({ ...newProduct, qteBoite: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Qte Pack</label>
+                  <input
+                    type="number"
+                    value={newProduct.typePack}
+                    onChange={(e) => setNewProduct({ ...newProduct, typePack: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="inCatalogue"
+                  checked={newProduct.inCatalogue}
+                  onChange={(e) => setNewProduct({ ...newProduct, inCatalogue: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="inCatalogue" className="text-sm text-gray-700">Visible dans le catalogue</label>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                disabled={creatingProduct}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreateProduct}
+                disabled={creatingProduct || !newProduct.sku || !newProduct.marque}
+                className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+              >
+                {creatingProduct ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {creatingProduct ? 'Creation...' : 'Creer le produit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
