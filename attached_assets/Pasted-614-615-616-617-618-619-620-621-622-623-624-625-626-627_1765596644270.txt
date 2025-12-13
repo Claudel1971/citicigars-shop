@@ -1,0 +1,138 @@
+614
+615
+616
+617
+618
+619
+620
+621
+622
+623
+624
+625
+626
+627
+628
+629
+630
+631
+632
+633
+634
+635
+636
+637
+638
+639
+640
+641
+642
+643
+644
+645
+646
+647
+648
+649
+650
+651
+652
+653
+654
+655
+656
+657
+658
+659
+660
+661
+662
+663
+664
+665
+666
+667
+668
+669
+670
+671
+672
+673
+674
+675
+676
+677
+678
+679
+680
+681
+682
+
+  images.forEach((img) => {
+    const t = normalizeType(img.type);
+
+    if (t.includes('principale') || t.includes('open') || t.includes('defaut')) {
+      imageMap.imagePrincipale = img.data;
+    } else if (t.includes('solo') || t.includes('cigare')) {
+      imageMap.imageSolo = img.data;
+    } else if (t === 'pack4' || t.includes('pack_4') || t.includes('pack (4)')) {
+      imageMap.imagePack4 = img.data;
+      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+    } else if (t === 'pack5' || t.includes('pack_5') || t.includes('pack (5)')) {
+      imageMap.imagePack5 = img.data;
+      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+    } else if (t.includes('pack')) {
+      imageMap.imagePack = img.data;
+    } else if (t.includes('boite') || t.includes('closed')) {
+      imageMap.imageBoite = img.data;
+    }
+  });
+
+  return {
+    ...product,
+    ...imageMap,
+    images,
+  };
+}
+
+// Helper to map images to field names (without product data)
+function mapImagesToFields(images: any[]) {
+  const normalizeType = (type: string) =>
+    (type || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  const imageMap: any = {
+    imagePrincipale: null,
+    imageSolo: null,
+    imagePack: null,
+    imagePack4: null,
+    imagePack5: null,
+    imageBoite: null,
+  };
+
+  images.forEach((img) => {
+    const t = normalizeType(img.type);
+
+    if (t.includes('principale') || t.includes('open') || t.includes('defaut')) {
+      imageMap.imagePrincipale = img.data;
+    } else if (t.includes('solo') || t.includes('cigare')) {
+      imageMap.imageSolo = img.data;
+    } else if (t === 'pack4' || t.includes('pack_4') || t.includes('pack (4)')) {
+      imageMap.imagePack4 = img.data;
+      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+    } else if (t === 'pack5' || t.includes('pack_5') || t.includes('pack (5)')) {
+      imageMap.imagePack5 = img.data;
+      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+    } else if (t.includes('pack')) {
+      imageMap.imagePack = img.data;
+    } else if (t.includes('boite') || t.includes('closed')) {
+      imageMap.imageBoite = img.data;
+    }
+  });
+
+  return imageMap;
+}
+
