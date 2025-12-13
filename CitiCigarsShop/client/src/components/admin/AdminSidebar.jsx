@@ -58,7 +58,13 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
         ))}
       </nav>
 
-      <button className="flex items-center gap-3 px-4 py-3 text-destructive-foreground hover:bg-destructive/20 rounded-md transition-colors mt-auto">
+      <button 
+        className="flex items-center gap-3 px-4 py-3 text-destructive-foreground hover:bg-destructive/20 rounded-md transition-colors mt-auto"
+        onClick={() => {
+          sessionStorage.removeItem('cmsToken');
+          window.location.href = '/';
+        }}
+      >
         <LogOut size={18} />
         Déconnexion
       </button>
