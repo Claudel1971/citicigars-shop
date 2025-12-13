@@ -614,28 +614,29 @@ function mapProductWithImages(product: any, images: any[]) {
 
   images.forEach((img) => {
     const t = normalizeType(img.type);
+    const imgSrc = img.url || img.data;
 
     if (t.includes('principale') || t.includes('open') || t.includes('defaut')) {
-      imageMap.imagePrincipale = img.data;
+      imageMap.imagePrincipale = imgSrc;
     } else if (t.includes('solo') || t.includes('cigare')) {
-      imageMap.imageSolo = img.data;
+      imageMap.imageSolo = imgSrc;
     } else if (t === 'pack4' || t.includes('pack_4') || t.includes('pack (4)')) {
-      imageMap.imagePack4 = img.data;
-      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+      imageMap.imagePack4 = imgSrc;
+      if (!imageMap.imagePack) imageMap.imagePack = imgSrc;
     } else if (t === 'pack5' || t.includes('pack_5') || t.includes('pack (5)')) {
-      imageMap.imagePack5 = img.data;
-      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+      imageMap.imagePack5 = imgSrc;
+      if (!imageMap.imagePack) imageMap.imagePack = imgSrc;
     } else if (t.includes('pack')) {
-      imageMap.imagePack = img.data;
+      imageMap.imagePack = imgSrc;
     } else if (t.includes('boite') || t.includes('closed')) {
-      imageMap.imageBoite = img.data;
+      imageMap.imageBoite = imgSrc;
     }
   });
 
   return {
     ...product,
     ...imageMap,
-    images,
+    images: images.map(img => ({ ...img, data: img.url || img.data })),
   };
 }
 
@@ -659,21 +660,22 @@ function mapImagesToFields(images: any[]) {
 
   images.forEach((img) => {
     const t = normalizeType(img.type);
+    const imgSrc = img.url || img.data;
 
     if (t.includes('principale') || t.includes('open') || t.includes('defaut')) {
-      imageMap.imagePrincipale = img.data;
+      imageMap.imagePrincipale = imgSrc;
     } else if (t.includes('solo') || t.includes('cigare')) {
-      imageMap.imageSolo = img.data;
+      imageMap.imageSolo = imgSrc;
     } else if (t === 'pack4' || t.includes('pack_4') || t.includes('pack (4)')) {
-      imageMap.imagePack4 = img.data;
-      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+      imageMap.imagePack4 = imgSrc;
+      if (!imageMap.imagePack) imageMap.imagePack = imgSrc;
     } else if (t === 'pack5' || t.includes('pack_5') || t.includes('pack (5)')) {
-      imageMap.imagePack5 = img.data;
-      if (!imageMap.imagePack) imageMap.imagePack = img.data;
+      imageMap.imagePack5 = imgSrc;
+      if (!imageMap.imagePack) imageMap.imagePack = imgSrc;
     } else if (t.includes('pack')) {
-      imageMap.imagePack = img.data;
+      imageMap.imagePack = imgSrc;
     } else if (t.includes('boite') || t.includes('closed')) {
-      imageMap.imageBoite = img.data;
+      imageMap.imageBoite = imgSrc;
     }
   });
 
