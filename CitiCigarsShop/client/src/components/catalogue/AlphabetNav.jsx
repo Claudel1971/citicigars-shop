@@ -21,7 +21,7 @@ const AlphabetNav = ({ activeLetter, onSelectLetter, availableLetters = new Set(
         
         {alphabet.map(letter => {
           const isAvailable = availableLetters.has(letter);
-          const isActive = activeLetter === letter;
+          const isActive = activeLetter === letter && isAvailable;
           
           return (
             <button
@@ -32,7 +32,7 @@ const AlphabetNav = ({ activeLetter, onSelectLetter, availableLetters = new Set(
                 "w-8 h-8 flex items-center justify-center text-xs font-bold rounded-full transition-all",
                 isActive && "bg-primary text-primary-foreground scale-110 shadow-md",
                 !isActive && isAvailable && "text-foreground hover:bg-accent hover:scale-105",
-                !isActive && !isAvailable && "text-muted-foreground/30 cursor-not-allowed"
+                !isAvailable && "text-muted-foreground/30 cursor-not-allowed"
               )}
             >
               {letter}
