@@ -1,20 +1,8 @@
 import React from 'react';
-import { useProducts } from '@/context/ProductContext';
 import { cn } from '@/lib/utils';
 
-const AlphabetNav = ({ activeLetter, onSelectLetter }) => {
-  const { products } = useProducts();
+const AlphabetNav = ({ activeLetter, onSelectLetter, availableLetters = new Set() }) => {
   const alphabet = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
-  
-  // Identify available letters from products
-  const availableLetters = React.useMemo(() => {
-    const letters = new Set();
-    products.forEach(p => {
-      const firstChar = p.marque.charAt(0).toUpperCase();
-      letters.add(firstChar);
-    });
-    return letters;
-  }, [products]);
 
   return (
     <div className="sticky top-20 z-30 w-full bg-background/95 backdrop-blur border-b py-2 shadow-sm overflow-x-auto scrollbar-hide">

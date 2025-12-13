@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useProducts } from "@/context/ProductContext";
 import ProductCard from "./ProductCard";
 import ProductDetail from "./ProductDetail";
@@ -177,6 +177,61 @@ const ProductGrid = () => {
     );
   }, [filteredProducts]);
 
+  // ---------- Lettres disponibles (basées sur les filtres SAUF la lettre) -----------
+  const availableLetters = useMemo(() => {
+    const letters = new Set();
+    products
+      .filter((p) => {
+        // Même logique que filteredProducts, SANS le filtre de lettre
+        if (p.inCatalogue === false) return false;
+
+        const query = search.toLowerCase();
+        const matchesSearch =
+          query === "" ||
+          p.marque?.toLowerCase().includes(query) ||
+          p.modele?.toLowerCase().includes(query) ||
+          p.vitole?.toLowerCase().includes(query) ||
+          p.origine?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+
+        const matchesCountry =
+          selectedCountry === "Tous" || p.pays === selectedCountry;
+        if (!matchesCountry) return false;
+
+        const puissance = Number(p.puissance);
+        const matchesPuissance =
+          selectedPuissance === 0 ||
+          (!isNaN(puissance) && puissance === selectedPuissance);
+        if (!matchesPuissance) return false;
+
+        const budgetCategory = getBudgetCategory(p.prixUnitaire);
+        const matchesBudget =
+          selectedBudget === "Tous" ||
+          (budgetCategory && budgetCategory === selectedBudget);
+        if (!matchesBudget) return false;
+
+        const ringCategory = getRingCategory(p);
+        const matchesRing =
+          selectedRing === "Tous" ||
+          (ringCategory && ringCategory === selectedRing);
+        if (!matchesRing) return false;
+
+        return true;
+      })
+      .forEach((p) => {
+        const firstChar = p.marque?.charAt(0).toUpperCase();
+        if (firstChar) letters.add(firstChar);
+      });
+    return letters;
+  }, [products, search, selectedCountry, selectedPuissance, selectedBudget, selectedRing]);
+
+  // Reset activeLetter if it's no longer available after filter changes
+  useEffect(() => {
+    if (activeLetter && !availableLetters.has(activeLetter)) {
+      setActiveLetter(null);
+    }
+  }, [activeLetter, availableLetters]);
+
   // ---------- UI -----------
 
   return (
@@ -319,6 +374,7 @@ const ProductGrid = () => {
       <AlphabetNav
         activeLetter={activeLetter}
         onSelectLetter={setActiveLetter}
+        availableLetters={availableLetters}
       />
 
       {/* Grille produits */}
