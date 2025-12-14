@@ -24,20 +24,12 @@ const Header = () => {
   const { content } = useContent();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const defaultNavLinks = [
+  const navLinks = [
     { href: '/', label: t('nav.home'), highlight: false, icon: '' },
     { href: '/catalogue', label: t('nav.cigars'), highlight: false, icon: '' },
     { href: '/assortiments', label: t('nav.assortments'), highlight: true, icon: '🎁' },
     { href: '/promotions', label: t('nav.promotions'), highlight: false, icon: '' },
   ];
-
-  const rawNavLinks = content?.header?.menuItems || defaultNavLinks;
-  const navLinks = rawNavLinks.map(item => ({
-    href: item.href || '/',
-    label: item.label || '',
-    highlight: item.highlight === true,
-    icon: item.icon || ''
-  }));
   const logo = content?.header?.logo || { url: '', alt: 'CitiCigars', href: '/' };
 
   return (
