@@ -23,7 +23,7 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="font-serif text-2xl font-bold text-secondary">CitiCigars</h3>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
-              {footerContent.tagline || "L'excellence du cigare livrée chez vous. Une sélection rigoureuse des meilleurs terroirs pour les amateurs exigeants."}
+              {t('footer.tagline')}
             </p>
           </div>
 
@@ -63,7 +63,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-primary-foreground/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-primary-foreground/60">
-          <p>&copy; {new Date().getFullYear()} CitiCigars. {t('footer.copyright')}. {footerContent.legalNotice || ""}</p>
+          <p>&copy; {new Date().getFullYear()} CitiCigars. {t('footer.copyright')}. {t('footer.legalNotice')}</p>
           <a href="/admin" className="hover:text-secondary transition-colors opacity-50 hover:opacity-100">Administration</a>
         </div>
       </div>

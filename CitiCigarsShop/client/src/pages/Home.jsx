@@ -37,15 +37,15 @@ const Home = () => {
         <section className="py-20 bg-primary text-primary-foreground text-center">
            <div className="container max-w-3xl mx-auto px-4">
               <span className="text-secondary text-4xl font-serif block mb-4">{brandStory.icon || '⚜'}</span>
-              <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">{brandStory.title || t('home.brandStory.title')}</h2>
+              <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">{t('home.brandStory.title')}</h2>
               <p className="text-lg text-primary-foreground/80 leading-relaxed mb-8">
-                {brandStory.text || t('home.brandStory.text')}
+                {t('home.brandStory.text')}
               </p>
               <button 
                 onClick={() => setLocation(brandStory.ctaLink || '/about')}
                 className="border border-secondary text-secondary px-8 py-3 rounded hover:bg-secondary hover:text-primary transition-colors uppercase tracking-widest text-sm font-bold"
               >
-                {brandStory.ctaText || t('home.brandStory.cta')}
+                {t('home.brandStory.cta')}
               </button>
            </div>
         </section>

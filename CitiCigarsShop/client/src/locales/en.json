@@ -211,7 +211,9 @@
     "shipping": "Shipping",
     "returns": "Returns",
     "copyright": "All rights reserved",
-    "followUs": "Follow Us"
+    "followUs": "Follow Us",
+    "tagline": "Cigar excellence delivered to your door. A rigorous selection from the finest terroirs for discerning enthusiasts.",
+    "legalNotice": "Tobacco abuse is harmful to health."
   },
   "common": {
     "loading": "Loading...",

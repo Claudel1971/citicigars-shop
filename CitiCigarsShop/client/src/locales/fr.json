@@ -211,7 +211,9 @@
     "shipping": "Livraison",
     "returns": "Retours",
     "copyright": "Tous droits réservés",
-    "followUs": "Suivez-nous"
+    "followUs": "Suivez-nous",
+    "tagline": "L'excellence du cigare livrée chez vous. Une sélection rigoureuse des meilleurs terroirs pour les amateurs exigeants.",
+    "legalNotice": "L'abus de tabac est dangereux pour la santé."
   },
   "common": {
     "loading": "Chargement...",
