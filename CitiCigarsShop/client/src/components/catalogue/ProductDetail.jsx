@@ -8,14 +8,15 @@ import { ShoppingCart, Heart, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 import apiService from "@/services/apiService";
+import i18n from "@/i18n";
 
-function getPuissanceLabel(puissance) {
+function getPuissanceLabel(puissance, t) {
   const labels = {
-    1: "Léger",
-    2: "Léger-Moyen",
-    3: "Moyen",
-    4: "Medium-Full",
-    5: "Corsé",
+    1: t("product.strengthLevels.light"),
+    2: t("product.strengthLevels.lightMedium"),
+    3: t("product.strengthLevels.medium"),
+    4: t("product.strengthLevels.mediumFull"),
+    5: t("product.strengthLevels.full"),
   };
   return labels[puissance] || "";
 }
@@ -58,6 +59,14 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
   );
   const [images, setImages] = useState(null);
   const [imagesLoading, setImagesLoading] = useState(false);
+
+  const [, setLang] = useState(i18n.language);
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+  const t = (key) => i18n.t(key);
 
   useEffect(() => {
     if (product?.type === "bundle") {
@@ -248,7 +257,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               <div className="absolute top-4 left-4 flex flex-col items-start gap-2">
                 {product.badges?.coty && (
                   <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-                    <span>🏆 Cigare de l'année ({product.badges.top25Year})</span>
+                    <span>🏆 {t("product.cigarOfYear")} ({product.badges.top25Year})</span>
                   </div>
                 )}
 
@@ -256,7 +265,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                   <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
                     <span>
                       {product.badges.top25Rang === 1
-                        ? `Cigare de l'année, ${product.badges.top25Year}`
+                        ? `${t("product.cigarOfYear")}, ${product.badges.top25Year}`
                         : `#${product.badges.top25Rang}, ${product.badges.top25Year}`}
                     </span>
                   </div>
@@ -341,7 +350,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                         ))}
                       </div>
                       <span className="text-xs text-muted-foreground font-medium">
-                        {getPuissanceLabel(product.puissance)}
+                        {getPuissanceLabel(product.puissance, t)}
                       </span>
                     </div>
                   )}
@@ -368,7 +377,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 {product.composition && product.composition.length > 0 && (
                   <div className="space-y-3">
                     <h5 className="font-bold text-primary text-sm flex items-center gap-2">
-                      <span>📦</span> Composition du bundle
+                      <span>📦</span> {t("product.bundleComposition")}
                     </h5>
                     <div className="bg-accent/50 rounded-lg p-3 space-y-0">
                       {product.composition.map((item, idx) => {
@@ -399,7 +408,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                             <span className="text-xs text-muted-foreground mt-1 sm:mt-0 sm:text-right">
                               {ratingNum && (
                                 <span className="text-amber-700 font-semibold">
-                                  note CA : {ratingNum}
+                                  {t("product.caRating")} : {ratingNum}
                                 </span>
                               )}
                               {ratingNum && (isCoty || top25Rank) && (
@@ -407,7 +416,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                               )}
                               {isCoty && cotyYear && (
                                 <span className="text-amber-600 font-bold">
-                                  Cigare de l'année, {cotyYear}
+                                  {t("product.cigarOfYear")}, {cotyYear}
                                 </span>
                               )}
                               {!isCoty && top25Rank && top25Year && (
@@ -426,22 +435,21 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
             ) : (
               <Tabs defaultValue="tasting" className="flex-1 mb-8">
                 <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="tasting">Dégustation</TabsTrigger>
-                  <TabsTrigger value="pairings">Accords</TabsTrigger>
-                  <TabsTrigger value="details">Détails</TabsTrigger>
+                  <TabsTrigger value="tasting">{t("product.tabs.tasting")}</TabsTrigger>
+                  <TabsTrigger value="pairings">{t("product.tabs.pairings")}</TabsTrigger>
+                  <TabsTrigger value="details">{t("product.tabs.details")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="tasting" className="space-y-4">
-                  {/* contenu dégustation comme avant */}
                   <div className="space-y-3">
                     <div className="flex gap-3 items-start">
                       <span className="text-lg">🔥</span>
                       <div>
                         <h5 className="font-bold text-primary text-sm">
-                          Premier Tiers
+                          {t("product.tasting.firstThird")}
                         </h5>
                         <p className="text-xs text-muted-foreground">
-                          Notes boisées, cèdre, touche de poivre blanc.
+                          {t("product.tasting.firstThirdDesc")}
                         </p>
                       </div>
                     </div>
@@ -449,10 +457,10 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                       <span className="text-lg">🔥🔥</span>
                       <div>
                         <h5 className="font-bold text-primary text-sm">
-                          Deuxième Tiers
+                          {t("product.tasting.secondThird")}
                         </h5>
                         <p className="text-xs text-muted-foreground">
-                          Évolution vers des arômes de café torréfié et de cuir.
+                          {t("product.tasting.secondThirdDesc")}
                         </p>
                       </div>
                     </div>
@@ -460,11 +468,10 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                       <span className="text-lg">🔥🔥🔥</span>
                       <div>
                         <h5 className="font-bold text-primary text-sm">
-                          Dernier Tiers
+                          {t("product.tasting.lastThird")}
                         </h5>
                         <p className="text-xs text-muted-foreground">
-                          Finale puissante, terreuse, avec des notes de cacao
-                          amer.
+                          {t("product.tasting.lastThirdDesc")}
                         </p>
                       </div>
                     </div>
@@ -472,11 +479,10 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 </TabsContent>
 
                 <TabsContent value="pairings" className="space-y-4">
-                  {/* idem avant */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-accent/30 p-3 rounded-lg">
                       <h5 className="font-bold text-primary text-sm mb-2">
-                        🥃 Boissons
+                        🥃 {t("product.pairings.drinks")}
                       </h5>
                       <ul className="text-xs text-muted-foreground space-y-1">
                         <li>• Rhum Vieux Agricole</li>
@@ -486,7 +492,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                     </div>
                     <div className="bg-accent/30 p-3 rounded-lg">
                       <h5 className="font-bold text-primary text-sm mb-2">
-                        🍫 Mets
+                        🍫 {t("product.pairings.food")}
                       </h5>
                       <ul className="text-xs text-muted-foreground space-y-1">
                         <li>• Chocolat Noir 80%</li>
@@ -497,13 +503,12 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 </TabsContent>
 
                 <TabsContent value="details" className="space-y-4">
-                  {/* idem avant, placeholders */}
                   <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-muted-foreground">Cape:</span>
+                    <span className="text-muted-foreground">{t("product.wrapper")}:</span>
                     <span className="font-medium">Habano Ecuador</span>
-                    <span className="text-muted-foreground">Sous-cape:</span>
+                    <span className="text-muted-foreground">{t("product.binder")}:</span>
                     <span className="font-medium">Dominican Republic</span>
-                    <span className="text-muted-foreground">Tripe:</span>
+                    <span className="text-muted-foreground">{t("product.filler")}:</span>
                     <span className="font-medium">Nicaragua / Dominican</span>
                     <span className="text-muted-foreground">Ring Gauge:</span>
                     <span className="font-medium">
@@ -540,8 +545,10 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                           >
                             <span className="block capitalize text-xs mb-1">
                               {fmt === "unitaire"
-                                ? "Unité"
-                                : fmt.charAt(0).toUpperCase() + fmt.slice(1)}
+                                ? t("product.unit")
+                                : fmt === "pack"
+                                ? t("product.pack")
+                                : t("product.box")}
                               {fmt === "pack" &&
                                 ` (${
                                   product.quantitePack ||

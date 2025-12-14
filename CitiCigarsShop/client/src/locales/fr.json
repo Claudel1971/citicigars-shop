@@ -68,6 +68,7 @@
     "cigarOfYear": "Cigare de l'année",
     "price": "Prix",
     "bundleComposition": "Composition du bundle",
+    "bundleDescription": "Assortiment de {{count}} cigares premium",
     "caRating": "note CA",
     "strengthLevels": {
       "light": "Léger",

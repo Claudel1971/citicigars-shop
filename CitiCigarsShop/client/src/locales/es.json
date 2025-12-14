@@ -68,6 +68,7 @@
     "cigarOfYear": "Puro del Año",
     "price": "Precio",
     "bundleComposition": "Composición del surtido",
+    "bundleDescription": "Surtido de {{count}} puros premium",
     "caRating": "nota CA",
     "strengthLevels": {
       "light": "Ligero",

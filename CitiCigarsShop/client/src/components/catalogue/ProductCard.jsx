@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ShoppingCart, Crown } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
@@ -8,14 +8,15 @@ import { formatPrice } from "@/utils/priceCalculator";
 import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 import Button from "../shared/Button";
 import LazyProductImage from "./LazyProductImage";
+import i18n from "@/i18n";
 
-function getPuissanceLabel(puissance) {
+function getPuissanceLabel(puissance, t) {
   const labels = {
-    1: "Léger",
-    2: "Léger-Moyen",
-    3: "Moyen",
-    4: "Medium-Full",
-    5: "Corsé",
+    1: t("product.strengthLevels.light"),
+    2: t("product.strengthLevels.lightMedium"),
+    3: t("product.strengthLevels.medium"),
+    4: t("product.strengthLevels.mediumFull"),
+    5: t("product.strengthLevels.full"),
   };
   return labels[puissance] || "";
 }
@@ -71,6 +72,14 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const produit = { ...product };
 
   const [selectedFormat, setSelectedFormat] = useState("unitaire");
+  
+  const [, setLang] = useState(i18n.language);
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+  const t = (key) => i18n.t(key);
 
   const mainImage = getMainImage(produit);
 
@@ -159,7 +168,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
           <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
             <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
               <span>🎁</span>
-              <span>ASSORTIMENT</span>
+              <span>{t("product.assortment")}</span>
             </div>
           </div>
 
@@ -201,15 +210,13 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
           <p className="text-sm text-muted-foreground mb-3">
             {produit.description ||
-              `Assortiment de ${
-                produit.quantiteBoite || produit.qteBoite || 4
-              } cigares premium`}
+              t("product.bundleDescription", { count: produit.quantiteBoite || produit.qteBoite || 4 })}
           </p>
 
           <div>
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
               <div className="flex justify-between items-center py-1 px-1">
-                <span className="text-sm font-bold text-primary">Prix :</span>
+                <span className="text-sm font-bold text-primary">{t("product.price")} :</span>
                 <div className="text-right">
                   {(() => {
                     const bundlePromo = produit.promotions?.bundle;
@@ -245,7 +252,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
               className="w-full bg-[#B87333] hover:bg-[#9A5F2A] text-white"
               onClick={() => onOpenDetails && onOpenDetails(produit)}
             >
-              Voir détails
+              {t("product.viewDetails")}
             </Button>
           </div>
         </div>
@@ -274,7 +281,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
             {produit.badges?.coty && (
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <Crown className="w-3 h-3" />
-                <span>Cigare de l&apos;année ({produit.badges.top25Year})</span>
+                <span>{t("product.cigarOfYear")} ({produit.badges.top25Year})</span>
               </div>
             )}
 
@@ -282,7 +289,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <span>
                   {produit.badges.top25Rang === 1
-                    ? `Cigare de l'année, ${produit.badges.top25Year}`
+                    ? `${t("product.cigarOfYear")}, ${produit.badges.top25Year}`
                     : `#${produit.badges.top25Rang}, ${produit.badges.top25Year}`}
                 </span>
               </div>
@@ -355,7 +362,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
             ))}
           </div>
           <p className="text-xs text-muted-foreground font-medium">
-            {getPuissanceLabel(produit.puissance)}
+            {getPuissanceLabel(produit.puissance, t)}
           </p>
         </div>
 
@@ -394,7 +401,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                       selectedFormat === "unitaire" && "font-bold text-primary",
                     )}
                   >
-                    Unité :
+                    {t("product.unit")} :
                   </span>
                   <div className="text-right">
                     {currentRabais > 0 ? (
@@ -424,7 +431,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                       selectedFormat === "pack" && "font-bold text-primary",
                     )}
                   >
-                    Pack ({qtyPack}) :
+                    {t("product.pack")} ({qtyPack}) :
                   </span>
                   <span className="text-sm font-semibold text-orange-800">
                     {formatPrice(prixPack)}
@@ -441,7 +448,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
                       selectedFormat === "boite" && "font-bold text-primary",
                     )}
                   >
-                    Boîte ({qtyBoite}) :
+                    {t("product.box")} ({qtyBoite}) :
                   </span>
                   <span className="text-sm font-semibold text-orange-800">
                     {formatPrice(prixBoite)}
@@ -456,7 +463,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
             className="w-full bg-[#B87333] hover:bg-[#9A5F2A] text-white"
             onClick={() => onOpenDetails && onOpenDetails(produit)}
           >
-            Voir détails
+            {t("product.viewDetails")}
           </Button>
         </div>
       </div>
