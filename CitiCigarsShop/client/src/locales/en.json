@@ -42,8 +42,11 @@
     }
   },
   "catalogue": {
-    "title": "Our Catalogue",
+    "title": "The Catalogue",
+    "subtitle": "Explore our exceptional cellar. From great Cuban classics to New World gems.",
     "filter": "Filter",
+    "filters": "Filters",
+    "resetFilters": "Reset all filters",
     "sort": "Sort by",
     "price": "Price",
     "brand": "Brand",
@@ -51,8 +54,45 @@
     "strength": "Strength",
     "format": "Format",
     "all": "All",
-    "noResults": "No products found",
-    "products": "products"
+    "noResults": "No cigars found",
+    "noResultsHint": "Try modifying your search criteria or reset the filters.",
+    "products": "products",
+    "resultsShown": "{{count}} result shown",
+    "resultsShown_plural": "{{count}} results shown",
+    "outOf": "out of {{total}} cigars in catalogue",
+    "loading": "Loading the cellar...",
+    "searchPlaceholder": "Search a brand, model, origin...",
+    "cigarsFound": "{{count}} cigar found",
+    "cigarsFound_plural": "{{count}} cigars found",
+    "filterByCountry": "By country",
+    "allCountries": "All countries",
+    "filterByStrength": "Filter by strength",
+    "allStrengths": "All strengths",
+    "filterByBudget": "By budget (unit price)",
+    "allBudgets": "All budgets",
+    "filterBySize": "By size (ring gauge)",
+    "allSizes": "All sizes",
+    "strengthLabels": {
+      "1": "Mild",
+      "2": "Mild-Medium",
+      "3": "Medium",
+      "4": "Medium-Full",
+      "5": "Full-bodied"
+    },
+    "budgetRanges": {
+      "under10000": "< 10,000 FCFA",
+      "10000to14950": "10,000 – 14,950 FCFA",
+      "15000to17950": "15,000 – 17,950 FCFA",
+      "18000to20000": "18,000 – 20,000 FCFA",
+      "over20000": "> 20,000 FCFA"
+    },
+    "sizeLabels": {
+      "S": "S (< 50)",
+      "M": "M (50 – 52)",
+      "L": "L (54 – 56)",
+      "XL": "XL (57 – 60)",
+      "XXL": "XXL (> 60)"
+    }
   },
   "product": {
     "addToCart": "Add to Cart",
@@ -123,9 +163,11 @@
   },
   "promotions": {
     "title": "Promotions",
+    "subtitle": "Our best offers of the moment",
     "discount": "Discount",
     "save": "Save",
-    "limited": "Limited Offer"
+    "limited": "Limited Offer",
+    "noPromos": "No active promotions at the moment."
   },
   "assortments": {
     "title": "Our Assortments",

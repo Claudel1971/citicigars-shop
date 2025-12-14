@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProducts } from '@/context/ProductContext';
 import ProductCard from '@/components/catalogue/ProductCard';
 import ProductDetail from '@/components/catalogue/ProductDetail';
@@ -6,10 +6,20 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import CartDrawer from '@/components/cart/CartDrawer';
 import { Tag } from 'lucide-react';
+import i18n from '@/i18n';
 
 export default function PromotionsPage() {
   const { products } = useProducts();
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [, setLang] = useState(i18n.language);
+
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+
+  const t = (key) => i18n.t(key);
 
   const promos = React.useMemo(() => {
     return products.filter(p =>
@@ -27,10 +37,10 @@ export default function PromotionsPage() {
         <div className="bg-destructive text-white py-12">
             <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4 flex justify-center items-center gap-3">
-                <Tag size={40} /> Promotions
+                <Tag size={40} /> {t('promotions.title')}
             </h1>
             <p className="text-xl opacity-90">
-                Nos meilleures offres du moment
+                {t('promotions.subtitle')}
             </p>
             </div>
         </div>
@@ -48,7 +58,7 @@ export default function PromotionsPage() {
                 </div>
             ) : (
                 <div className="text-center py-20">
-                    <p className="text-xl text-muted-foreground">Aucune promotion active pour le moment.</p>
+                    <p className="text-xl text-muted-foreground">{t('promotions.noPromos')}</p>
                 </div>
             )}
         </div>

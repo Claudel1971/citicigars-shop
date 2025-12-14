@@ -5,29 +5,30 @@ import ProductDetail from "./ProductDetail";
 import SearchBar from "./SearchBar";
 import AlphabetNav from "./AlphabetNav";
 import { Loader2 } from "lucide-react";
+import i18n from "@/i18n";
 
 const ProductGrid = () => {
   const { products } = useProducts();
+  const [, setLang] = useState(i18n.language);
+
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+
+  const t = (key, options) => i18n.t(key, options);
 
   const [search, setSearch] = useState("");
   const [activeLetter, setActiveLetter] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState("Tous");
-  const [selectedPuissance, setSelectedPuissance] = useState(0); // 0 = toutes puissances
+  const [selectedPuissance, setSelectedPuissance] = useState(0);
   const [selectedBudget, setSelectedBudget] = useState("Tous");
   const [selectedRing, setSelectedRing] = useState("Tous");
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // ---------- Helpers -----------
-
   const getPuissanceLabel = (niveau) => {
-    const map = {
-      1: "Léger (Mild)",
-      2: "Léger-Moyen (Mild-Medium)",
-      3: "Moyen (Medium)",
-      4: "Medium-Full",
-      5: "Corsé (Full-bodied)",
-    };
-    return map[niveau] || "";
+    return t(`catalogue.strengthLabels.${niveau}`) || "";
   };
 
   const getBudgetCategory = (price) => {
@@ -243,11 +244,10 @@ const ProductGrid = () => {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div className="space-y-3 md:max-w-xl text-left">
               <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary">
-                Le Catalogue
+                {t('catalogue.title')}
               </h1>
               <p className="text-muted-foreground max-w-2xl">
-                Explorez notre cave d&apos;exception. Des grands classiques
-                cubains aux pépites du Nouveau Monde.
+                {t('catalogue.subtitle')}
               </p>
             </div>
 
@@ -264,14 +264,14 @@ const ProductGrid = () => {
           <div className="mt-4 bg-white/80 border rounded-xl shadow-sm p-4 md:p-5 text-left">
             <div className="flex items-center justify-between mb-3 gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Filtres
+                {t('catalogue.filters')}
               </h3>
               <button
                 type="button"
                 onClick={resetAllFilters}
                 className="text-xs font-medium text-primary hover:underline"
               >
-                Réinitialiser tous les filtres
+                {t('catalogue.resetFilters')}
               </button>
             </div>
 
@@ -279,7 +279,7 @@ const ProductGrid = () => {
               {/* Pays */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">
-                  Par pays
+                  {t('catalogue.filterByCountry')}
                 </label>
                 <select
                   value={selectedCountry}
@@ -288,7 +288,7 @@ const ProductGrid = () => {
                 >
                   {countries.map((country) => (
                     <option key={country} value={country}>
-                      {country === "Tous" ? "Tous les pays" : country}
+                      {country === "Tous" ? t('catalogue.allCountries') : country}
                     </option>
                   ))}
                 </select>
@@ -297,14 +297,14 @@ const ProductGrid = () => {
               {/* Puissance */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">
-                  Filtrez selon la puissance
+                  {t('catalogue.filterByStrength')}
                 </label>
                 <select
                   value={selectedPuissance}
                   onChange={(e) => setSelectedPuissance(Number(e.target.value))}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
-                  <option value={0}>Toutes puissances</option>
+                  <option value={0}>{t('catalogue.allStrengths')}</option>
                   {[1, 2, 3, 4, 5].map((niveau) => (
                     <option key={niveau} value={niveau}>
                       {getPuissanceLabel(niveau)}
@@ -316,38 +316,38 @@ const ProductGrid = () => {
               {/* Budget */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">
-                  Par budget (prix unitaire)
+                  {t('catalogue.filterByBudget')}
                 </label>
                 <select
                   value={selectedBudget}
                   onChange={(e) => setSelectedBudget(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
-                  <option value="Tous">Tous les budgets</option>
-                  <option value="<10000">&lt; 10 000 FCFA</option>
-                  <option value="10000-14950">10 000 – 14 950 FCFA</option>
-                  <option value="15000-17950">15 000 – 17 950 FCFA</option>
-                  <option value="18000-20000">18 000 – 20 000 FCFA</option>
-                  <option value=">20000">&gt; 20 000 FCFA</option>
+                  <option value="Tous">{t('catalogue.allBudgets')}</option>
+                  <option value="<10000">{t('catalogue.budgetRanges.under10000')}</option>
+                  <option value="10000-14950">{t('catalogue.budgetRanges.10000to14950')}</option>
+                  <option value="15000-17950">{t('catalogue.budgetRanges.15000to17950')}</option>
+                  <option value="18000-20000">{t('catalogue.budgetRanges.18000to20000')}</option>
+                  <option value=">20000">{t('catalogue.budgetRanges.over20000')}</option>
                 </select>
               </div>
 
               {/* Grosseur */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">
-                  Par grosseur (ring gauge)
+                  {t('catalogue.filterBySize')}
                 </label>
                 <select
                   value={selectedRing}
                   onChange={(e) => setSelectedRing(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
-                  <option value="Tous">Toutes tailles</option>
-                  <option value="S">S (&lt; 50)</option>
-                  <option value="M">M (50 – 52)</option>
-                  <option value="L">L (54 – 56)</option>
-                  <option value="XL">XL (57 – 60)</option>
-                  <option value="XXL">XXL (&gt; 60)</option>
+                  <option value="Tous">{t('catalogue.allSizes')}</option>
+                  <option value="S">{t('catalogue.sizeLabels.S')}</option>
+                  <option value="M">{t('catalogue.sizeLabels.M')}</option>
+                  <option value="L">{t('catalogue.sizeLabels.L')}</option>
+                  <option value="XL">{t('catalogue.sizeLabels.XL')}</option>
+                  <option value="XXL">{t('catalogue.sizeLabels.XXL')}</option>
                 </select>
               </div>
             </div>
@@ -359,13 +359,12 @@ const ProductGrid = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground mt-2">
           <span>
-            {sortedProducts.length} résultat
-            {sortedProducts.length > 1 ? "s" : ""} affiché
-            {sortedProducts.length > 1 ? "s" : ""}
+            {sortedProducts.length > 1 
+              ? t('catalogue.resultsShown_plural', { count: sortedProducts.length })
+              : t('catalogue.resultsShown', { count: sortedProducts.length })}
           </span>
           <span className="hidden sm:inline">
-            sur {totalCatalogueCount} cigare
-            {totalCatalogueCount > 1 ? "s" : ""} au catalogue
+            {t('catalogue.outOf', { total: totalCatalogueCount })}
           </span>
         </div>
       </div>
@@ -382,22 +381,21 @@ const ProductGrid = () => {
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p>Chargement de la cave...</p>
+            <p>{t('catalogue.loading')}</p>
           </div>
         ) : sortedProducts.length === 0 ? (
           <div className="text-center py-20 bg-muted/20 rounded-lg border border-dashed border-border">
             <h3 className="text-xl font-serif text-muted-foreground">
-              Aucun cigare trouvé
+              {t('catalogue.noResults')}
             </h3>
             <p className="text-sm text-muted-foreground mt-2">
-              Essayez de modifier vos critères de recherche ou réinitialisez les
-              filtres.
+              {t('catalogue.noResultsHint')}
             </p>
             <button
               onClick={resetAllFilters}
               className="mt-4 text-primary font-bold hover:underline"
             >
-              Réinitialiser tous les filtres
+              {t('catalogue.resetFilters')}
             </button>
           </div>
         ) : (

@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import i18n from '@/i18n';
 
 const SearchBar = ({ value, onChange, resultCount }) => {
+  const [, setLang] = useState(i18n.language);
+
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+
+  const t = (key, options) => i18n.t(key, options);
+
   return (
     <div className="relative max-w-xl mx-auto w-full">
       <div className="relative group">
@@ -11,7 +22,7 @@ const SearchBar = ({ value, onChange, resultCount }) => {
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Rechercher une marque, un modèle, une origine..."
+          placeholder={t('catalogue.searchPlaceholder')}
           className={cn(
             "w-full pl-10 pr-10 py-3 rounded-full border border-input bg-background shadow-sm transition-all",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
@@ -30,7 +41,9 @@ const SearchBar = ({ value, onChange, resultCount }) => {
       
       {value && (
         <div className="absolute top-full left-0 w-full text-center mt-2 text-sm text-muted-foreground animate-in fade-in slide-in-from-top-2">
-          {resultCount} cigare{resultCount !== 1 ? 's' : ''} trouvé{resultCount !== 1 ? 's' : ''}
+          {resultCount !== 1 
+            ? t('catalogue.cigarsFound_plural', { count: resultCount })
+            : t('catalogue.cigarsFound', { count: resultCount })}
         </div>
       )}
     </div>

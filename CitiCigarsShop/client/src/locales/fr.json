@@ -42,8 +42,11 @@
     }
   },
   "catalogue": {
-    "title": "Notre Catalogue",
+    "title": "Le Catalogue",
+    "subtitle": "Explorez notre cave d'exception. Des grands classiques cubains aux pépites du Nouveau Monde.",
     "filter": "Filtrer",
+    "filters": "Filtres",
+    "resetFilters": "Réinitialiser tous les filtres",
     "sort": "Trier par",
     "price": "Prix",
     "brand": "Marque",
@@ -51,8 +54,45 @@
     "strength": "Puissance",
     "format": "Format",
     "all": "Tous",
-    "noResults": "Aucun produit trouvé",
-    "products": "produits"
+    "noResults": "Aucun cigare trouvé",
+    "noResultsHint": "Essayez de modifier vos critères de recherche ou réinitialisez les filtres.",
+    "products": "produits",
+    "resultsShown": "{{count}} résultat affiché",
+    "resultsShown_plural": "{{count}} résultats affichés",
+    "outOf": "sur {{total}} cigares au catalogue",
+    "loading": "Chargement de la cave...",
+    "searchPlaceholder": "Rechercher une marque, un modèle, une origine...",
+    "cigarsFound": "{{count}} cigare trouvé",
+    "cigarsFound_plural": "{{count}} cigares trouvés",
+    "filterByCountry": "Par pays",
+    "allCountries": "Tous les pays",
+    "filterByStrength": "Filtrez selon la puissance",
+    "allStrengths": "Toutes puissances",
+    "filterByBudget": "Par budget (prix unitaire)",
+    "allBudgets": "Tous les budgets",
+    "filterBySize": "Par grosseur (ring gauge)",
+    "allSizes": "Toutes tailles",
+    "strengthLabels": {
+      "1": "Léger (Mild)",
+      "2": "Léger-Moyen (Mild-Medium)",
+      "3": "Moyen (Medium)",
+      "4": "Medium-Full",
+      "5": "Corsé (Full-bodied)"
+    },
+    "budgetRanges": {
+      "under10000": "< 10 000 FCFA",
+      "10000to14950": "10 000 – 14 950 FCFA",
+      "15000to17950": "15 000 – 17 950 FCFA",
+      "18000to20000": "18 000 – 20 000 FCFA",
+      "over20000": "> 20 000 FCFA"
+    },
+    "sizeLabels": {
+      "S": "S (< 50)",
+      "M": "M (50 – 52)",
+      "L": "L (54 – 56)",
+      "XL": "XL (57 – 60)",
+      "XXL": "XXL (> 60)"
+    }
   },
   "product": {
     "addToCart": "Ajouter au panier",
@@ -123,9 +163,11 @@
   },
   "promotions": {
     "title": "Promotions",
+    "subtitle": "Nos meilleures offres du moment",
     "discount": "Remise",
     "save": "Économisez",
-    "limited": "Offre limitée"
+    "limited": "Offre limitée",
+    "noPromos": "Aucune promotion active pour le moment."
   },
   "assortments": {
     "title": "Nos Assortiments",

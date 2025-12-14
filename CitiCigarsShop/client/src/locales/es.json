@@ -42,8 +42,11 @@
     }
   },
   "catalogue": {
-    "title": "Nuestro Catálogo",
+    "title": "El Catálogo",
+    "subtitle": "Explora nuestra bodega excepcional. De los grandes clásicos cubanos a las joyas del Nuevo Mundo.",
     "filter": "Filtrar",
+    "filters": "Filtros",
+    "resetFilters": "Restablecer todos los filtros",
     "sort": "Ordenar por",
     "price": "Precio",
     "brand": "Marca",
@@ -51,8 +54,45 @@
     "strength": "Intensidad",
     "format": "Formato",
     "all": "Todos",
-    "noResults": "No se encontraron productos",
-    "products": "productos"
+    "noResults": "No se encontraron puros",
+    "noResultsHint": "Intenta modificar tus criterios de búsqueda o restablece los filtros.",
+    "products": "productos",
+    "resultsShown": "{{count}} resultado mostrado",
+    "resultsShown_plural": "{{count}} resultados mostrados",
+    "outOf": "de {{total}} puros en el catálogo",
+    "loading": "Cargando la bodega...",
+    "searchPlaceholder": "Buscar una marca, modelo, origen...",
+    "cigarsFound": "{{count}} puro encontrado",
+    "cigarsFound_plural": "{{count}} puros encontrados",
+    "filterByCountry": "Por país",
+    "allCountries": "Todos los países",
+    "filterByStrength": "Filtrar por intensidad",
+    "allStrengths": "Todas las intensidades",
+    "filterByBudget": "Por presupuesto (precio unitario)",
+    "allBudgets": "Todos los presupuestos",
+    "filterBySize": "Por tamaño (ring gauge)",
+    "allSizes": "Todos los tamaños",
+    "strengthLabels": {
+      "1": "Suave",
+      "2": "Suave-Medio",
+      "3": "Medio",
+      "4": "Medio-Intenso",
+      "5": "Intenso"
+    },
+    "budgetRanges": {
+      "under10000": "< 10.000 FCFA",
+      "10000to14950": "10.000 – 14.950 FCFA",
+      "15000to17950": "15.000 – 17.950 FCFA",
+      "18000to20000": "18.000 – 20.000 FCFA",
+      "over20000": "> 20.000 FCFA"
+    },
+    "sizeLabels": {
+      "S": "S (< 50)",
+      "M": "M (50 – 52)",
+      "L": "L (54 – 56)",
+      "XL": "XL (57 – 60)",
+      "XXL": "XXL (> 60)"
+    }
   },
   "product": {
     "addToCart": "Añadir al Carrito",
@@ -123,9 +163,11 @@
   },
   "promotions": {
     "title": "Promociones",
+    "subtitle": "Nuestras mejores ofertas del momento",
     "discount": "Descuento",
     "save": "Ahorra",
-    "limited": "Oferta Limitada"
+    "limited": "Oferta Limitada",
+    "noPromos": "No hay promociones activas por el momento."
   },
   "assortments": {
     "title": "Nuestros Surtidos",
