@@ -79,6 +79,7 @@
     "cigars": "puros"
   },
   "footer": {
+    "navigation": "Navegación",
     "contact": "Contacto",
     "about": "Acerca de",
     "legal": "Aviso Legal",

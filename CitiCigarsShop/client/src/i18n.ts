@@ -5,6 +5,8 @@ import fr from './locales/fr.json';
 import en from './locales/en.json';
 import es from './locales/es.json';
 
+const savedLang = typeof window !== 'undefined' ? localStorage.getItem('i18nextLng') : null;
+
 i18n
   .use(initReactI18next)
   .init({
@@ -13,7 +15,7 @@ i18n
       en: { translation: en },
       es: { translation: es },
     },
-    lng: 'fr',
+    lng: savedLang || 'fr',
     fallbackLng: 'fr',
     interpolation: {
       escapeValue: false,
@@ -21,3 +23,5 @@ i18n
   });
 
 export default i18n;
+
+export const t = i18n.t.bind(i18n);

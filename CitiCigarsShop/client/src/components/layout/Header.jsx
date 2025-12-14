@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ShoppingCart, Heart, Menu, X } from 'lucide-react';
+import i18n from '@/i18n';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useContent } from '@/context/ContentContext';
@@ -9,16 +10,25 @@ import LanguageSelector from '../LanguageSelector';
 
 const Header = () => {
   const [location] = useLocation();
+  const [, setLang] = useState(i18n.language);
+  const t = (key) => i18n.t(key);
+  
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+  
   const { itemCount, setIsOpen } = useCart();
   const { wishlist } = useWishlist();
   const { content } = useContent();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const defaultNavLinks = [
-    { href: '/', label: 'ACCUEIL', highlight: false, icon: '' },
-    { href: '/catalogue', label: 'CIGARES', highlight: false, icon: '' },
-    { href: '/assortiments', label: 'NOS ASSORTIMENTS', highlight: true, icon: '🎁' },
-    { href: '/promotions', label: 'PROMOTIONS', highlight: false, icon: '' },
+    { href: '/', label: t('nav.home'), highlight: false, icon: '' },
+    { href: '/catalogue', label: t('nav.cigars'), highlight: false, icon: '' },
+    { href: '/assortiments', label: t('nav.assortments'), highlight: true, icon: '🎁' },
+    { href: '/promotions', label: t('nav.promotions'), highlight: false, icon: '' },
   ];
 
   const rawNavLinks = content?.header?.menuItems || defaultNavLinks;

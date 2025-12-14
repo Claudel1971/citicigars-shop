@@ -79,6 +79,7 @@
     "cigars": "cigars"
   },
   "footer": {
+    "navigation": "Navigation",
     "contact": "Contact",
     "about": "About",
     "legal": "Legal Notice",
