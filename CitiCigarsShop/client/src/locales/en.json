@@ -62,7 +62,37 @@
     "diameter": "Diameter",
     "wrapper": "Wrapper",
     "binder": "Binder",
-    "filler": "Filler"
+    "filler": "Filler",
+    "viewDetails": "View details",
+    "assortment": "ASSORTMENT",
+    "cigarOfYear": "Cigar of the Year",
+    "price": "Price",
+    "bundleComposition": "Bundle composition",
+    "caRating": "CA rating",
+    "strengthLevels": {
+      "light": "Light",
+      "lightMedium": "Light-Medium",
+      "medium": "Medium",
+      "mediumFull": "Medium-Full",
+      "full": "Full-bodied"
+    },
+    "tabs": {
+      "tasting": "Tasting",
+      "pairings": "Pairings",
+      "details": "Details"
+    },
+    "tasting": {
+      "firstThird": "First Third",
+      "firstThirdDesc": "Woody notes, cedar, touch of white pepper.",
+      "secondThird": "Second Third",
+      "secondThirdDesc": "Evolution towards roasted coffee and leather aromas.",
+      "lastThird": "Last Third",
+      "lastThirdDesc": "Powerful, earthy finish, with notes of bitter cocoa."
+    },
+    "pairings": {
+      "drinks": "Drinks",
+      "food": "Food"
+    }
   },
   "cart": {
     "title": "Your Cart",

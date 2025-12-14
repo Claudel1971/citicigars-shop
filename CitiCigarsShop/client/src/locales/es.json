@@ -62,7 +62,37 @@
     "diameter": "Diámetro",
     "wrapper": "Capa",
     "binder": "Capote",
-    "filler": "Tripa"
+    "filler": "Tripa",
+    "viewDetails": "Ver detalles",
+    "assortment": "SURTIDO",
+    "cigarOfYear": "Puro del Año",
+    "price": "Precio",
+    "bundleComposition": "Composición del surtido",
+    "caRating": "nota CA",
+    "strengthLevels": {
+      "light": "Ligero",
+      "lightMedium": "Ligero-Medio",
+      "medium": "Medio",
+      "mediumFull": "Medio-Intenso",
+      "full": "Intenso"
+    },
+    "tabs": {
+      "tasting": "Degustación",
+      "pairings": "Maridajes",
+      "details": "Detalles"
+    },
+    "tasting": {
+      "firstThird": "Primer Tercio",
+      "firstThirdDesc": "Notas amaderadas, cedro, toque de pimienta blanca.",
+      "secondThird": "Segundo Tercio",
+      "secondThirdDesc": "Evolución hacia aromas de café tostado y cuero.",
+      "lastThird": "Último Tercio",
+      "lastThirdDesc": "Final potente, terroso, con notas de cacao amargo."
+    },
+    "pairings": {
+      "drinks": "Bebidas",
+      "food": "Comidas"
+    }
   },
   "cart": {
     "title": "Tu Carrito",

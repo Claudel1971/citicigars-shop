@@ -62,7 +62,37 @@
     "diameter": "Diamètre",
     "wrapper": "Cape",
     "binder": "Sous-cape",
-    "filler": "Tripe"
+    "filler": "Tripe",
+    "viewDetails": "Voir détails",
+    "assortment": "ASSORTIMENT",
+    "cigarOfYear": "Cigare de l'année",
+    "price": "Prix",
+    "bundleComposition": "Composition du bundle",
+    "caRating": "note CA",
+    "strengthLevels": {
+      "light": "Léger",
+      "lightMedium": "Léger-Moyen",
+      "medium": "Moyen",
+      "mediumFull": "Medium-Full",
+      "full": "Corsé"
+    },
+    "tabs": {
+      "tasting": "Dégustation",
+      "pairings": "Accords",
+      "details": "Détails"
+    },
+    "tasting": {
+      "firstThird": "Premier Tiers",
+      "firstThirdDesc": "Notes boisées, cèdre, touche de poivre blanc.",
+      "secondThird": "Deuxième Tiers",
+      "secondThirdDesc": "Évolution vers des arômes de café torréfié et de cuir.",
+      "lastThird": "Dernier Tiers",
+      "lastThirdDesc": "Finale puissante, terreuse, avec des notes de cacao amer."
+    },
+    "pairings": {
+      "drinks": "Boissons",
+      "food": "Mets"
+    }
   },
   "cart": {
     "title": "Votre Panier",
