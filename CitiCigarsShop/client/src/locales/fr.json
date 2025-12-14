@@ -39,6 +39,11 @@
       "title": "Offres Spéciales",
       "subtitle": "Profitez de nos meilleures remises.",
       "limitedTime": "Offres limitées dans le temps"
+    },
+    "brandStory": {
+      "title": "L'Excellence sans Compromis",
+      "text": "CitiCigars est né d'une passion pour les terroirs d'exception. Nous sélectionnons les meilleurs cigares du monde pour vous offrir une expérience de dégustation incomparable.",
+      "cta": "Notre Histoire"
     }
   },
   "catalogue": {

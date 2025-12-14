@@ -39,6 +39,11 @@
       "title": "Special Offers",
       "subtitle": "Take advantage of our best discounts.",
       "limitedTime": "Limited time offers"
+    },
+    "brandStory": {
+      "title": "Excellence Without Compromise",
+      "text": "CitiCigars was born from a passion for exceptional terroirs. We select the finest cigars in the world to offer you an unparalleled tasting experience.",
+      "cta": "Our Story"
     }
   },
   "catalogue": {

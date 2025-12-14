@@ -39,6 +39,11 @@
       "title": "Ofertas Especiales",
       "subtitle": "Aprovecha nuestros mejores descuentos.",
       "limitedTime": "Ofertas por tiempo limitado"
+    },
+    "brandStory": {
+      "title": "Excelencia sin Compromiso",
+      "text": "CitiCigars nació de una pasión por los terruños excepcionales. Seleccionamos los mejores puros del mundo para ofrecerte una experiencia de degustación incomparable.",
+      "cta": "Nuestra Historia"
     }
   },
   "catalogue": {
