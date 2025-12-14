@@ -148,7 +148,23 @@
     "pairings": {
       "drinks": "Bebidas",
       "food": "Comidas"
-    }
+    },
+    "totalPrice": "Precio total",
+    "add": "Añadir"
+  },
+  "countries": {
+    "Cuba": "Cuba",
+    "Nicaragua": "Nicaragua",
+    "Rep. Dominicaine": "Rep. Dominicana",
+    "Honduras": "Honduras",
+    "Mexique": "México",
+    "Brésil": "Brasil",
+    "Équateur": "Ecuador",
+    "États-Unis": "Estados Unidos",
+    "Jamaïque": "Jamaica",
+    "Costa Rica": "Costa Rica",
+    "Panama": "Panamá",
+    "Philippines": "Filipinas"
   },
   "cart": {
     "title": "Tu Carrito",
@@ -179,6 +195,13 @@
     "description": "Cajas descubrimiento seleccionadas por nuestros expertos",
     "contains": "Contiene",
     "cigars": "puros"
+  },
+  "bundles": {
+    "CTGBDL001": "Descubre el universo Oliva a través de ocho puros premiados.",
+    "CTGBDL002": "Un triunfo de sabores firmado por Ernesto Perez-Carrillo.",
+    "CTGBDL003": "Estuche de 4 puros Horacio.",
+    "CTGBDL004": "Este surtido celebra el formato 6 × 60.",
+    "CTGBDL005": "Una selección 100% nicaragüense."
   },
   "footer": {
     "navigation": "Navegación",

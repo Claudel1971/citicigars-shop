@@ -79,7 +79,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
     i18n.on('languageChanged', handleLangChange);
     return () => i18n.off('languageChanged', handleLangChange);
   }, []);
-  const t = (key) => i18n.t(key);
+  const t = (key, options) => i18n.t(key, options);
 
   const mainImage = getMainImage(produit);
 
@@ -209,7 +209,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
           </h3>
 
           <p className="text-sm text-muted-foreground mb-3">
-            {produit.description ||
+            {t(`bundles.${produit.sku}`, { defaultValue: produit.description }) ||
               t("product.bundleDescription", { count: produit.quantiteBoite || produit.qteBoite || 4 })}
           </p>
 
@@ -331,7 +331,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
           {produit.ligne ? `, ${produit.ligne}` : ""}
           {(produit.origine || produit.pays) && (
             <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
-              · {produit.origine || produit.pays}
+              · {t(`countries.${produit.origine || produit.pays}`, { defaultValue: produit.origine || produit.pays })}
             </span>
           )}
         </h3>

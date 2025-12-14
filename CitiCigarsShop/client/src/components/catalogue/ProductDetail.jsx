@@ -66,7 +66,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
     i18n.on('languageChanged', handleLangChange);
     return () => i18n.off('languageChanged', handleLangChange);
   }, []);
-  const t = (key) => i18n.t(key);
+  const t = (key, options) => i18n.t(key, options);
 
   useEffect(() => {
     if (product?.type === "bundle") {
@@ -318,7 +318,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                     {product.ligne && `, ${product.ligne}`}
                     {!isBundle && (product.origine || product.pays) && (
                       <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
-                        · {product.origine || product.pays}
+                        · {t(`countries.${product.origine || product.pays}`, { defaultValue: product.origine || product.pays })}
                       </span>
                     )}
                   </h3>
@@ -366,7 +366,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
 
               {product.description && (
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  {product.description}
+                  {isBundle ? t(`bundles.${product.sku}`, { defaultValue: product.description }) : product.description}
                 </p>
               )}
             </div>
@@ -573,7 +573,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                    Prix Total
+                    {t("product.totalPrice")}
                   </div>
                   <div className="flex items-baseline gap-2">
                     {currentPrice.isPromo &&
@@ -598,7 +598,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                   onClick={handleAddToCart}
                   className="flex-1 gap-2 bg-[#B87333] hover:bg-[#9A5F2A] text-white"
                 >
-                  <ShoppingCart size={18} /> Ajouter
+                  <ShoppingCart size={18} /> {t("product.add")}
                 </Button>
               </div>
             </div>

@@ -148,7 +148,23 @@
     "pairings": {
       "drinks": "Drinks",
       "food": "Food"
-    }
+    },
+    "totalPrice": "Total price",
+    "add": "Add"
+  },
+  "countries": {
+    "Cuba": "Cuba",
+    "Nicaragua": "Nicaragua",
+    "Rep. Dominicaine": "Dominican Rep.",
+    "Honduras": "Honduras",
+    "Mexique": "Mexico",
+    "Brésil": "Brazil",
+    "Équateur": "Ecuador",
+    "États-Unis": "United States",
+    "Jamaïque": "Jamaica",
+    "Costa Rica": "Costa Rica",
+    "Panama": "Panama",
+    "Philippines": "Philippines"
   },
   "cart": {
     "title": "Your Cart",
@@ -179,6 +195,13 @@
     "description": "Discovery boxes curated by our experts",
     "contains": "Contains",
     "cigars": "cigars"
+  },
+  "bundles": {
+    "CTGBDL001": "Discover the Oliva universe through eight award-winning cigars.",
+    "CTGBDL002": "A triumph of flavors by Ernesto Perez-Carrillo.",
+    "CTGBDL003": "A set of 4 Horacio cigars.",
+    "CTGBDL004": "This bundle celebrates the 6 × 60 format.",
+    "CTGBDL005": "A 100% Nicaraguan selection."
   },
   "footer": {
     "navigation": "Navigation",
