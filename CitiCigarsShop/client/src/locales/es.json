@@ -9,9 +9,23 @@
   },
   "home": {
     "hero": {
-      "title": "El Arte del Puro Premium",
-      "subtitle": "Descubre nuestra selección exclusiva de puros excepcionales",
-      "cta": "Explorar Catálogo"
+      "slides": [
+        {
+          "title": "El Arte de la Degustación",
+          "subtitle": "Descubre nuestra selección exclusiva de puros cubanos y del nuevo mundo.",
+          "cta": "Explorar Catálogo"
+        },
+        {
+          "title": "Puros de Excepción",
+          "subtitle": "Las mejores marcas del mundo, entregadas en Camerún.",
+          "cta": "Ver Promociones"
+        },
+        {
+          "title": "Cofres Descubrimiento",
+          "subtitle": "Compón tu propio surtido o elige entre nuestras selecciones.",
+          "cta": "Nuestros Surtidos"
+        }
+      ]
     },
     "featured": "Selección Premium",
     "topSellers": "Más Vendidos",

@@ -9,9 +9,23 @@
   },
   "home": {
     "hero": {
-      "title": "L'Art du Cigare Premium",
-      "subtitle": "Découvrez notre sélection exclusive de cigares d'exception",
-      "cta": "Explorer le Catalogue"
+      "slides": [
+        {
+          "title": "L'Art de la Dégustation",
+          "subtitle": "Découvrez notre sélection exclusive de cigares cubains et du nouveau monde.",
+          "cta": "Explorer le Catalogue"
+        },
+        {
+          "title": "Cigares d'Exception",
+          "subtitle": "Les meilleures marques du monde, livrées chez vous au Cameroun.",
+          "cta": "Voir les Promotions"
+        },
+        {
+          "title": "Coffrets Découverte",
+          "subtitle": "Composez votre propre assortiment ou choisissez parmi nos sélections.",
+          "cta": "Nos Assortiments"
+        }
+      ]
     },
     "featured": "Sélection Premium",
     "topSellers": "Meilleures Ventes",

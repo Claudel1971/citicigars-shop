@@ -9,9 +9,23 @@
   },
   "home": {
     "hero": {
-      "title": "The Art of Premium Cigars",
-      "subtitle": "Discover our exclusive selection of exceptional cigars",
-      "cta": "Explore Catalogue"
+      "slides": [
+        {
+          "title": "The Art of Tasting",
+          "subtitle": "Discover our exclusive selection of Cuban and New World cigars.",
+          "cta": "Explore Catalog"
+        },
+        {
+          "title": "Exceptional Cigars",
+          "subtitle": "The finest brands in the world, delivered to you in Cameroon.",
+          "cta": "View Promotions"
+        },
+        {
+          "title": "Discovery Sets",
+          "subtitle": "Create your own assortment or choose from our curated selections.",
+          "cta": "Our Assortments"
+        }
+      ]
     },
     "featured": "Premium Selection",
     "topSellers": "Best Sellers",
