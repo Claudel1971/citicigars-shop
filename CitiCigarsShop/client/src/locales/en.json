@@ -29,7 +29,17 @@
     },
     "featured": "Premium Selection",
     "topSellers": "Best Sellers",
-    "newArrivals": "New Arrivals"
+    "newArrivals": "New Arrivals",
+    "coupsDeCoeur": {
+      "title": "Our Favorites",
+      "subtitle": "Our selection of the moment for discerning enthusiasts.",
+      "viewAll": "View full catalog →"
+    },
+    "specialOffers": {
+      "title": "Special Offers",
+      "subtitle": "Take advantage of our best discounts.",
+      "limitedTime": "Limited time offers"
+    }
   },
   "catalogue": {
     "title": "Our Catalogue",

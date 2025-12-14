@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProducts } from '@/context/ProductContext';
 import ProductCard from '../catalogue/ProductCard';
 import ProductDetail from '../catalogue/ProductDetail';
 import { Tag, Clock } from 'lucide-react';
+import i18n from '@/i18n';
 
 const PromoSection = () => {
   const { products } = useProducts();
   const [selectedProduct, setSelectedProduct] = React.useState(null);
+  const [, setLang] = useState(i18n.language);
+
+  useEffect(() => {
+    const handleLangChange = (lng) => setLang(lng);
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+
+  const t = (key) => i18n.t(key);
 
   const promos = React.useMemo(() => {
     return products.filter(p => 
@@ -27,14 +37,14 @@ const PromoSection = () => {
                 <Tag className="h-8 w-8" />
             </div>
             <div>
-                <h2 className="text-3xl font-serif font-bold text-primary">Offres Spéciales</h2>
-                <p className="text-muted-foreground">Profitez de nos meilleures remises.</p>
+                <h2 className="text-3xl font-serif font-bold text-primary">{t('home.specialOffers.title')}</h2>
+                <p className="text-muted-foreground">{t('home.specialOffers.subtitle')}</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2 text-destructive font-medium bg-white px-4 py-2 rounded-full shadow-sm border border-destructive/20">
              <Clock size={18} />
-             <span>Offres limitées dans le temps</span>
+             <span>{t('home.specialOffers.limitedTime')}</span>
           </div>
         </div>
 

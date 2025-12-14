@@ -29,7 +29,17 @@
     },
     "featured": "Selección Premium",
     "topSellers": "Más Vendidos",
-    "newArrivals": "Novedades"
+    "newArrivals": "Novedades",
+    "coupsDeCoeur": {
+      "title": "Nuestros Favoritos",
+      "subtitle": "Nuestra selección del momento para los aficionados exigentes.",
+      "viewAll": "Ver catálogo completo →"
+    },
+    "specialOffers": {
+      "title": "Ofertas Especiales",
+      "subtitle": "Aprovecha nuestros mejores descuentos.",
+      "limitedTime": "Ofertas por tiempo limitado"
+    }
   },
   "catalogue": {
     "title": "Nuestro Catálogo",
