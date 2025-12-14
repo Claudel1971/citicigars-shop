@@ -10,6 +10,12 @@ The application serves both customers (browsing, purchasing) and administrators 
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### 14 décembre 2025
+- **Correction API Production** : Corrigé un bug dans `server/static.ts` où le fallback SPA interceptait les routes `/api/*` en production, renvoyant du HTML au lieu de JSON. Les requêtes API retournent maintenant correctement des réponses JSON.
+- **Traductions i18n complétées** : Noms de pays, "Prix total", "Ajouter", descriptions des bundles traduits en français/anglais.
+
 ## System Architecture
 
 ### Technology Stack
