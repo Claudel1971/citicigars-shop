@@ -1,0 +1,106 @@
+{
+  "nav": {
+    "home": "ACCUEIL",
+    "cigars": "CIGARES",
+    "assortments": "NOS ASSORTIMENTS",
+    "promotions": "PROMOTIONS",
+    "wishlist": "FAVORIS",
+    "cart": "PANIER"
+  },
+  "home": {
+    "hero": {
+      "title": "L'Art du Cigare Premium",
+      "subtitle": "Découvrez notre sélection exclusive de cigares d'exception",
+      "cta": "Explorer le Catalogue"
+    },
+    "featured": "Sélection Premium",
+    "topSellers": "Meilleures Ventes",
+    "newArrivals": "Nouveautés"
+  },
+  "catalogue": {
+    "title": "Notre Catalogue",
+    "filter": "Filtrer",
+    "sort": "Trier par",
+    "price": "Prix",
+    "brand": "Marque",
+    "origin": "Origine",
+    "strength": "Puissance",
+    "format": "Format",
+    "all": "Tous",
+    "noResults": "Aucun produit trouvé",
+    "products": "produits"
+  },
+  "product": {
+    "addToCart": "Ajouter au panier",
+    "addToWishlist": "Ajouter aux favoris",
+    "removeFromWishlist": "Retirer des favoris",
+    "unit": "Unité",
+    "pack": "Pack",
+    "box": "Boîte",
+    "inStock": "En stock",
+    "outOfStock": "Rupture de stock",
+    "description": "Description",
+    "details": "Détails",
+    "origin": "Origine",
+    "strength": "Puissance",
+    "format": "Format",
+    "length": "Longueur",
+    "diameter": "Diamètre",
+    "wrapper": "Cape",
+    "binder": "Sous-cape",
+    "filler": "Tripe"
+  },
+  "cart": {
+    "title": "Votre Panier",
+    "empty": "Votre panier est vide",
+    "subtotal": "Sous-total",
+    "total": "Total",
+    "checkout": "Commander via WhatsApp",
+    "continue": "Continuer vos achats",
+    "remove": "Retirer",
+    "quantity": "Quantité",
+    "items": "articles"
+  },
+  "wishlist": {
+    "title": "Vos Favoris",
+    "empty": "Aucun favori pour le moment",
+    "addAll": "Tout ajouter au panier"
+  },
+  "promotions": {
+    "title": "Promotions",
+    "discount": "Remise",
+    "save": "Économisez",
+    "limited": "Offre limitée"
+  },
+  "assortments": {
+    "title": "Nos Assortiments",
+    "description": "Coffrets découverte composés par nos experts",
+    "contains": "Contient",
+    "cigars": "cigares"
+  },
+  "footer": {
+    "contact": "Contact",
+    "about": "À propos",
+    "legal": "Mentions légales",
+    "shipping": "Livraison",
+    "returns": "Retours",
+    "copyright": "Tous droits réservés",
+    "followUs": "Suivez-nous"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "close": "Fermer",
+    "search": "Rechercher",
+    "seeMore": "Voir plus",
+    "seeLess": "Voir moins",
+    "currency": "FCFA"
+  },
+  "language": {
+    "select": "Langue",
+    "fr": "Français",
+    "en": "English",
+    "es": "Español"
+  }
+}

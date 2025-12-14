@@ -1,0 +1,106 @@
+{
+  "nav": {
+    "home": "HOME",
+    "cigars": "CIGARS",
+    "assortments": "OUR ASSORTMENTS",
+    "promotions": "PROMOTIONS",
+    "wishlist": "WISHLIST",
+    "cart": "CART"
+  },
+  "home": {
+    "hero": {
+      "title": "The Art of Premium Cigars",
+      "subtitle": "Discover our exclusive selection of exceptional cigars",
+      "cta": "Explore Catalogue"
+    },
+    "featured": "Premium Selection",
+    "topSellers": "Best Sellers",
+    "newArrivals": "New Arrivals"
+  },
+  "catalogue": {
+    "title": "Our Catalogue",
+    "filter": "Filter",
+    "sort": "Sort by",
+    "price": "Price",
+    "brand": "Brand",
+    "origin": "Origin",
+    "strength": "Strength",
+    "format": "Format",
+    "all": "All",
+    "noResults": "No products found",
+    "products": "products"
+  },
+  "product": {
+    "addToCart": "Add to Cart",
+    "addToWishlist": "Add to Wishlist",
+    "removeFromWishlist": "Remove from Wishlist",
+    "unit": "Unit",
+    "pack": "Pack",
+    "box": "Box",
+    "inStock": "In Stock",
+    "outOfStock": "Out of Stock",
+    "description": "Description",
+    "details": "Details",
+    "origin": "Origin",
+    "strength": "Strength",
+    "format": "Format",
+    "length": "Length",
+    "diameter": "Diameter",
+    "wrapper": "Wrapper",
+    "binder": "Binder",
+    "filler": "Filler"
+  },
+  "cart": {
+    "title": "Your Cart",
+    "empty": "Your cart is empty",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "checkout": "Order via WhatsApp",
+    "continue": "Continue Shopping",
+    "remove": "Remove",
+    "quantity": "Quantity",
+    "items": "items"
+  },
+  "wishlist": {
+    "title": "Your Wishlist",
+    "empty": "No favorites yet",
+    "addAll": "Add All to Cart"
+  },
+  "promotions": {
+    "title": "Promotions",
+    "discount": "Discount",
+    "save": "Save",
+    "limited": "Limited Offer"
+  },
+  "assortments": {
+    "title": "Our Assortments",
+    "description": "Discovery boxes curated by our experts",
+    "contains": "Contains",
+    "cigars": "cigars"
+  },
+  "footer": {
+    "contact": "Contact",
+    "about": "About",
+    "legal": "Legal Notice",
+    "shipping": "Shipping",
+    "returns": "Returns",
+    "copyright": "All rights reserved",
+    "followUs": "Follow Us"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "close": "Close",
+    "search": "Search",
+    "seeMore": "See More",
+    "seeLess": "See Less",
+    "currency": "FCFA"
+  },
+  "language": {
+    "select": "Language",
+    "fr": "Français",
+    "en": "English",
+    "es": "Español"
+  }
+}

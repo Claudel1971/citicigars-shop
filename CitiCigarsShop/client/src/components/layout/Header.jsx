@@ -5,6 +5,7 @@ import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useContent } from '@/context/ContentContext';
 import { cn } from '@/lib/utils';
+import LanguageSelector from '../LanguageSelector';
 
 const Header = () => {
   const [location] = useLocation();
@@ -70,6 +71,8 @@ const Header = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
+          <LanguageSelector />
+          
           <Link href="/wishlist" className="relative p-2 hover:bg-accent rounded-full transition-colors text-primary">
               <Heart className={cn("h-6 w-6", wishlist.length > 0 && "fill-destructive stroke-destructive")} />
               {wishlist.length > 0 && (

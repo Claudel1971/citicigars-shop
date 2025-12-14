@@ -1,0 +1,106 @@
+{
+  "nav": {
+    "home": "INICIO",
+    "cigars": "PUROS",
+    "assortments": "NUESTROS SURTIDOS",
+    "promotions": "PROMOCIONES",
+    "wishlist": "FAVORITOS",
+    "cart": "CARRITO"
+  },
+  "home": {
+    "hero": {
+      "title": "El Arte del Puro Premium",
+      "subtitle": "Descubre nuestra selección exclusiva de puros excepcionales",
+      "cta": "Explorar Catálogo"
+    },
+    "featured": "Selección Premium",
+    "topSellers": "Más Vendidos",
+    "newArrivals": "Novedades"
+  },
+  "catalogue": {
+    "title": "Nuestro Catálogo",
+    "filter": "Filtrar",
+    "sort": "Ordenar por",
+    "price": "Precio",
+    "brand": "Marca",
+    "origin": "Origen",
+    "strength": "Intensidad",
+    "format": "Formato",
+    "all": "Todos",
+    "noResults": "No se encontraron productos",
+    "products": "productos"
+  },
+  "product": {
+    "addToCart": "Añadir al Carrito",
+    "addToWishlist": "Añadir a Favoritos",
+    "removeFromWishlist": "Quitar de Favoritos",
+    "unit": "Unidad",
+    "pack": "Pack",
+    "box": "Caja",
+    "inStock": "En Stock",
+    "outOfStock": "Agotado",
+    "description": "Descripción",
+    "details": "Detalles",
+    "origin": "Origen",
+    "strength": "Intensidad",
+    "format": "Formato",
+    "length": "Longitud",
+    "diameter": "Diámetro",
+    "wrapper": "Capa",
+    "binder": "Capote",
+    "filler": "Tripa"
+  },
+  "cart": {
+    "title": "Tu Carrito",
+    "empty": "Tu carrito está vacío",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "checkout": "Pedir por WhatsApp",
+    "continue": "Seguir Comprando",
+    "remove": "Eliminar",
+    "quantity": "Cantidad",
+    "items": "artículos"
+  },
+  "wishlist": {
+    "title": "Tus Favoritos",
+    "empty": "No hay favoritos todavía",
+    "addAll": "Añadir Todo al Carrito"
+  },
+  "promotions": {
+    "title": "Promociones",
+    "discount": "Descuento",
+    "save": "Ahorra",
+    "limited": "Oferta Limitada"
+  },
+  "assortments": {
+    "title": "Nuestros Surtidos",
+    "description": "Cajas descubrimiento seleccionadas por nuestros expertos",
+    "contains": "Contiene",
+    "cigars": "puros"
+  },
+  "footer": {
+    "contact": "Contacto",
+    "about": "Acerca de",
+    "legal": "Aviso Legal",
+    "shipping": "Envío",
+    "returns": "Devoluciones",
+    "copyright": "Todos los derechos reservados",
+    "followUs": "Síguenos"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ha ocurrido un error",
+    "retry": "Reintentar",
+    "close": "Cerrar",
+    "search": "Buscar",
+    "seeMore": "Ver Más",
+    "seeLess": "Ver Menos",
+    "currency": "FCFA"
+  },
+  "language": {
+    "select": "Idioma",
+    "fr": "Français",
+    "en": "English",
+    "es": "Español"
+  }
+}
