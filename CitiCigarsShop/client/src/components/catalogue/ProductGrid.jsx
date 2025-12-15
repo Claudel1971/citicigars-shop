@@ -129,11 +129,17 @@ const ProductGrid = () => {
     return ["Tous", ...Array.from(unique).sort()];
   }, [products]);
 
-  // ---------- Formats (modèles) disponibles -----------
+  // ---------- Formats (vitoles) disponibles -----------
+  const extractBaseFormat = (vitole) => {
+    if (!vitole) return null;
+    const base = vitole.split(/[\s(]/)[0].trim();
+    return base || null;
+  };
+
   const formats = useMemo(() => {
     const catalogueProducts = products.filter((p) => p.inCatalogue !== false);
     const unique = new Set(
-      catalogueProducts.map((p) => p.modele).filter(Boolean),
+      catalogueProducts.map((p) => extractBaseFormat(p.vitole)).filter(Boolean),
     );
     return ["Tous", ...Array.from(unique).sort()];
   }, [products]);
@@ -175,9 +181,10 @@ const ProductGrid = () => {
 
       if (!matchesCountry) return false;
 
-      // 5) Format (modèle)
+      // 5) Format (vitole)
+      const productFormat = extractBaseFormat(p.vitole);
       const matchesFormat =
-        selectedFormat === "Tous" || p.modele === selectedFormat;
+        selectedFormat === "Tous" || productFormat === selectedFormat;
 
       if (!matchesFormat) return false;
 
@@ -246,8 +253,9 @@ const ProductGrid = () => {
           selectedCountry === "Tous" || p.pays === selectedCountry;
         if (!matchesCountry) return false;
 
+        const productFormat = extractBaseFormat(p.vitole);
         const matchesFormat =
-          selectedFormat === "Tous" || p.modele === selectedFormat;
+          selectedFormat === "Tous" || productFormat === selectedFormat;
         if (!matchesFormat) return false;
 
         const puissance = Number(p.puissance);
