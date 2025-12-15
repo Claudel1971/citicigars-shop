@@ -90,6 +90,35 @@ const ProductGrid = () => {
 
   // ---------- Pays (uniquement ceux en catalogue) -----------
 
+  const countryFlags = {
+    "Cuba": "🇨🇺",
+    "Nicaragua": "🇳🇮",
+    "République Dominicaine": "🇩🇴",
+    "Dominican Republic": "🇩🇴",
+    "Honduras": "🇭🇳",
+    "Mexique": "🇲🇽",
+    "Mexico": "🇲🇽",
+    "Brésil": "🇧🇷",
+    "Brazil": "🇧🇷",
+    "Costa Rica": "🇨🇷",
+    "Équateur": "🇪🇨",
+    "Ecuador": "🇪🇨",
+    "Jamaïque": "🇯🇲",
+    "Jamaica": "🇯🇲",
+    "États-Unis": "🇺🇸",
+    "USA": "🇺🇸",
+    "Cameroun": "🇨🇲",
+    "Cameroon": "🇨🇲",
+    "Indonésie": "🇮🇩",
+    "Indonesia": "🇮🇩",
+    "Philippines": "🇵🇭",
+  };
+
+  const getCountryWithFlag = (country) => {
+    if (country === "Tous") return null;
+    return countryFlags[country] || "🌍";
+  };
+
   const countries = useMemo(() => {
     const catalogueProducts = products.filter((p) => p.inCatalogue !== false);
     const unique = new Set(
@@ -286,11 +315,17 @@ const ProductGrid = () => {
                   onChange={(e) => setSelectedCountry(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
-                  {countries.map((country) => (
-                    <option key={country} value={country}>
-                      {country === "Tous" ? t('catalogue.allCountries') : country}
-                    </option>
-                  ))}
+                  {countries.map((country) => {
+                    const flag = getCountryWithFlag(country);
+                    const translatedName = country === "Tous" 
+                      ? t('catalogue.allCountries') 
+                      : t(`countries.${country}`, { defaultValue: country });
+                    return (
+                      <option key={country} value={country}>
+                        {flag ? `${flag} ${translatedName}` : translatedName}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
