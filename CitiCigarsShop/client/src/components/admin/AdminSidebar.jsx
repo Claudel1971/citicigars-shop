@@ -8,11 +8,11 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
 
   const links = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/admin/products', icon: Package, label: 'Produits' },
+    { path: '/admin/products', icon: Package, label: 'Prix_Produits' },
     { path: '/admin/import', icon: Upload, label: 'Import Excel' },
     { path: '/admin/prices', icon: DollarSign, label: 'Maj Prix (Excel)' },
     { path: '/admin/puissance', icon: Flame, label: 'Maj Puissance' },
-    { path: '/admin/characteristics', icon: Edit3, label: 'Caractéristiques' },
+    { path: '/admin/characteristics', icon: Edit3, label: 'Produits' },
     { path: '/admin/images', icon: ImageIcon, label: 'Images' },
     { path: '/admin/associations', icon: Link2, label: 'Associations' },
     { path: '/admin/promotions', icon: Percent, label: 'Promotions' },
