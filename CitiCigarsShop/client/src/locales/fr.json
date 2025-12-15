@@ -75,6 +75,8 @@
     "allStrengths": "Toutes puissances",
     "filterByBudget": "Par budget (prix unitaire)",
     "allBudgets": "Tous les budgets",
+    "filterByFormat": "Par format",
+    "allFormats": "Tous les formats",
     "filterBySize": "Par grosseur (ring gauge)",
     "allSizes": "Toutes tailles",
     "strengthLabels": {

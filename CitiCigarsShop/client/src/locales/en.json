@@ -75,6 +75,8 @@
     "allStrengths": "All strengths",
     "filterByBudget": "By budget (unit price)",
     "allBudgets": "All budgets",
+    "filterByFormat": "By format",
+    "allFormats": "All formats",
     "filterBySize": "By size (ring gauge)",
     "allSizes": "All sizes",
     "strengthLabels": {

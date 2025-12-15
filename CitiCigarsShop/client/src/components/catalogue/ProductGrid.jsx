@@ -22,6 +22,7 @@ const ProductGrid = () => {
   const [search, setSearch] = useState("");
   const [activeLetter, setActiveLetter] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState("Tous");
+  const [selectedFormat, setSelectedFormat] = useState("Tous");
   const [selectedPuissance, setSelectedPuissance] = useState(0);
   const [selectedBudget, setSelectedBudget] = useState("Tous");
   const [selectedRing, setSelectedRing] = useState("Tous");
@@ -83,6 +84,7 @@ const ProductGrid = () => {
     setSearch("");
     setActiveLetter(null);
     setSelectedCountry("Tous");
+    setSelectedFormat("Tous");
     setSelectedPuissance(0);
     setSelectedBudget("Tous");
     setSelectedRing("Tous");
@@ -127,6 +129,21 @@ const ProductGrid = () => {
     return ["Tous", ...Array.from(unique).sort()];
   }, [products]);
 
+  // ---------- Formats (vitoles) disponibles -----------
+  const extractBaseFormat = (vitole) => {
+    if (!vitole) return null;
+    const base = vitole.split(/[\s(]/)[0].trim();
+    return base || null;
+  };
+
+  const formats = useMemo(() => {
+    const catalogueProducts = products.filter((p) => p.inCatalogue !== false);
+    const unique = new Set(
+      catalogueProducts.map((p) => extractBaseFormat(p.vitole)).filter(Boolean),
+    );
+    return ["Tous", ...Array.from(unique).sort()];
+  }, [products]);
+
   // Nombre total de produits en catalogue (avant filtres)
   const totalCatalogueCount = useMemo(
     () => products.filter((p) => p.inCatalogue !== false).length,
@@ -164,7 +181,14 @@ const ProductGrid = () => {
 
       if (!matchesCountry) return false;
 
-      // 5) Puissance
+      // 5) Format (vitole)
+      const productFormat = extractBaseFormat(p.vitole);
+      const matchesFormat =
+        selectedFormat === "Tous" || productFormat === selectedFormat;
+
+      if (!matchesFormat) return false;
+
+      // 6) Puissance
       const puissance = Number(p.puissance);
       const matchesPuissance =
         selectedPuissance === 0 ||
@@ -172,7 +196,7 @@ const ProductGrid = () => {
 
       if (!matchesPuissance) return false;
 
-      // 6) Budget
+      // 7) Budget
       const budgetCategory = getBudgetCategory(p.prixUnitaire);
       const matchesBudget =
         selectedBudget === "Tous" ||
@@ -180,7 +204,7 @@ const ProductGrid = () => {
 
       if (!matchesBudget) return false;
 
-      // 7) Grosseur
+      // 8) Grosseur
       const ringCategory = getRingCategory(p);
       const matchesRing =
         selectedRing === "Tous" ||
@@ -195,6 +219,7 @@ const ProductGrid = () => {
     search,
     activeLetter,
     selectedCountry,
+    selectedFormat,
     selectedPuissance,
     selectedBudget,
     selectedRing,
@@ -228,6 +253,11 @@ const ProductGrid = () => {
           selectedCountry === "Tous" || p.pays === selectedCountry;
         if (!matchesCountry) return false;
 
+        const productFormat = extractBaseFormat(p.vitole);
+        const matchesFormat =
+          selectedFormat === "Tous" || productFormat === selectedFormat;
+        if (!matchesFormat) return false;
+
         const puissance = Number(p.puissance);
         const matchesPuissance =
           selectedPuissance === 0 ||
@@ -253,7 +283,7 @@ const ProductGrid = () => {
         if (firstChar) letters.add(firstChar);
       });
     return letters;
-  }, [products, search, selectedCountry, selectedPuissance, selectedBudget, selectedRing]);
+  }, [products, search, selectedCountry, selectedFormat, selectedPuissance, selectedBudget, selectedRing]);
 
   // Reset activeLetter if it's no longer available after filter changes
   useEffect(() => {
@@ -271,11 +301,11 @@ const ProductGrid = () => {
         <div className="container mx-auto space-y-6">
           {/* Titre + search (search à droite en desktop) */}
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div className="space-y-3 md:max-w-xl text-left">
+            <div className="space-y-3 text-left flex-1">
               <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary">
                 {t('catalogue.title')}
               </h1>
-              <p className="text-muted-foreground max-w-2xl">
+              <p className="text-muted-foreground whitespace-nowrap">
                 {t('catalogue.subtitle')}
               </p>
             </div>
@@ -305,27 +335,40 @@ const ProductGrid = () => {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {/* Pays */}
+              {/* Format (vitole) */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">
-                  {t('catalogue.filterByCountry')}
+                  {t('catalogue.filterByFormat')}
                 </label>
                 <select
-                  value={selectedCountry}
-                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  value={selectedFormat}
+                  onChange={(e) => setSelectedFormat(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
                 >
-                  {countries.map((country) => {
-                    const flag = getCountryWithFlag(country);
-                    const translatedName = country === "Tous" 
-                      ? t('catalogue.allCountries') 
-                      : t(`countries.${country}`, { defaultValue: country });
-                    return (
-                      <option key={country} value={country}>
-                        {flag ? `${flag} ${translatedName}` : translatedName}
-                      </option>
-                    );
-                  })}
+                  {formats.map((format) => (
+                    <option key={format} value={format}>
+                      {format === "Tous" ? t('catalogue.allFormats') : format}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Grosseur */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {t('catalogue.filterBySize')}
+                </label>
+                <select
+                  value={selectedRing}
+                  onChange={(e) => setSelectedRing(e.target.value)}
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
+                >
+                  <option value="Tous">{t('catalogue.allSizes')}</option>
+                  <option value="S">{t('catalogue.sizeLabels.S')}</option>
+                  <option value="M">{t('catalogue.sizeLabels.M')}</option>
+                  <option value="L">{t('catalogue.sizeLabels.L')}</option>
+                  <option value="XL">{t('catalogue.sizeLabels.XL')}</option>
+                  <option value="XXL">{t('catalogue.sizeLabels.XXL')}</option>
                 </select>
               </div>
 
@@ -366,25 +409,6 @@ const ProductGrid = () => {
                   <option value=">20000">{t('catalogue.budgetRanges.over20000')}</option>
                 </select>
               </div>
-
-              {/* Grosseur */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">
-                  {t('catalogue.filterBySize')}
-                </label>
-                <select
-                  value={selectedRing}
-                  onChange={(e) => setSelectedRing(e.target.value)}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/60"
-                >
-                  <option value="Tous">{t('catalogue.allSizes')}</option>
-                  <option value="S">{t('catalogue.sizeLabels.S')}</option>
-                  <option value="M">{t('catalogue.sizeLabels.M')}</option>
-                  <option value="L">{t('catalogue.sizeLabels.L')}</option>
-                  <option value="XL">{t('catalogue.sizeLabels.XL')}</option>
-                  <option value="XXL">{t('catalogue.sizeLabels.XXL')}</option>
-                </select>
-              </div>
             </div>
           </div>
         </div>
@@ -401,6 +425,38 @@ const ProductGrid = () => {
           <span className="hidden sm:inline">
             {t('catalogue.outOf', { total: totalCatalogueCount })}
           </span>
+        </div>
+      </div>
+
+      {/* Drapeaux cliquables pour filtrer par pays */}
+      <div className="container mx-auto px-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 py-2">
+          {countries.map((country) => {
+            const flag = getCountryWithFlag(country);
+            const isSelected = selectedCountry === country;
+            const translatedName = country === "Tous" 
+              ? t('catalogue.allCountries') 
+              : t(`countries.${country}`, { defaultValue: country });
+            
+            return (
+              <button
+                key={country}
+                onClick={() => setSelectedCountry(country)}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+                  transition-all duration-200 border
+                  ${isSelected 
+                    ? 'bg-primary text-white border-primary shadow-md' 
+                    : 'bg-white/80 text-muted-foreground border-border hover:border-primary/50 hover:bg-primary/5'
+                  }
+                `}
+                title={translatedName}
+              >
+                {flag && <span className="text-lg">{flag}</span>}
+                <span className={country === "Tous" ? "" : "hidden sm:inline"}>{translatedName}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
