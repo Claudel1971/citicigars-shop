@@ -6,5 +6,9 @@
 // Set production environment
 process.env.NODE_ENV = 'production';
 
-// Load the compiled server
-require('./dist/index.cjs');
+// Load the compiled server and get the Express app
+const server = require('./dist/index.cjs');
+
+// Export the Express app for Passenger
+// Passenger will handle starting the server
+module.exports = server.app || server;

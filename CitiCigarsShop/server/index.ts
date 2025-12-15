@@ -5,6 +5,9 @@ import { createServer } from "http";
 
 const app = express();
 
+// Export app for Passenger (cPanel)
+export { app };
+
 // Health check endpoint for UptimeRobot (lightweight, fast response)
 app.get("/health", (_req, res) => {
   res.status(200).send("OK");
