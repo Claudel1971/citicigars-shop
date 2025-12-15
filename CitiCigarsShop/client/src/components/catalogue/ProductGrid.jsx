@@ -92,33 +92,37 @@ const ProductGrid = () => {
 
   // ---------- Pays (uniquement ceux en catalogue) -----------
 
-  const countryFlags = {
-    "Cuba": "🇨🇺",
-    "Nicaragua": "🇳🇮",
-    "République Dominicaine": "🇩🇴",
-    "Dominican Republic": "🇩🇴",
-    "Honduras": "🇭🇳",
-    "Mexique": "🇲🇽",
-    "Mexico": "🇲🇽",
-    "Brésil": "🇧🇷",
-    "Brazil": "🇧🇷",
-    "Costa Rica": "🇨🇷",
-    "Équateur": "🇪🇨",
-    "Ecuador": "🇪🇨",
-    "Jamaïque": "🇯🇲",
-    "Jamaica": "🇯🇲",
-    "États-Unis": "🇺🇸",
-    "USA": "🇺🇸",
-    "Cameroun": "🇨🇲",
-    "Cameroon": "🇨🇲",
-    "Indonésie": "🇮🇩",
-    "Indonesia": "🇮🇩",
-    "Philippines": "🇵🇭",
+  const countryFlagCodes = {
+    "Cuba": "cu",
+    "Nicaragua": "ni",
+    "République Dominicaine": "do",
+    "Dominican Republic": "do",
+    "Honduras": "hn",
+    "Mexique": "mx",
+    "Mexico": "mx",
+    "Brésil": "br",
+    "Brazil": "br",
+    "Costa Rica": "cr",
+    "Équateur": "ec",
+    "Ecuador": "ec",
+    "Jamaïque": "jm",
+    "Jamaica": "jm",
+    "États-Unis": "us",
+    "USA": "us",
+    "Cameroun": "cm",
+    "Cameroon": "cm",
+    "Indonésie": "id",
+    "Indonesia": "id",
+    "Philippines": "ph",
   };
 
-  const getCountryWithFlag = (country) => {
+  const getFlagImageUrl = (country) => {
     if (country === "Tous") return null;
-    return countryFlags[country] || "🌍";
+    const code = countryFlagCodes[country];
+    if (code) {
+      return `https://flagcdn.com/w40/${code}.png`;
+    }
+    return null;
   };
 
   const countries = useMemo(() => {
@@ -432,7 +436,7 @@ const ProductGrid = () => {
       <div className="container mx-auto px-4">
         <div className="flex flex-wrap items-center justify-center gap-2 py-2">
           {countries.map((country) => {
-            const flag = getCountryWithFlag(country);
+            const flagUrl = getFlagImageUrl(country);
             const isSelected = selectedCountry === country;
             const translatedName = country === "Tous" 
               ? t('catalogue.allCountries') 
@@ -452,7 +456,7 @@ const ProductGrid = () => {
                 `}
                 title={translatedName}
               >
-                {flag && <span className="text-lg">{flag}</span>}
+                {flagUrl && <img src={flagUrl} alt={translatedName} className="w-6 h-4 object-cover rounded-sm" />}
                 <span className={country === "Tous" ? "" : "hidden sm:inline"}>{translatedName}</span>
               </button>
             );
