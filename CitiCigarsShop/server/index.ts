@@ -5,9 +5,6 @@ import { createServer } from "http";
 
 const app = express();
 
-// Export app for Passenger (cPanel)
-export { app };
-
 // Health check endpoint for UptimeRobot (lightweight, fast response)
 app.get("/health", (_req, res) => {
   res.status(200).send("OK");
@@ -115,21 +112,19 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // Skip listen() when running under Passenger (cPanel)
-  // Passenger manages the server itself
-  if (!process.env.PASSENGER) {
-    const port = parseInt(process.env.PORT || "5000", 10);
-    httpServer.listen(
-      {
-        port,
-        host: "0.0.0.0",
-        reusePort: true,
-      },
-      () => {
-        log(`serving on port ${port}`);
-      },
-    );
-  } else {
-    log("Running under Passenger - server managed externally");
-  }
+  // ALWAYS serve the app on the port specified in the environment variable PORT
+  // Other ports are firewalled. Default to 5000 if not specified.
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    },
+    () => {
+      log(`serving on port ${port}`);
+    },
+  );
 })();
