@@ -226,15 +226,16 @@ const ProductCard = ({ product, onOpenDetails }) => {
                       (unitPromo?.actif ? unitPromo : null);
                     const basePrice =
                       produit.prixUnitaire || produit.prixBundle;
-                    const isPromo =
-                      activePromo?.actif && activePromo?.prixPromo;
+                    const rabais = activePromo?.pourcentage || 0;
+                    const isPromo = activePromo?.actif && rabais > 0;
+                    const prixPromoCalcule = isPromo ? calculerPrixPromo(basePrice, rabais) : basePrice;
                     return isPromo ? (
                       <>
                         <span className="text-xs line-through text-muted-foreground mr-1">
                           {formatPrice(basePrice)}
                         </span>
                         <span className="text-sm font-bold text-destructive">
-                          {formatPrice(activePromo.prixPromo)}
+                          {formatPrice(prixPromoCalcule)}
                         </span>
                       </>
                     ) : (
