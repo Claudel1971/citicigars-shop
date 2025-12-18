@@ -10,8 +10,8 @@ export default function BundlesPage() {
   const { products } = useProducts();
   const [selectedProduct, setSelectedProduct] = useState(null);
   
-  // Filtrer uniquement les bundles
-  const bundles = products.filter(p => p.type === 'bundle');
+  // Filtrer uniquement les bundles visibles
+  const bundles = products.filter(p => p.type === 'bundle' && p.inCatalogue !== false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex flex-col">

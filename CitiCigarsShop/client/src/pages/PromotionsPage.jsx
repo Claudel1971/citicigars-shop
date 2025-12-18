@@ -23,6 +23,9 @@ export default function PromotionsPage() {
 
   const promos = React.useMemo(() => {
     return products.filter(p => {
+      // Exclure les produits masqués
+      if (p.inCatalogue === false) return false;
+      
       const unitPromo = p.promotions?.unitaire;
       const packPromo = p.promotions?.pack;
       const boitePromo = p.promotions?.boite;
