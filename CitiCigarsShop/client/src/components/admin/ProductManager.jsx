@@ -273,7 +273,14 @@ const ProductManager = () => {
         result = result.filter(p => p._hasChanges || p.inCatalogue === false);
         break;
       case 'promo':
-        result = result.filter(p => p._hasChanges || p.promotions?.unitaire?.actif === true || (pendingChanges[p.sku]?.rabais > 0));
+        result = result.filter(p => {
+          if (p._hasChanges || pendingChanges[p.sku]?.rabais > 0) return true;
+          const promo = p.promotions;
+          return (promo?.unitaire?.actif && promo?.unitaire?.pourcentage > 0) ||
+                 (promo?.pack?.actif && promo?.pack?.pourcentage > 0) ||
+                 (promo?.boite?.actif && promo?.boite?.pourcentage > 0) ||
+                 (promo?.bundle?.actif && promo?.bundle?.pourcentage > 0);
+        });
         break;
       case 'favorite':
         result = result.filter(p => p._hasChanges || p.coupDeCoeur === true);
@@ -308,7 +315,13 @@ const ProductManager = () => {
 
   const visibleCount = products.filter(p => p.inCatalogue !== false).length;
   const hiddenCount = products.filter(p => p.inCatalogue === false).length;
-  const promoCount = products.filter(p => p.promotions?.unitaire?.actif === true).length;
+  const promoCount = products.filter(p => {
+    const promo = p.promotions;
+    return (promo?.unitaire?.actif && promo?.unitaire?.pourcentage > 0) ||
+           (promo?.pack?.actif && promo?.pack?.pourcentage > 0) ||
+           (promo?.boite?.actif && promo?.boite?.pourcentage > 0) ||
+           (promo?.bundle?.actif && promo?.bundle?.pourcentage > 0);
+  }).length;
   const favoriteCount = products.filter(p => p.coupDeCoeur === true).length;
 
   if (loading) {
