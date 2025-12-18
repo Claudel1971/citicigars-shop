@@ -267,14 +267,13 @@ const ProductManager = () => {
 
     switch (filter) {
       case 'visible':
-        result = result.filter(p => p._hasChanges || p.inCatalogue !== false);
+        result = result.filter(p => p.inCatalogue !== false);
         break;
       case 'hidden':
-        result = result.filter(p => p._hasChanges || p.inCatalogue === false);
+        result = result.filter(p => p.inCatalogue === false);
         break;
       case 'promo':
         result = result.filter(p => {
-          if (p._hasChanges || pendingChanges[p.sku]?.rabais > 0) return true;
           const promo = p.promotions;
           return (promo?.unitaire?.actif && promo?.unitaire?.pourcentage > 0) ||
                  (promo?.pack?.actif && promo?.pack?.pourcentage > 0) ||
@@ -283,7 +282,7 @@ const ProductManager = () => {
         });
         break;
       case 'favorite':
-        result = result.filter(p => p._hasChanges || p.coupDeCoeur === true);
+        result = result.filter(p => p.coupDeCoeur === true);
         break;
       case 'modified':
         result = result.filter(p => p._hasChanges);
