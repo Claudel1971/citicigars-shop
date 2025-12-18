@@ -22,11 +22,19 @@ export default function PromotionsPage() {
   const t = (key) => i18n.t(key);
 
   const promos = React.useMemo(() => {
-    return products.filter(p =>
-      p.promotions?.unitaire?.actif ||
-      p.promotions?.pack?.actif ||
-      p.promotions?.boite?.actif
-    );
+    return products.filter(p => {
+      const unitPromo = p.promotions?.unitaire;
+      const packPromo = p.promotions?.pack;
+      const boitePromo = p.promotions?.boite;
+      const bundlePromo = p.promotions?.bundle;
+      
+      const hasUnitDiscount = unitPromo?.actif && unitPromo?.pourcentage > 0;
+      const hasPackDiscount = packPromo?.actif && packPromo?.pourcentage > 0;
+      const hasBoiteDiscount = boitePromo?.actif && boitePromo?.pourcentage > 0;
+      const hasBundleDiscount = bundlePromo?.actif && bundlePromo?.pourcentage > 0;
+      
+      return hasUnitDiscount || hasPackDiscount || hasBoiteDiscount || hasBundleDiscount;
+    });
   }, [products]);
 
   return (
