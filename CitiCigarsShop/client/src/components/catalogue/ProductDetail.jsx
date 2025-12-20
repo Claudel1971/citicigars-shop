@@ -441,41 +441,37 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 </TabsList>
 
                 <TabsContent value="tasting" className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex gap-3 items-start">
-                      <span className="text-lg">🔥</span>
-                      <div>
-                        <h5 className="font-bold text-primary text-sm">
-                          {t("product.tasting.firstThird")}
-                        </h5>
-                        <p className="text-xs text-muted-foreground">
-                          {t("product.tasting.firstThirdDesc")}
-                        </p>
-                      </div>
+                  {product.ficheTechnique ? (
+                    <div className="space-y-4">
+                      {product.ficheTechnique.aromes?.dominantes && (
+                        <div className="bg-amber-50 p-3 rounded-lg">
+                          <h5 className="font-bold text-primary text-sm mb-1">🌿 Notes dominantes</h5>
+                          <p className="text-sm text-muted-foreground">{product.ficheTechnique.aromes.dominantes}</p>
+                        </div>
+                      )}
+                      {product.ficheTechnique.aromes?.secondaires && (
+                        <div className="bg-orange-50 p-3 rounded-lg">
+                          <h5 className="font-bold text-primary text-sm mb-1">🍂 Nuances secondaires</h5>
+                          <p className="text-sm text-muted-foreground">{product.ficheTechnique.aromes.secondaires}</p>
+                        </div>
+                      )}
+                      {product.ficheTechnique.aromes?.evolution && (
+                        <div className="bg-red-50 p-3 rounded-lg">
+                          <h5 className="font-bold text-primary text-sm mb-1">📈 Évolution</h5>
+                          <p className="text-sm text-muted-foreground">{product.ficheTechnique.aromes.evolution}</p>
+                        </div>
+                      )}
+                      {product.ficheTechnique.impressions && (
+                        <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-primary">
+                          <p className="text-sm italic text-muted-foreground">{product.ficheTechnique.impressions}</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-3 items-start">
-                      <span className="text-lg">🔥🔥</span>
-                      <div>
-                        <h5 className="font-bold text-primary text-sm">
-                          {t("product.tasting.secondThird")}
-                        </h5>
-                        <p className="text-xs text-muted-foreground">
-                          {t("product.tasting.secondThirdDesc")}
-                        </p>
-                      </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      Fiche de dégustation non disponible
                     </div>
-                    <div className="flex gap-3 items-start">
-                      <span className="text-lg">🔥🔥🔥</span>
-                      <div>
-                        <h5 className="font-bold text-primary text-sm">
-                          {t("product.tasting.lastThird")}
-                        </h5>
-                        <p className="text-xs text-muted-foreground">
-                          {t("product.tasting.lastThirdDesc")}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="pairings" className="space-y-4">
@@ -503,18 +499,35 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 </TabsContent>
 
                 <TabsContent value="details" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-muted-foreground">{t("product.wrapper")}:</span>
-                    <span className="font-medium">Habano Ecuador</span>
-                    <span className="text-muted-foreground">{t("product.binder")}:</span>
-                    <span className="font-medium">Dominican Republic</span>
-                    <span className="text-muted-foreground">{t("product.filler")}:</span>
-                    <span className="font-medium">Nicaragua / Dominican</span>
-                    <span className="text-muted-foreground">Ring Gauge:</span>
-                    <span className="font-medium">
-                      {product.diametre || "N/A"}
-                    </span>
-                  </div>
+                  {product.ficheTechnique?.terroir ? (
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <span className="text-muted-foreground">{t("product.wrapper")}:</span>
+                      <span className="font-medium">{product.ficheTechnique.terroir.cape || "N/A"}</span>
+                      <span className="text-muted-foreground">{t("product.binder")}:</span>
+                      <span className="font-medium">{product.ficheTechnique.terroir.sousCape || "N/A"}</span>
+                      <span className="text-muted-foreground">{t("product.filler")}:</span>
+                      <span className="font-medium">{product.ficheTechnique.terroir.tripe || "N/A"}</span>
+                      <span className="text-muted-foreground">Ring Gauge:</span>
+                      <span className="font-medium">{product.diametre || "N/A"}</span>
+                      {product.ficheTechnique.duree && (
+                        <>
+                          <span className="text-muted-foreground">Durée:</span>
+                          <span className="font-medium">{product.ficheTechnique.duree}</span>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <span className="text-muted-foreground">{t("product.wrapper")}:</span>
+                      <span className="font-medium">-</span>
+                      <span className="text-muted-foreground">{t("product.binder")}:</span>
+                      <span className="font-medium">-</span>
+                      <span className="text-muted-foreground">{t("product.filler")}:</span>
+                      <span className="font-medium">-</span>
+                      <span className="text-muted-foreground">Ring Gauge:</span>
+                      <span className="font-medium">{product.diametre || "N/A"}</span>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             )}

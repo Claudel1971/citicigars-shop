@@ -11,6 +11,7 @@ import GestionAssociations from '@/components/admin/GestionAssociations';
 import PackConfig from '@/components/admin/PackConfig';
 import ProductManager from '@/components/admin/ProductManager';
 import ContentManager from '@/components/admin/ContentManager';
+import ImportFiches from '@/components/admin/ImportFiches';
 import { Menu } from 'lucide-react';
 import { API_URL } from '@/config';
 
@@ -174,6 +175,7 @@ const Admin = () => {
               <Route path="/admin/config" component={PackConfig} />
               <Route path="/admin/products" component={ProductManager} />
               <Route path="/admin/content" component={ContentManager} />
+              <Route path="/admin/fiches" component={ImportFiches} />
               
               {/* If we are here, it means we matched /admin/* in App.tsx but nothing specific above */}
               {/* This might be a sub-route not covered or just a trailing slash issue */}

@@ -43,6 +43,7 @@ export const products = mysqlTable("products", {
   badges: json("badges"),
   composition: json("composition"),
   prixBundle: int("prix_bundle"),
+  ficheTechnique: json("fiche_technique"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });

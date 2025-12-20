@@ -17,6 +17,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
     { path: '/admin/associations', icon: Link2, label: 'Associations' },
     { path: '/admin/promotions', icon: Percent, label: 'Promotions' },
     { path: '/admin/content', icon: FileText, label: 'Contenu (CMS)' },
+    { path: '/admin/fiches', icon: FileText, label: 'Fiches Techniques' },
     { path: '/admin/config', icon: Settings, label: 'Configuration' },
   ];
 
