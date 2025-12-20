@@ -433,99 +433,128 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
                 )}
               </div>
             ) : (
-              <Tabs defaultValue="tasting" className="flex-1 mb-8">
-                <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="tasting">{t("product.tabs.tasting")}</TabsTrigger>
-                  <TabsTrigger value="pairings">{t("product.tabs.pairings")}</TabsTrigger>
-                  <TabsTrigger value="details">{t("product.tabs.details")}</TabsTrigger>
+              <Tabs defaultValue="terroir" className="flex-1 mb-8">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
+                  <TabsTrigger value="terroir" className="text-xs">🌍 Terroir</TabsTrigger>
+                  <TabsTrigger value="combustion" className="text-xs">🔥 Combustion</TabsTrigger>
+                  <TabsTrigger value="aromes" className="text-xs">🌿 Arômes</TabsTrigger>
+                  <TabsTrigger value="degustation" className="text-xs">🍷 Dégustation</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="tasting" className="space-y-4">
-                  {product.ficheTechnique ? (
-                    <div className="space-y-4">
-                      {product.ficheTechnique.aromes?.dominantes && (
+                <TabsContent value="terroir" className="space-y-3">
+                  {product.ficheTechnique?.terroir ? (
+                    <div className="space-y-2">
+                      <div className="bg-green-50 p-3 rounded-lg">
+                        <div className="grid grid-cols-2 gap-y-2 text-sm">
+                          <span className="text-muted-foreground font-medium">Cape :</span>
+                          <span className="font-medium">{product.ficheTechnique.terroir.cape || "-"}</span>
+                          <span className="text-muted-foreground font-medium">Sous-cape :</span>
+                          <span className="font-medium">{product.ficheTechnique.terroir.sousCape || "-"}</span>
+                          <span className="text-muted-foreground font-medium">Tripe :</span>
+                          <span className="font-medium">{product.ficheTechnique.terroir.tripe || "-"}</span>
+                          <span className="text-muted-foreground font-medium">Origine :</span>
+                          <span className="font-medium">{product.ficheTechnique.terroir.origine || product.pays || "-"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground text-sm bg-gray-50 rounded-lg">
+                      Informations terroir non disponibles
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="combustion" className="space-y-3">
+                  {product.ficheTechnique?.combustion || product.ficheTechnique?.duree ? (
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        {product.ficheTechnique.duree && (
+                          <>
+                            <span className="text-muted-foreground font-medium">Durée :</span>
+                            <span className="font-medium">{product.ficheTechnique.duree}</span>
+                          </>
+                        )}
+                        {product.ficheTechnique.combustion?.tirage && (
+                          <>
+                            <span className="text-muted-foreground font-medium">Tirage :</span>
+                            <span className="font-medium">{product.ficheTechnique.combustion.tirage}</span>
+                          </>
+                        )}
+                        {product.ficheTechnique.combustion?.cendre && (
+                          <>
+                            <span className="text-muted-foreground font-medium">Cendre :</span>
+                            <span className="font-medium">{product.ficheTechnique.combustion.cendre}</span>
+                          </>
+                        )}
+                        {product.ficheTechnique.combustion?.fumee && (
+                          <>
+                            <span className="text-muted-foreground font-medium">Fumée :</span>
+                            <span className="font-medium">{product.ficheTechnique.combustion.fumee}</span>
+                          </>
+                        )}
+                        {product.ficheTechnique.combustion?.combustion && (
+                          <>
+                            <span className="text-muted-foreground font-medium">Combustion :</span>
+                            <span className="font-medium">{product.ficheTechnique.combustion.combustion}</span>
+                          </>
+                        )}
+                        <span className="text-muted-foreground font-medium">Ring Gauge :</span>
+                        <span className="font-medium">{product.diametre || product.ringGauge || "-"}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground text-sm bg-gray-50 rounded-lg">
+                      Informations combustion non disponibles
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="aromes" className="space-y-3">
+                  {product.ficheTechnique?.aromes ? (
+                    <div className="space-y-3">
+                      {product.ficheTechnique.aromes.dominantes && (
                         <div className="bg-amber-50 p-3 rounded-lg">
                           <h5 className="font-bold text-primary text-sm mb-1">🌿 Notes dominantes</h5>
                           <p className="text-sm text-muted-foreground">{product.ficheTechnique.aromes.dominantes}</p>
                         </div>
                       )}
-                      {product.ficheTechnique.aromes?.secondaires && (
-                        <div className="bg-orange-50 p-3 rounded-lg">
+                      {product.ficheTechnique.aromes.secondaires && (
+                        <div className="bg-yellow-50 p-3 rounded-lg">
                           <h5 className="font-bold text-primary text-sm mb-1">🍂 Nuances secondaires</h5>
                           <p className="text-sm text-muted-foreground">{product.ficheTechnique.aromes.secondaires}</p>
                         </div>
                       )}
-                      {product.ficheTechnique.aromes?.evolution && (
+                      {product.ficheTechnique.aromes.evolution && (
                         <div className="bg-red-50 p-3 rounded-lg">
                           <h5 className="font-bold text-primary text-sm mb-1">📈 Évolution</h5>
                           <p className="text-sm text-muted-foreground">{product.ficheTechnique.aromes.evolution}</p>
                         </div>
                       )}
-                      {product.ficheTechnique.impressions && (
-                        <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-primary">
-                          <p className="text-sm italic text-muted-foreground">{product.ficheTechnique.impressions}</p>
-                        </div>
-                      )}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-muted-foreground text-sm">
-                      Fiche de dégustation non disponible
+                    <div className="text-center py-6 text-muted-foreground text-sm bg-gray-50 rounded-lg">
+                      Palette aromatique non disponible
                     </div>
                   )}
                 </TabsContent>
 
-                <TabsContent value="pairings" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-accent/30 p-3 rounded-lg">
-                      <h5 className="font-bold text-primary text-sm mb-2">
-                        🥃 {t("product.pairings.drinks")}
-                      </h5>
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        <li>• Rhum Vieux Agricole</li>
-                        <li>• Whisky Single Malt</li>
-                        <li>• Café Espresso</li>
-                      </ul>
-                    </div>
-                    <div className="bg-accent/30 p-3 rounded-lg">
-                      <h5 className="font-bold text-primary text-sm mb-2">
-                        🍫 {t("product.pairings.food")}
-                      </h5>
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        <li>• Chocolat Noir 80%</li>
-                        <li>• Fruits secs</li>
-                      </ul>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="details" className="space-y-4">
-                  {product.ficheTechnique?.terroir ? (
-                    <div className="grid grid-cols-2 gap-y-2 text-sm">
-                      <span className="text-muted-foreground">{t("product.wrapper")}:</span>
-                      <span className="font-medium">{product.ficheTechnique.terroir.cape || "N/A"}</span>
-                      <span className="text-muted-foreground">{t("product.binder")}:</span>
-                      <span className="font-medium">{product.ficheTechnique.terroir.sousCape || "N/A"}</span>
-                      <span className="text-muted-foreground">{t("product.filler")}:</span>
-                      <span className="font-medium">{product.ficheTechnique.terroir.tripe || "N/A"}</span>
-                      <span className="text-muted-foreground">Ring Gauge:</span>
-                      <span className="font-medium">{product.diametre || "N/A"}</span>
-                      {product.ficheTechnique.duree && (
-                        <>
-                          <span className="text-muted-foreground">Durée:</span>
-                          <span className="font-medium">{product.ficheTechnique.duree}</span>
-                        </>
-                      )}
+                <TabsContent value="degustation" className="space-y-3">
+                  {product.ficheTechnique?.impressions ? (
+                    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-4 rounded-lg border border-purple-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">🔒</span>
+                        <h5 className="font-bold text-purple-800 text-sm">Contenu réservé aux membres</h5>
+                      </div>
+                      <p className="text-sm text-purple-700 mb-3">
+                        Les impressions de dégustation détaillées sont exclusives aux membres du Club CitiCigars.
+                      </p>
+                      <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+                        Rejoindre le Club CitiCigars 2.0
+                      </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-y-2 text-sm">
-                      <span className="text-muted-foreground">{t("product.wrapper")}:</span>
-                      <span className="font-medium">-</span>
-                      <span className="text-muted-foreground">{t("product.binder")}:</span>
-                      <span className="font-medium">-</span>
-                      <span className="text-muted-foreground">{t("product.filler")}:</span>
-                      <span className="font-medium">-</span>
-                      <span className="text-muted-foreground">Ring Gauge:</span>
-                      <span className="font-medium">{product.diametre || "N/A"}</span>
+                    <div className="text-center py-6 text-muted-foreground text-sm bg-gray-50 rounded-lg">
+                      Impressions de dégustation non disponibles
                     </div>
                   )}
                 </TabsContent>
