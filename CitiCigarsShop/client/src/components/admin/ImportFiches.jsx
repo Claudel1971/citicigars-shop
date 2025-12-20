@@ -15,6 +15,11 @@ export default function ImportFiches() {
 
   const parseFiche = (text) => {
     const data = {
+      caracteristiques: {
+        typeFumee: '',
+        duree: '',
+        evolution: ''
+      },
       terroir: {
         origine: '',
         cape: '',
@@ -22,8 +27,10 @@ export default function ImportFiches() {
         tripe: ''
       },
       combustion: {
-        duree: '',
+        aspectCape: '',
         construction: '',
+        coupe: '',
+        allumage: '',
         tirage: '',
         combustion: '',
         cendre: '',
@@ -33,6 +40,9 @@ export default function ImportFiches() {
         dominantes: '',
         secondaires: '',
         evolution: ''
+      },
+      evaluation: {
+        positionnement: ''
       },
       impressions: ''
     };
@@ -48,6 +58,9 @@ export default function ImportFiches() {
     
     let currentSection = '';
     const sectionHeaders = {
+      'caractéristiques': 'caracteristiques',
+      'caracteristiques': 'caracteristiques',
+      'techniques': 'caracteristiques',
       'terroir': 'terroir',
       'origine': 'terroir',
       'aspect': 'combustion',
@@ -56,6 +69,8 @@ export default function ImportFiches() {
       'palette': 'aromes',
       'arômes': 'aromes',
       'aromes': 'aromes',
+      'évaluation': 'evaluation',
+      'evaluation': 'evaluation',
       'impressions': 'impressions',
       'dégustation': 'impressions'
     };
@@ -89,18 +104,32 @@ export default function ImportFiches() {
       const value = extractValue(line);
       if (!value) continue;
       
-      if (cleanLower.includes('origine')) {
+      if (cleanLower.includes('type de fumée') || cleanLower.includes('type de fumee')) {
+        data.caracteristiques.typeFumee = value;
+      } else if ((cleanLower.includes('durée') || cleanLower.includes('duree')) && currentSection !== 'combustion') {
+        data.caracteristiques.duree = value;
+      } else if (cleanLower.includes('évolution') || cleanLower.includes('evolution')) {
+        if (currentSection === 'aromes' || currentSection === '') {
+          data.aromes.evolution = value;
+        } else if (currentSection === 'caracteristiques') {
+          data.caracteristiques.evolution = value;
+        }
+      } else if (cleanLower.includes('origine')) {
         data.terroir.origine = value;
       } else if (cleanLower.includes('sous-cape') || cleanLower.includes('sous cape')) {
         data.terroir.sousCape = value;
+      } else if (cleanLower.includes('cape') && currentSection === 'combustion') {
+        data.combustion.aspectCape = value;
       } else if (cleanLower.includes('cape') && (currentSection === 'terroir' || !data.terroir.cape)) {
         data.terroir.cape = value;
       } else if (cleanLower.includes('tripe')) {
         data.terroir.tripe = value;
-      } else if (cleanLower.includes('durée') || cleanLower.includes('duree') || cleanLower.includes('temps')) {
-        data.combustion.duree = value;
       } else if (cleanLower.includes('construction')) {
         data.combustion.construction = value;
+      } else if (cleanLower.includes('coupe')) {
+        data.combustion.coupe = value;
+      } else if (cleanLower.includes('allumage')) {
+        data.combustion.allumage = value;
       } else if (cleanLower.includes('tirage')) {
         data.combustion.tirage = value;
       } else if (cleanLower.includes('combustion') && !cleanLower.includes('aspect')) {
@@ -113,8 +142,8 @@ export default function ImportFiches() {
         data.aromes.dominantes = value;
       } else if (cleanLower.includes('secondaires') || cleanLower.includes('nuances')) {
         data.aromes.secondaires = value;
-      } else if (cleanLower.includes('évolution') || cleanLower.includes('evolution')) {
-        data.aromes.evolution = value;
+      } else if (cleanLower.includes('positionnement')) {
+        data.evaluation.positionnement = value;
       }
     }
     
