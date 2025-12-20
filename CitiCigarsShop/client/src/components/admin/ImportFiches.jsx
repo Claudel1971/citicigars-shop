@@ -2,24 +2,21 @@ import React, { useState, useMemo } from 'react';
 import { useProducts } from '@/context/ProductContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileText, Search, Save, Check, X, RefreshCw } from 'lucide-react';
+import { FileText, Search, Save, Check, X, RefreshCw, Edit3 } from 'lucide-react';
 import apiService from '@/services/apiService';
 
 export default function ImportFiches() {
   const { products, refreshProducts } = useProducts();
   const [ficheText, setFicheText] = useState('');
   const [parsedData, setParsedData] = useState(null);
+  const [editableData, setEditableData] = useState(null);
   const [selectedSku, setSelectedSku] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const parseFiche = (text) => {
     const data = {
-      caracteristiques: {
-        typeFumee: '',
-        duree: '',
-        evolution: ''
-      },
       terroir: {
         origine: '',
         cape: '',
@@ -27,27 +24,28 @@ export default function ImportFiches() {
         tripe: ''
       },
       combustion: {
+        duree: '',
         aspectCape: '',
         construction: '',
         coupe: '',
         allumage: '',
         tirage: '',
         combustion: '',
-        cendre: '',
-        fumee: ''
+        cendre: ''
       },
       aromes: {
+        fumee: '',
         dominantes: '',
         secondaires: '',
         evolution: ''
       },
-      evaluation: {
-        positionnement: ''
-      },
-      impressions: ''
+      degustation: {
+        positionnement: '',
+        impressions: ''
+      }
     };
 
-    const cleanEmojis = (str) => str.replace(/🔸|✅|⭐|😃|🔥|🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨|🌍|🌿|💨|🎯|📊|1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🔟/g, '').trim();
+    const cleanEmojis = (str) => str.replace(/🔸|✅|⭐|😃|🔥|🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨|🇺🇸|🌍|🌿|💨|🎯|📊|1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🔟|📦|🧾|💵|🏆|🥇|🥈|🥉/g, '').trim();
     
     const extractValue = (line) => {
       if (!line.includes(':')) return '';
@@ -71,9 +69,12 @@ export default function ImportFiches() {
       'aromes': 'aromes',
       'évaluation': 'evaluation',
       'evaluation': 'evaluation',
-      'impressions': 'impressions',
-      'dégustation': 'impressions'
+      'impressions': 'degustation',
+      'dégustation': 'degustation'
     };
+
+    let typeFumee = '';
+    let fumeeValue = '';
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -95,8 +96,8 @@ export default function ImportFiches() {
       }
       
       if (!line.includes(':')) {
-        if (currentSection === 'impressions' && line.length > 20) {
-          data.impressions += (data.impressions ? ' ' : '') + cleanEmojis(line);
+        if (currentSection === 'degustation' && line.length > 20) {
+          data.degustation.impressions += (data.degustation.impressions ? ' ' : '') + cleanEmojis(line);
         }
         continue;
       }
@@ -105,15 +106,11 @@ export default function ImportFiches() {
       if (!value) continue;
       
       if (cleanLower.includes('type de fumée') || cleanLower.includes('type de fumee')) {
-        data.caracteristiques.typeFumee = value;
-      } else if ((cleanLower.includes('durée') || cleanLower.includes('duree')) && currentSection !== 'combustion') {
-        data.caracteristiques.duree = value;
-      } else if (cleanLower.includes('évolution') || cleanLower.includes('evolution')) {
-        if (currentSection === 'aromes' || currentSection === '') {
-          data.aromes.evolution = value;
-        } else if (currentSection === 'caracteristiques') {
-          data.caracteristiques.evolution = value;
-        }
+        typeFumee = value;
+      } else if ((cleanLower.includes('fumée') || cleanLower.includes('fumee')) && !cleanLower.includes('type')) {
+        fumeeValue = value;
+      } else if (cleanLower.includes('durée') || cleanLower.includes('duree')) {
+        data.combustion.duree = value;
       } else if (cleanLower.includes('origine')) {
         data.terroir.origine = value;
       } else if (cleanLower.includes('sous-cape') || cleanLower.includes('sous cape')) {
@@ -136,18 +133,24 @@ export default function ImportFiches() {
         data.combustion.combustion = value;
       } else if (cleanLower.includes('cendre')) {
         data.combustion.cendre = value;
-      } else if (cleanLower.includes('fumée') || cleanLower.includes('fumee')) {
-        data.combustion.fumee = value;
       } else if (cleanLower.includes('dominantes') || cleanLower.includes('notes dominantes')) {
         data.aromes.dominantes = value;
       } else if (cleanLower.includes('secondaires') || cleanLower.includes('nuances')) {
         data.aromes.secondaires = value;
+      } else if (cleanLower.includes('évolution') || cleanLower.includes('evolution')) {
+        data.aromes.evolution = value;
       } else if (cleanLower.includes('positionnement')) {
-        data.evaluation.positionnement = value;
+        data.degustation.positionnement = value;
       }
     }
     
-    if (!data.impressions) {
+    if (typeFumee && fumeeValue && typeFumee !== fumeeValue) {
+      data.aromes.fumee = `${typeFumee} • ${fumeeValue}`;
+    } else {
+      data.aromes.fumee = typeFumee || fumeeValue;
+    }
+    
+    if (!data.degustation.impressions) {
       const impressionIdx = lines.findIndex(l => 
         l.toLowerCase().includes('impression') || 
         l.toLowerCase().includes('dégustation') ||
@@ -155,7 +158,7 @@ export default function ImportFiches() {
       );
       if (impressionIdx !== -1) {
         const impressionLines = lines.slice(impressionIdx + 1).filter(l => l.length > 20 && !l.includes(':'));
-        data.impressions = impressionLines.map(l => cleanEmojis(l)).join(' ').trim();
+        data.degustation.impressions = impressionLines.map(l => cleanEmojis(l)).join(' ').trim();
       }
     }
 
@@ -169,11 +172,29 @@ export default function ImportFiches() {
     }
     const parsed = parseFiche(ficheText);
     setParsedData(parsed);
-    toast.success('Fiche analysée ! Sélectionnez le produit correspondant.');
+    setEditableData(JSON.parse(JSON.stringify(parsed)));
+    setIsEditing(false);
+    toast.success('Fiche analysée ! Vérifiez et modifiez si nécessaire.');
+  };
+
+  const handleFieldChange = (section, field, value) => {
+    setEditableData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleCancel = () => {
+    setEditableData(JSON.parse(JSON.stringify(parsedData)));
+    setIsEditing(false);
+    toast.info('Modifications annulées');
   };
 
   const handleSave = async () => {
-    if (!selectedSku || !parsedData) {
+    if (!selectedSku || !editableData) {
       toast.error('Sélectionnez un produit et parsez une fiche');
       return;
     }
@@ -181,13 +202,15 @@ export default function ImportFiches() {
     setSaving(true);
     try {
       await apiService.updateProduct(selectedSku, {
-        ficheTechnique: parsedData
+        ficheTechnique: editableData
       });
       toast.success('Fiche technique enregistrée !');
       await refreshProducts();
       setFicheText('');
       setParsedData(null);
+      setEditableData(null);
       setSelectedSku('');
+      setIsEditing(false);
     } catch (error) {
       toast.error('Erreur lors de la sauvegarde');
       console.error(error);
@@ -209,6 +232,33 @@ export default function ImportFiches() {
 
   const selectedProduct = products.find(p => p.sku === selectedSku);
 
+  const renderField = (section, field, label) => {
+    const value = editableData?.[section]?.[field] || '';
+    const isLongText = field === 'impressions' || field === 'positionnement';
+    
+    return (
+      <div key={`${section}-${field}`} className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-gray-600">{label}</label>
+        {isLongText ? (
+          <textarea
+            value={value}
+            onChange={(e) => handleFieldChange(section, field, e.target.value)}
+            className="w-full p-2 text-sm border rounded resize-none h-20"
+            placeholder={`Entrez ${label.toLowerCase()}...`}
+          />
+        ) : (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => handleFieldChange(section, field, e.target.value)}
+            className="w-full p-2 text-sm border rounded"
+            placeholder={`Entrez ${label.toLowerCase()}...`}
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
@@ -217,7 +267,7 @@ export default function ImportFiches() {
           Import Fiches Techniques
         </h1>
         <p className="text-muted-foreground">
-          Collez le contenu d'une fiche technique pour l'associer à un produit.
+          Collez le contenu d'une fiche technique, modifiez si nécessaire, puis associez à un produit.
         </p>
       </div>
 
@@ -229,7 +279,7 @@ export default function ImportFiches() {
               value={ficheText}
               onChange={(e) => setFicheText(e.target.value)}
               placeholder="Collez ici le contenu complet de la fiche (Word, texte...)..."
-              className="w-full h-64 p-3 border rounded-lg font-mono text-sm resize-none"
+              className="w-full h-48 p-3 border rounded-lg font-mono text-sm resize-none"
             />
           </div>
           
@@ -238,35 +288,73 @@ export default function ImportFiches() {
             Analyser la fiche
           </Button>
 
-          {parsedData && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="font-bold text-green-800 mb-2">Données extraites :</h3>
-              <div className="text-sm space-y-2">
-                <div>
-                  <p className="font-semibold text-green-700">Terroir :</p>
-                  <p>Origine : {parsedData.terroir.origine || '-'}</p>
-                  <p>Cape : {parsedData.terroir.cape || '-'}</p>
-                  <p>Sous-cape : {parsedData.terroir.sousCape || '-'}</p>
-                  <p>Tripe : {parsedData.terroir.tripe || '-'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-green-700">Combustion :</p>
-                  <p>Durée : {parsedData.combustion.duree || '-'}</p>
-                  <p>Tirage : {parsedData.combustion.tirage || '-'}</p>
-                  <p>Combustion : {parsedData.combustion.combustion || '-'}</p>
-                  <p>Cendre : {parsedData.combustion.cendre || '-'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-green-700">Arômes :</p>
-                  <p>Dominantes : {parsedData.aromes.dominantes || '-'}</p>
-                  <p>Secondaires : {parsedData.aromes.secondaires || '-'}</p>
-                </div>
-                {parsedData.impressions && (
-                  <div>
-                    <p className="font-semibold text-green-700">Impressions :</p>
-                    <p className="text-xs">{parsedData.impressions.slice(0, 150)}...</p>
+          {editableData && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-green-800">Données extraites :</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  <Edit3 className="w-3 h-3 mr-1" />
+                  {isEditing ? 'Aperçu' : 'Modifier'}
+                </Button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="border-b pb-3">
+                  <p className="font-semibold text-green-700 mb-2">🌍 Terroir</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {renderField('terroir', 'origine', 'Origine')}
+                    {renderField('terroir', 'cape', 'Cape')}
+                    {renderField('terroir', 'sousCape', 'Sous-cape')}
+                    {renderField('terroir', 'tripe', 'Tripe')}
                   </div>
-                )}
+                </div>
+                
+                <div className="border-b pb-3">
+                  <p className="font-semibold text-green-700 mb-2">🔥 Combustion</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {renderField('combustion', 'duree', 'Durée')}
+                    {renderField('combustion', 'aspectCape', 'Aspect cape')}
+                    {renderField('combustion', 'construction', 'Construction')}
+                    {renderField('combustion', 'coupe', 'Coupe')}
+                    {renderField('combustion', 'allumage', 'Allumage')}
+                    {renderField('combustion', 'tirage', 'Tirage')}
+                    {renderField('combustion', 'combustion', 'Combustion')}
+                    {renderField('combustion', 'cendre', 'Cendre')}
+                  </div>
+                </div>
+                
+                <div className="border-b pb-3">
+                  <p className="font-semibold text-green-700 mb-2">🌿 Arômes</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {renderField('aromes', 'fumee', 'Fumée')}
+                    {renderField('aromes', 'dominantes', 'Notes dominantes')}
+                    {renderField('aromes', 'secondaires', 'Nuances secondaires')}
+                    {renderField('aromes', 'evolution', 'Évolution')}
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="font-semibold text-green-700 mb-2">🍷 Dégustation</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {renderField('degustation', 'positionnement', 'Positionnement')}
+                    {renderField('degustation', 'impressions', 'Impressions')}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleCancel}
+                  className="flex-1"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Annuler
+                </Button>
               </div>
             </div>
           )}
@@ -314,7 +402,7 @@ export default function ImportFiches() {
 
           <Button 
             onClick={handleSave} 
-            disabled={!selectedSku || !parsedData || saving}
+            disabled={!selectedSku || !editableData || saving}
             className="w-full bg-green-600 hover:bg-green-700"
           >
             {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
