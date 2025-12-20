@@ -15,12 +15,6 @@ export default function ImportFiches() {
 
   const parseFiche = (text) => {
     const data = {
-      marque: '',
-      ligne: '',
-      format: '',
-      dimensions: '',
-      puissance: 0,
-      duree: '',
       terroir: {
         origine: '',
         cape: '',
@@ -28,7 +22,6 @@ export default function ImportFiches() {
         tripe: ''
       },
       combustion: {
-        cape: '',
         construction: '',
         tirage: '',
         combustion: '',
@@ -39,11 +32,6 @@ export default function ImportFiches() {
         dominantes: '',
         secondaires: '',
         evolution: ''
-      },
-      evaluation: {
-        positionnement: '',
-        note: '',
-        top25: ''
       },
       impressions: ''
     };
@@ -59,9 +47,6 @@ export default function ImportFiches() {
     
     let currentSection = '';
     const sectionHeaders = {
-      'caractéristiques': 'caracteristiques',
-      'caracteristiques': 'caracteristiques',
-      'techniques': 'caracteristiques',
       'terroir': 'terroir',
       'origine': 'terroir',
       'aspect': 'combustion',
@@ -70,8 +55,6 @@ export default function ImportFiches() {
       'palette': 'aromes',
       'arômes': 'aromes',
       'aromes': 'aromes',
-      'évaluation': 'evaluation',
-      'evaluation': 'evaluation',
       'impressions': 'impressions',
       'dégustation': 'impressions'
     };
@@ -105,29 +88,11 @@ export default function ImportFiches() {
       const value = extractValue(line);
       if (!value) continue;
       
-      if (cleanLower.includes('marque')) {
-        data.marque = value;
-      } else if (cleanLower.includes('ligne')) {
-        data.ligne = value;
-      } else if (cleanLower.includes('format') && !cleanLower.includes('dimension')) {
-        data.format = value;
-      } else if (cleanLower.includes('dimension')) {
-        data.dimensions = value;
-      } else if (cleanLower.includes('puissance')) {
-        const fireCount = (line.match(/🔥/g) || []).length;
-        const numMatch = value.match(/(\d+)/);
-        data.puissance = fireCount || (numMatch ? parseInt(numMatch[1]) : 0);
-      } else if (cleanLower.includes('durée') || cleanLower.includes('duree')) {
-        data.duree = value;
-      } else if (cleanLower.includes('origine')) {
+      if (cleanLower.includes('origine')) {
         data.terroir.origine = value;
       } else if (cleanLower.includes('sous-cape') || cleanLower.includes('sous cape')) {
         data.terroir.sousCape = value;
-      } else if (cleanLower.includes('cape') && currentSection === 'terroir') {
-        data.terroir.cape = value;
-      } else if (cleanLower.includes('cape') && currentSection === 'combustion') {
-        data.combustion.cape = value;
-      } else if (cleanLower.includes('cape') && !data.terroir.cape) {
+      } else if (cleanLower.includes('cape') && (currentSection === 'terroir' || !data.terroir.cape)) {
         data.terroir.cape = value;
       } else if (cleanLower.includes('tripe')) {
         data.terroir.tripe = value;
@@ -147,12 +112,6 @@ export default function ImportFiches() {
         data.aromes.secondaires = value;
       } else if (cleanLower.includes('évolution') || cleanLower.includes('evolution')) {
         data.aromes.evolution = value;
-      } else if (cleanLower.includes('positionnement')) {
-        data.evaluation.positionnement = value;
-      } else if (cleanLower.includes('note') && (cleanLower.includes('/100') || cleanLower.includes('source') || cleanLower.includes('aficionado'))) {
-        data.evaluation.note = value;
-      } else if (cleanLower.includes('top 25') || cleanLower.includes('top25') || cleanLower.includes('cigar of the year')) {
-        data.evaluation.top25 = value;
       }
     }
     
@@ -178,19 +137,7 @@ export default function ImportFiches() {
     }
     const parsed = parseFiche(ficheText);
     setParsedData(parsed);
-    
-    const marqueSearch = parsed.marque.toLowerCase();
-    const ligneSearch = parsed.ligne.toLowerCase();
-    const match = products.find(p => 
-      p.marque?.toLowerCase().includes(marqueSearch) &&
-      (p.ligne?.toLowerCase().includes(ligneSearch) || p.modele?.toLowerCase().includes(ligneSearch))
-    );
-    if (match) {
-      setSelectedSku(match.sku);
-      toast.success(`Produit trouvé : ${match.marque} ${match.ligne || match.modele}`);
-    } else {
-      toast.info('Aucun produit correspondant trouvé. Sélectionnez manuellement.');
-    }
+    toast.success('Fiche analysée ! Sélectionnez le produit correspondant.');
   };
 
   const handleSave = async () => {
@@ -262,15 +209,31 @@ export default function ImportFiches() {
           {parsedData && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h3 className="font-bold text-green-800 mb-2">Données extraites :</h3>
-              <div className="text-sm space-y-1">
-                <p><strong>Marque :</strong> {parsedData.marque || '-'}</p>
-                <p><strong>Ligne :</strong> {parsedData.ligne || '-'}</p>
-                <p><strong>Format :</strong> {parsedData.format || '-'}</p>
-                <p><strong>Puissance :</strong> {'🔥'.repeat(parsedData.puissance) || '-'}</p>
-                <p><strong>Durée :</strong> {parsedData.duree || '-'}</p>
-                <p><strong>Origine :</strong> {parsedData.terroir.origine || '-'}</p>
-                <p><strong>Cape :</strong> {parsedData.terroir.cape || '-'}</p>
-                <p><strong>Arômes :</strong> {parsedData.aromes.dominantes || '-'}</p>
+              <div className="text-sm space-y-2">
+                <div>
+                  <p className="font-semibold text-green-700">Terroir :</p>
+                  <p>Origine : {parsedData.terroir.origine || '-'}</p>
+                  <p>Cape : {parsedData.terroir.cape || '-'}</p>
+                  <p>Sous-cape : {parsedData.terroir.sousCape || '-'}</p>
+                  <p>Tripe : {parsedData.terroir.tripe || '-'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-green-700">Combustion :</p>
+                  <p>Tirage : {parsedData.combustion.tirage || '-'}</p>
+                  <p>Combustion : {parsedData.combustion.combustion || '-'}</p>
+                  <p>Cendre : {parsedData.combustion.cendre || '-'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-green-700">Arômes :</p>
+                  <p>Dominantes : {parsedData.aromes.dominantes || '-'}</p>
+                  <p>Secondaires : {parsedData.aromes.secondaires || '-'}</p>
+                </div>
+                {parsedData.impressions && (
+                  <div>
+                    <p className="font-semibold text-green-700">Impressions :</p>
+                    <p className="text-xs">{parsedData.impressions.slice(0, 150)}...</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
