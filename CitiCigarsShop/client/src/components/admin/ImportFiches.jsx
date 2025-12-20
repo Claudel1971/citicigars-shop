@@ -22,6 +22,7 @@ export default function ImportFiches() {
         tripe: ''
       },
       combustion: {
+        duree: '',
         construction: '',
         tirage: '',
         combustion: '',
@@ -96,6 +97,8 @@ export default function ImportFiches() {
         data.terroir.cape = value;
       } else if (cleanLower.includes('tripe')) {
         data.terroir.tripe = value;
+      } else if (cleanLower.includes('durée') || cleanLower.includes('duree') || cleanLower.includes('temps')) {
+        data.combustion.duree = value;
       } else if (cleanLower.includes('construction')) {
         data.combustion.construction = value;
       } else if (cleanLower.includes('tirage')) {
@@ -219,6 +222,7 @@ export default function ImportFiches() {
                 </div>
                 <div>
                   <p className="font-semibold text-green-700">Combustion :</p>
+                  <p>Durée : {parsedData.combustion.duree || '-'}</p>
                   <p>Tirage : {parsedData.combustion.tirage || '-'}</p>
                   <p>Combustion : {parsedData.combustion.combustion || '-'}</p>
                   <p>Cendre : {parsedData.combustion.cendre || '-'}</p>
