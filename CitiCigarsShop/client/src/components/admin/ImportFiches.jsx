@@ -48,95 +48,123 @@ export default function ImportFiches() {
       impressions: ''
     };
 
+    const cleanEmojis = (str) => str.replace(/🔸|✅|⭐|😃|🔥|🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨|🌍|🌿|💨|🎯|📊|1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🔟/g, '').trim();
+    
+    const extractValue = (line) => {
+      if (!line.includes(':')) return '';
+      return cleanEmojis(line.split(':').slice(1).join(':').trim());
+    };
+
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     
-    for (const line of lines) {
+    let currentSection = '';
+    const sectionHeaders = {
+      'caractéristiques': 'caracteristiques',
+      'caracteristiques': 'caracteristiques',
+      'techniques': 'caracteristiques',
+      'terroir': 'terroir',
+      'origine': 'terroir',
+      'aspect': 'combustion',
+      'combustion': 'combustion',
+      'aromatique': 'aromes',
+      'palette': 'aromes',
+      'arômes': 'aromes',
+      'aromes': 'aromes',
+      'évaluation': 'evaluation',
+      'evaluation': 'evaluation',
+      'impressions': 'impressions',
+      'dégustation': 'impressions'
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const lower = line.toLowerCase();
+      const cleanLower = cleanEmojis(lower);
       
-      if (lower.includes('marque') && line.includes(':')) {
-        data.marque = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('ligne') && line.includes(':')) {
-        data.ligne = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('format') && line.includes(':') && !lower.includes('dimensions')) {
-        data.format = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('dimensions') && line.includes(':')) {
-        data.dimensions = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('puissance') && line.includes(':')) {
-        const puissanceText = line.split(':').slice(1).join(':').trim();
-        const fireCount = (puissanceText.match(/🔥/g) || []).length;
-        data.puissance = fireCount || parseInt(puissanceText) || 0;
-      }
-      if ((lower.includes('durée') || lower.includes('duree')) && line.includes(':')) {
-        data.duree = line.split(':').slice(1).join(':').trim();
-      }
+      const isSectionHeader = /^(1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🔟|\d+[\.\)]?\s)/.test(line) || 
+                              /^(#{1,3}\s)/.test(line) ||
+                              Object.keys(sectionHeaders).some(h => cleanLower.includes(h) && !line.includes(':'));
       
-      if (lower.includes('origine') && line.includes(':')) {
-        data.terroir.origine = line.split(':').slice(1).join(':').trim().replace(/🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨/g, '').trim();
-      }
-      if (lower.includes('cape') && !lower.includes('sous') && line.includes(':')) {
-        const val = line.split(':').slice(1).join(':').trim().replace(/🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨/g, '').trim();
-        if (lower.includes('✅') || lower.includes('combustion')) {
-          data.combustion.cape = val;
-        } else {
-          data.terroir.cape = val;
+      if (isSectionHeader) {
+        for (const [keyword, section] of Object.entries(sectionHeaders)) {
+          if (cleanLower.includes(keyword)) {
+            currentSection = section;
+            break;
+          }
         }
-      }
-      if (lower.includes('sous-cape') && line.includes(':')) {
-        data.terroir.sousCape = line.split(':').slice(1).join(':').trim().replace(/🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨/g, '').trim();
-      }
-      if (lower.includes('tripe') && line.includes(':')) {
-        data.terroir.tripe = line.split(':').slice(1).join(':').trim().replace(/🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨/g, '').trim();
+        continue;
       }
       
-      if (lower.includes('construction') && line.includes(':')) {
-        data.combustion.construction = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('tirage') && line.includes(':')) {
-        data.combustion.tirage = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('combustion') && line.includes(':') && !lower.includes('aspect')) {
-        data.combustion.combustion = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('cendre') && line.includes(':')) {
-        data.combustion.cendre = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('fumée') || lower.includes('fumee')) {
-        if (line.includes(':')) {
-          data.combustion.fumee = line.split(':').slice(1).join(':').trim();
+      if (!line.includes(':')) {
+        if (currentSection === 'impressions' && line.length > 20) {
+          data.impressions += (data.impressions ? ' ' : '') + cleanEmojis(line);
         }
+        continue;
       }
       
-      if (lower.includes('dominantes') && line.includes(':')) {
-        data.aromes.dominantes = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('secondaires') && line.includes(':')) {
-        data.aromes.secondaires = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('évolution') || lower.includes('evolution')) {
-        if (line.includes(':')) {
-          data.aromes.evolution = line.split(':').slice(1).join(':').trim();
-        }
-      }
+      const value = extractValue(line);
+      if (!value) continue;
       
-      if (lower.includes('positionnement') && line.includes(':')) {
-        data.evaluation.positionnement = line.split(':').slice(1).join(':').trim();
+      if (cleanLower.includes('marque')) {
+        data.marque = value;
+      } else if (cleanLower.includes('ligne')) {
+        data.ligne = value;
+      } else if (cleanLower.includes('format') && !cleanLower.includes('dimension')) {
+        data.format = value;
+      } else if (cleanLower.includes('dimension')) {
+        data.dimensions = value;
+      } else if (cleanLower.includes('puissance')) {
+        const fireCount = (line.match(/🔥/g) || []).length;
+        const numMatch = value.match(/(\d+)/);
+        data.puissance = fireCount || (numMatch ? parseInt(numMatch[1]) : 0);
+      } else if (cleanLower.includes('durée') || cleanLower.includes('duree')) {
+        data.duree = value;
+      } else if (cleanLower.includes('origine')) {
+        data.terroir.origine = value;
+      } else if (cleanLower.includes('sous-cape') || cleanLower.includes('sous cape')) {
+        data.terroir.sousCape = value;
+      } else if (cleanLower.includes('cape') && currentSection === 'terroir') {
+        data.terroir.cape = value;
+      } else if (cleanLower.includes('cape') && currentSection === 'combustion') {
+        data.combustion.cape = value;
+      } else if (cleanLower.includes('cape') && !data.terroir.cape) {
+        data.terroir.cape = value;
+      } else if (cleanLower.includes('tripe')) {
+        data.terroir.tripe = value;
+      } else if (cleanLower.includes('construction')) {
+        data.combustion.construction = value;
+      } else if (cleanLower.includes('tirage')) {
+        data.combustion.tirage = value;
+      } else if (cleanLower.includes('combustion') && !cleanLower.includes('aspect')) {
+        data.combustion.combustion = value;
+      } else if (cleanLower.includes('cendre')) {
+        data.combustion.cendre = value;
+      } else if (cleanLower.includes('fumée') || cleanLower.includes('fumee')) {
+        data.combustion.fumee = value;
+      } else if (cleanLower.includes('dominantes') || cleanLower.includes('notes dominantes')) {
+        data.aromes.dominantes = value;
+      } else if (cleanLower.includes('secondaires') || cleanLower.includes('nuances')) {
+        data.aromes.secondaires = value;
+      } else if (cleanLower.includes('évolution') || cleanLower.includes('evolution')) {
+        data.aromes.evolution = value;
+      } else if (cleanLower.includes('positionnement')) {
+        data.evaluation.positionnement = value;
+      } else if (cleanLower.includes('note') && (cleanLower.includes('/100') || cleanLower.includes('source') || cleanLower.includes('aficionado'))) {
+        data.evaluation.note = value;
+      } else if (cleanLower.includes('top 25') || cleanLower.includes('top25') || cleanLower.includes('cigar of the year')) {
+        data.evaluation.top25 = value;
       }
-      if (lower.includes('note') && lower.includes('source') && line.includes(':')) {
-        data.evaluation.note = line.split(':').slice(1).join(':').trim();
-      }
-      if (lower.includes('top 25') && line.includes(':')) {
-        data.evaluation.top25 = line.split(':').slice(1).join(':').trim();
-      }
-      
-      if (lower.includes('impressions') || (lower.includes('😃') && line.length > 50)) {
-        const impressionStart = text.indexOf(line);
-        if (impressionStart !== -1) {
-          data.impressions = line.replace('😃', '').trim();
-        }
+    }
+    
+    if (!data.impressions) {
+      const impressionIdx = lines.findIndex(l => 
+        l.toLowerCase().includes('impression') || 
+        l.toLowerCase().includes('dégustation') ||
+        l.includes('😃')
+      );
+      if (impressionIdx !== -1) {
+        const impressionLines = lines.slice(impressionIdx + 1).filter(l => l.length > 20 && !l.includes(':'));
+        data.impressions = impressionLines.map(l => cleanEmojis(l)).join(' ').trim();
       }
     }
 
