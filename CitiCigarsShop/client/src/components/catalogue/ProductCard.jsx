@@ -337,12 +337,11 @@ const ProductCard = ({ product, onOpenDetails }) => {
           )}
         </h3>
 
-        {(produit.vitole || produit.format) && (
+        {(produit.modele || produit.vitole || produit.format) && (
           <p className="text-sm text-muted-foreground mb-2">
-            {produit.vitole && produit.vitole !== produit.format
-              ? `${produit.vitole}, `
-              : ""}
-            {produit.format || produit.vitole}
+            {produit.modele === produit.vitole
+              ? `${produit.modele || ''}, ${produit.format || ''}`.replace(/, $/, '').replace(/^, /, '')
+              : `${produit.modele || ''}, ${produit.vitole || ''}, ${produit.format || ''}`.replace(/, ,/g, ',').replace(/, $/, '').replace(/^, /, '')}
             {produit.longueur && produit.diametre
               ? ` (${produit.longueur} × ${produit.diametre})`
               : ""}
