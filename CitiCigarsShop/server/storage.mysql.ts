@@ -1,5 +1,5 @@
 import { db } from "./db.mysql";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { 
   users, products, productImages,
@@ -100,6 +100,28 @@ export class DatabaseStorage implements IStorage {
         await db.delete(productImages).where(eq(productImages.id, img.id));
       }
     }
+  }
+
+  async getDistinctVitoles(): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ vitole: products.vitole })
+      .from(products)
+      .where(eq(products.inCatalogue, true));
+    return result
+      .map(r => r.vitole)
+      .filter((v): v is string => v !== null && v !== undefined && v.trim() !== '')
+      .sort();
+  }
+
+  async getDistinctPays(): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ pays: products.pays })
+      .from(products)
+      .where(eq(products.inCatalogue, true));
+    return result
+      .map(r => r.pays)
+      .filter((v): v is string => v !== null && v !== undefined && v.trim() !== '')
+      .sort();
   }
 }
 

@@ -131,6 +131,18 @@ class ApiService {
     if (!response.ok) return null;
     return response.json();
   }
+
+  async getDistinctVitoles() {
+    const response = await fetch(`${API_BASE}/filters/vitoles`);
+    if (!response.ok) throw new Error('Failed to fetch vitoles');
+    return response.json();
+  }
+
+  async getDistinctPays() {
+    const response = await fetch(`${API_BASE}/filters/pays`);
+    if (!response.ok) throw new Error('Failed to fetch pays');
+    return response.json();
+  }
 }
 
 const apiService = new ApiService();

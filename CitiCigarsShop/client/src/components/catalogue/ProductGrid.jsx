@@ -6,15 +6,35 @@ import SearchBar from "./SearchBar";
 import AlphabetNav from "./AlphabetNav";
 import { Loader2 } from "lucide-react";
 import i18n from "@/i18n";
+import apiService from "@/services/apiService";
 
 const ProductGrid = () => {
   const { products } = useProducts();
   const [, setLang] = useState(i18n.language);
+  const [vitolesList, setVitolesList] = useState([]);
+  const [paysList, setPaysList] = useState([]);
 
   useEffect(() => {
     const handleLangChange = (lng) => setLang(lng);
     i18n.on('languageChanged', handleLangChange);
     return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
+
+  // Charger les filtres depuis l'API (SELECT DISTINCT)
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const [vitoles, pays] = await Promise.all([
+          apiService.getDistinctVitoles(),
+          apiService.getDistinctPays()
+        ]);
+        setVitolesList(vitoles);
+        setPaysList(pays);
+      } catch (error) {
+        console.error("Error loading filters:", error);
+      }
+    };
+    loadFilters();
   }, []);
 
   const t = (key, options) => i18n.t(key, options);
@@ -125,28 +145,25 @@ const ProductGrid = () => {
     return null;
   };
 
+  // Pays depuis l'API (SELECT DISTINCT pays)
   const countries = useMemo(() => {
-    const catalogueProducts = products.filter((p) => p.inCatalogue !== false);
-    const unique = new Set(
-      catalogueProducts.map((p) => p.pays).filter(Boolean),
-    );
-    return ["Tous", ...Array.from(unique).sort()];
-  }, [products]);
+    return ["Tous", ...paysList];
+  }, [paysList]);
 
-  // ---------- Formats (vitoles) disponibles -----------
+  // ---------- Formats (vitoles) disponibles (depuis API) -----------
   const extractBaseFormat = (vitole) => {
     if (!vitole) return null;
     const base = vitole.split(/[\s(]/)[0].trim();
     return base || null;
   };
 
+  // Formats depuis l'API (SELECT DISTINCT vitole)
   const formats = useMemo(() => {
-    const catalogueProducts = products.filter((p) => p.inCatalogue !== false);
-    const unique = new Set(
-      catalogueProducts.map((p) => extractBaseFormat(p.vitole)).filter(Boolean),
-    );
-    return ["Tous", ...Array.from(unique).sort()];
-  }, [products]);
+    // Extraire le premier mot de chaque vitole
+    const baseFormats = vitolesList.map(v => extractBaseFormat(v)).filter(Boolean);
+    const unique = [...new Set(baseFormats)].sort();
+    return ["Tous", ...unique];
+  }, [vitolesList]);
 
   // Nombre total de produits en catalogue (avant filtres)
   const totalCatalogueCount = useMemo(

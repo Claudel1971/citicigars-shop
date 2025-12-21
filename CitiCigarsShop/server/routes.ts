@@ -79,6 +79,28 @@ export async function registerRoutes(
     }
   });
 
+  // Get distinct vitoles for filter (SELECT DISTINCT vitole FROM products)
+  app.get("/api/filters/vitoles", async (req, res) => {
+    try {
+      const vitoles = await storage.getDistinctVitoles();
+      res.json(vitoles);
+    } catch (error) {
+      console.error("Error fetching vitoles:", error);
+      res.status(500).json({ error: "Failed to fetch vitoles" });
+    }
+  });
+
+  // Get distinct pays for filter (SELECT DISTINCT pays FROM products)
+  app.get("/api/filters/pays", async (req, res) => {
+    try {
+      const pays = await storage.getDistinctPays();
+      res.json(pays);
+    } catch (error) {
+      console.error("Error fetching pays:", error);
+      res.status(500).json({ error: "Failed to fetch pays" });
+    }
+  });
+
   // Get images for a specific product (called on demand)
   app.get("/api/products/:sku/images", async (req, res) => {
     try {
