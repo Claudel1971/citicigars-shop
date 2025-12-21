@@ -140,22 +140,10 @@ const ProductGrid = () => {
     return base || null;
   };
 
-  const getProductFormat = (product) => {
-    // Priorité 1: champ vitole (ex: "Robusto", "Toro Grande")
-    const fromVitole = extractBaseFormat(product.vitole);
-    if (fromVitole) return fromVitole;
-    // Priorité 2: champ format si pas de vitole
-    if (product.format) {
-      const base = product.format.split(/[\s(]/)[0].trim();
-      return base || null;
-    }
-    return null;
-  };
-
   const formats = useMemo(() => {
     const catalogueProducts = products.filter((p) => p.inCatalogue !== false);
     const unique = new Set(
-      catalogueProducts.map((p) => getProductFormat(p)).filter(Boolean),
+      catalogueProducts.map((p) => extractBaseFormat(p.vitole)).filter(Boolean),
     );
     return ["Tous", ...Array.from(unique).sort()];
   }, [products]);
@@ -197,8 +185,8 @@ const ProductGrid = () => {
 
       if (!matchesCountry) return false;
 
-      // 5) Format (vitole ou format)
-      const productFormat = getProductFormat(p);
+      // 5) Format (vitole)
+      const productFormat = extractBaseFormat(p.vitole);
       const matchesFormat =
         selectedFormat === "Tous" || productFormat === selectedFormat;
 
@@ -269,7 +257,7 @@ const ProductGrid = () => {
           selectedCountry === "Tous" || p.pays === selectedCountry;
         if (!matchesCountry) return false;
 
-        const productFormat = getProductFormat(p);
+        const productFormat = extractBaseFormat(p.vitole);
         const matchesFormat =
           selectedFormat === "Tous" || productFormat === selectedFormat;
         if (!matchesFormat) return false;
