@@ -53,6 +53,7 @@ export const productImages = pgTable("product_images", {
   sku: varchar("sku", { length: 50 }).notNull().references(() => products.sku, { onDelete: "cascade" }),
   type: text("type").notNull(),
   data: text("data").notNull(),
+  url: text("url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
