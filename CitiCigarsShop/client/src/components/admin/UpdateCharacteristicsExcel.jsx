@@ -4,7 +4,7 @@ import { API_URL } from '@/config';
 import { Save, Upload, Download, Loader2, Check, X } from 'lucide-react';
 
 const UpdateCharacteristicsExcel = () => {
-  const { products, setProducts } = useProducts();
+  const { products, refreshProducts } = useProducts();
   const [editedProducts, setEditedProducts] = useState({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -66,9 +66,6 @@ const UpdateCharacteristicsExcel = () => {
         
         if (response.ok) {
           successCount++;
-          setProducts(prev => prev.map(p => 
-            p.sku === sku ? { ...p, ...editedProducts[sku] } : p
-          ));
         } else {
           errorCount++;
         }
@@ -77,6 +74,9 @@ const UpdateCharacteristicsExcel = () => {
       }
     }
 
+    // Recharger tous les produits depuis le serveur pour mettre à jour le contexte global
+    await refreshProducts();
+    
     setSaving(false);
     setEditedProducts({});
     
