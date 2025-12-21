@@ -123,6 +123,17 @@ export class DatabaseStorage implements IStorage {
       .filter((v): v is string => v !== null && v !== undefined && v.trim() !== '')
       .sort();
   }
+
+  async getDistinctFormats(): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ format: products.format })
+      .from(products)
+      .where(eq(products.inCatalogue, true));
+    return result
+      .map(r => r.format)
+      .filter((v): v is string => v !== null && v !== undefined && v.trim() !== '')
+      .sort();
+  }
 }
 
 export const storage = new DatabaseStorage();

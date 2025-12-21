@@ -13,6 +13,7 @@ const ProductGrid = () => {
   const [, setLang] = useState(i18n.language);
   const [vitolesList, setVitolesList] = useState([]);
   const [paysList, setPaysList] = useState([]);
+  const [formatsList, setFormatsList] = useState([]);
 
   useEffect(() => {
     const handleLangChange = (lng) => setLang(lng);
@@ -24,12 +25,14 @@ const ProductGrid = () => {
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [vitoles, pays] = await Promise.all([
+        const [vitoles, pays, formats] = await Promise.all([
           apiService.getDistinctVitoles(),
-          apiService.getDistinctPays()
+          apiService.getDistinctPays(),
+          apiService.getDistinctFormats()
         ]);
         setVitolesList(vitoles);
         setPaysList(pays);
+        setFormatsList(formats);
       } catch (error) {
         console.error("Error loading filters:", error);
       }

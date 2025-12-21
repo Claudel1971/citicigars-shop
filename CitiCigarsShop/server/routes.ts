@@ -101,6 +101,17 @@ export async function registerRoutes(
     }
   });
 
+  // Get distinct formats for filter (SELECT DISTINCT format FROM products)
+  app.get("/api/filters/formats", async (req, res) => {
+    try {
+      const formats = await storage.getDistinctFormats();
+      res.json(formats);
+    } catch (error) {
+      console.error("Error fetching formats:", error);
+      res.status(500).json({ error: "Failed to fetch formats" });
+    }
+  });
+
   // Get images for a specific product (called on demand)
   app.get("/api/products/:sku/images", async (req, res) => {
     try {

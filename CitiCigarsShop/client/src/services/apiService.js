@@ -143,6 +143,12 @@ class ApiService {
     if (!response.ok) throw new Error('Failed to fetch pays');
     return response.json();
   }
+
+  async getDistinctFormats() {
+    const response = await fetch(`${API_BASE}/filters/formats`);
+    if (!response.ok) throw new Error('Failed to fetch formats');
+    return response.json();
+  }
 }
 
 const apiService = new ApiService();
