@@ -1,1 +1,1 @@
-export * from "./db.mysql";
+export * from "./db.postgres";

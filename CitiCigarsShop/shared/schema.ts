@@ -1,1 +1,1 @@
-export * from "./schema.mysql";
+export * from "./schema.postgres";
