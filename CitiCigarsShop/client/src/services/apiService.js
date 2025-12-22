@@ -4,7 +4,7 @@ const API_BASE = `${API_URL}/api`;
 
 class ApiService {
   async getAllProducts() {
-    const response = await fetch(`${API_BASE}/products`);
+    const response = await fetch(`${API_BASE}/products?includeImages=true`);
     if (!response.ok) throw new Error('Failed to fetch products');
     return response.json();
   }
