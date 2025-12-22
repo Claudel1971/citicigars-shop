@@ -71,7 +71,26 @@ export async function registerRoutes(
         res.json(productsWithImages);
       } else {
         // Lightweight load - just product data, no images
-        res.json(products);
+        // Still need to parse JSON fields
+        const parsedProducts = products.map(product => {
+          let promotions = product.promotions;
+          let badges = product.badges;
+          let composition = product.composition;
+          
+          if (typeof promotions === 'string') {
+            try { promotions = JSON.parse(promotions); } catch (e) { promotions = null; }
+          }
+          if (typeof badges === 'string') {
+            try { badges = JSON.parse(badges); } catch (e) { badges = null; }
+          }
+          if (typeof composition === 'string') {
+            try { composition = JSON.parse(composition); } catch (e) { composition = null; }
+          }
+          
+          return { ...product, promotions, badges, composition };
+        });
+        res.json(parsedProducts);
+      }
       }
     } catch (error) {
       console.error("Error fetching products:", error);
