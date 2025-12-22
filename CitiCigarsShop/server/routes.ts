@@ -91,13 +91,12 @@ export async function registerRoutes(
         });
         res.json(parsedProducts);
       }
-      }
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ error: "Failed to fetch products" });
     }
   });
-
+  
   // Get distinct vitoles for filter (SELECT DISTINCT vitole FROM products)
   app.get("/api/filters/vitoles", async (req, res) => {
     try {
