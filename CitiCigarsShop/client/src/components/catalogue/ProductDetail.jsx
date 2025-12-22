@@ -82,6 +82,24 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
       return;
     }
 
+    // Use images already on the product object first
+    const productImages = {
+      imagePrincipale: product.imagePrincipale || null,
+      imageSolo: product.imageSolo || null,
+      imagePack: product.imagePack || null,
+      imagePack4: product.imagePack4 || null,
+      imagePack5: product.imagePack5 || null,
+      imageBoite: product.imageBoite || null,
+    };
+
+    // Check if product already has images
+    const hasImages = Object.values(productImages).some(img => img);
+    if (hasImages) {
+      setImages(productImages);
+      return;
+    }
+
+    // Fallback to API call if no images on product
     const fetchImages = async () => {
       if (imageCache.has(product.sku)) {
         setImages(imageCache.get(product.sku));
@@ -103,9 +121,7 @@ const ProductDetail = ({ product, isOpen, onClose }) => {
     };
 
     fetchImages();
-  }, [isOpen, product?.sku]);
-
-  if (!product) return null;
+  }, [isOpen, product?.sku, product?.imagePrincipale, product?.imageSolo, product?.imagePack, product?.imageBoite]);
 
   /* === PRIX : même logique que ProductCard ======================= */
 
