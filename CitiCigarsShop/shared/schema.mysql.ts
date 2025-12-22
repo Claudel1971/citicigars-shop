@@ -52,7 +52,8 @@ export const productImages = mysqlTable("product_images", {
   id: varchar("id", { length: 36 }).primaryKey(),
   sku: varchar("sku", { length: 50 }).notNull().references(() => products.sku, { onDelete: "cascade" }),
   type: text("type").notNull(),
-  data: text("data").notNull(),
+  data: text("data"),
+  url: text("url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
