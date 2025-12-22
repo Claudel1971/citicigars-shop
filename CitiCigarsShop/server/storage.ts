@@ -1,1 +1,1 @@
-export * from "./storage.postgres";
+export * from "./storage.mysql";
