@@ -30,6 +30,32 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Helper pour parser les champs JSON venant de MySQL
+  private parseJsonFields(product: Product): Product {
+    if (product.composition && typeof product.composition === 'string') {
+      try {
+        product.composition = JSON.parse(product.composition);
+      } catch (e) {
+        product.composition = null;
+      }
+    }
+    if (product.promotions && typeof product.promotions === 'string') {
+      try {
+        product.promotions = JSON.parse(product.promotions);
+      } catch (e) {
+        product.promotions = null;
+      }
+    }
+    if (product.badges && typeof product.badges === 'string') {
+      try {
+        product.badges = JSON.parse(product.badges);
+      } catch (e) {
+        product.badges = null;
+      }
+    }
+    return product;
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -48,12 +74,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllProducts(): Promise<Product[]> {
-    return await db.select().from(products);
+    const result = await db.select().from(products);
+    return result.map(p => this.parseJsonFields(p));
   }
 
   async getProduct(sku: string): Promise<Product | undefined> {
     const [product] = await db.select().from(products).where(eq(products.sku, sku));
-    return product;
+    return product ? this.parseJsonFields(product) : undefined;
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
