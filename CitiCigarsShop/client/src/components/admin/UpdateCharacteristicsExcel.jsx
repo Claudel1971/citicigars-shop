@@ -74,7 +74,6 @@ const UpdateCharacteristicsExcel = () => {
       }
     }
 
-    // Recharger tous les produits depuis le serveur pour mettre à jour le contexte global
     await refreshProducts();
     
     setSaving(false);
@@ -88,14 +87,14 @@ const UpdateCharacteristicsExcel = () => {
   };
 
   const exportCSV = () => {
-    const headers = ['SKU', 'Marque', 'Ligne', 'Modèle', 'Vitole', 'Format', 'Pays', 'Puissance', 'Qté Boîte'];
+    const headers = ['SKU', 'Marque', 'Ligne', 'Vitole', 'Format', 'Dimensions', 'Pays', 'Puissance', 'Qté Boîte'];
     const rows = catalogueProducts.map(p => [
       p.sku,
       p.marque || '',
       p.ligne || '',
-      p.modele || '',
       p.vitole || '',
       p.format || '',
+      p.dimensions || '',
       p.pays || '',
       p.puissance || '',
       p.qteBoite || ''
@@ -163,9 +162,9 @@ const UpdateCharacteristicsExcel = () => {
               <th className="px-3 py-2 text-left font-medium">SKU</th>
               <th className="px-3 py-2 text-left font-medium">Marque</th>
               <th className="px-3 py-2 text-left font-medium">Ligne</th>
-              <th className="px-3 py-2 text-left font-medium">Modèle</th>
               <th className="px-3 py-2 text-left font-medium">Vitole</th>
               <th className="px-3 py-2 text-left font-medium">Format</th>
+              <th className="px-3 py-2 text-left font-medium">Dimensions</th>
               <th className="px-3 py-2 text-left font-medium">Pays</th>
               <th className="px-3 py-2 text-left font-medium w-20">Puissance</th>
               <th className="px-3 py-2 text-left font-medium w-20">Qté Boîte</th>
@@ -195,14 +194,6 @@ const UpdateCharacteristicsExcel = () => {
                 <td className="px-3 py-2">
                   <input
                     type="text"
-                    value={getValue(product, 'modele')}
-                    onChange={(e) => handleChange(product.sku, 'modele', e.target.value)}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="text"
                     value={getValue(product, 'vitole')}
                     onChange={(e) => handleChange(product.sku, 'vitole', e.target.value)}
                     className="w-full px-2 py-1 border rounded text-sm"
@@ -213,6 +204,14 @@ const UpdateCharacteristicsExcel = () => {
                     type="text"
                     value={getValue(product, 'format')}
                     onChange={(e) => handleChange(product.sku, 'format', e.target.value)}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={getValue(product, 'dimensions')}
+                    onChange={(e) => handleChange(product.sku, 'dimensions', e.target.value)}
                     className="w-full px-2 py-1 border rounded text-sm"
                   />
                 </td>
