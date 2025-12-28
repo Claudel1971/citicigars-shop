@@ -2,14 +2,11 @@ import { db } from "./db.mysql";
 import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { 
-  users, products, productImages, productTechnicalSheets,
+  users, products, productImages,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type ProductImage, type InsertProductImage
 } from "../shared/schema.mysql";
-
-export type TechnicalSheet = typeof productTechnicalSheets.$inferSelect;
-export type InsertTechnicalSheet = typeof productTechnicalSheets.$inferInsert;
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -175,35 +172,6 @@ export class DatabaseStorage implements IStorage {
       .map(r => r.format)
       .filter((v): v is string => v !== null && v !== undefined && v.trim() !== '')
       .sort();
-  }
-
-  async getTechnicalSheet(sku: string): Promise<TechnicalSheet | undefined> {
-    const [sheet] = await db.select().from(productTechnicalSheets).where(eq(productTechnicalSheets.sku, sku));
-    return sheet;
-  }
-
-  async getAllTechnicalSheets(): Promise<TechnicalSheet[]> {
-    return await db.select().from(productTechnicalSheets);
-  }
-
-  async upsertTechnicalSheet(data: Omit<InsertTechnicalSheet, 'id' | 'createdAt' | 'updatedAt'>): Promise<TechnicalSheet> {
-    const existing = await this.getTechnicalSheet(data.sku);
-    
-    if (existing) {
-      await db
-        .update(productTechnicalSheets)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(productTechnicalSheets.sku, data.sku));
-    } else {
-      await db.insert(productTechnicalSheets).values(data);
-    }
-    
-    const [sheet] = await db.select().from(productTechnicalSheets).where(eq(productTechnicalSheets.sku, data.sku));
-    return sheet;
-  }
-
-  async deleteTechnicalSheet(sku: string): Promise<void> {
-    await db.delete(productTechnicalSheets).where(eq(productTechnicalSheets.sku, sku));
   }
 }
 
