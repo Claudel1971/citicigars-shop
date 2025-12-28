@@ -71,11 +71,12 @@ export async function registerRoutes(
         res.json(productsWithImages);
       } else {
         // Lightweight load - just product data, no images
-        // Still need to parse JSON fields
+        // Parse JSON fields including ficheTechnique
         const parsedProducts = products.map(product => {
           let promotions = product.promotions;
           let badges = product.badges;
           let composition = product.composition;
+          let ficheTechnique = product.ficheTechnique;
           
           if (typeof promotions === 'string') {
             try { promotions = JSON.parse(promotions); } catch (e) { promotions = null; }
@@ -86,8 +87,11 @@ export async function registerRoutes(
           if (typeof composition === 'string') {
             try { composition = JSON.parse(composition); } catch (e) { composition = null; }
           }
+          if (typeof ficheTechnique === 'string') {
+            try { ficheTechnique = JSON.parse(ficheTechnique); } catch (e) { ficheTechnique = null; }
+          }
           
-          return { ...product, promotions, badges, composition };
+          return { ...product, promotions, badges, composition, ficheTechnique };
         });
         res.json(parsedProducts);
       }
@@ -148,6 +152,15 @@ export async function registerRoutes(
       const product = await storage.getProduct(req.params.sku);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Parse ficheTechnique if it's a string
+      if (product.ficheTechnique && typeof product.ficheTechnique === 'string') {
+        try {
+          product.ficheTechnique = JSON.parse(product.ficheTechnique);
+        } catch (e) {
+          console.error('Error parsing ficheTechnique:', e);
+        }
       }
       
       const images = await storage.getImagesBySku(product.sku);
