@@ -1,9 +1,60 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '@/context/ProductContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileText, Search, Save, Check, X, RefreshCw, Edit3 } from 'lucide-react';
+import { FileText, Search, Save, Check, X, RefreshCw, Edit3, FileEdit, FilePlus } from 'lucide-react';
 import apiService from '@/services/apiService';
+
+const reconstructFicheText = (fiche) => {
+  if (!fiche) return '';
+  
+  let text = '';
+  
+  text += '1️⃣ Caractéristiques Techniques\n\n';
+  if (fiche.aromes?.fumee) text += `🌫️ Type de fumée : ${fiche.aromes.fumee}\n`;
+  if (fiche.combustion?.duree) text += `⏱️ Durée moyenne : ${fiche.combustion.duree}\n`;
+  if (fiche.aromes?.evolution) text += `📈 Évolution : ${fiche.aromes.evolution}\n`;
+  
+  text += '\n2️⃣ Terroirs & Origine\n\n';
+  if (fiche.terroir?.origine) text += `🌍 Origine : ${fiche.terroir.origine}\n`;
+  if (fiche.terroir?.cape) text += `📦 Cape : ${fiche.terroir.cape}\n`;
+  if (fiche.terroir?.sousCape) text += `🎯 Sous-cape : ${fiche.terroir.sousCape}\n`;
+  if (fiche.terroir?.tripe) text += `🌿 Tripe : ${fiche.terroir.tripe}\n`;
+  
+  text += '\n3️⃣ Aspect & Combustion\n\n';
+  if (fiche.combustion?.aspectCape) text += `📦 Cape (aspect) : ${fiche.combustion.aspectCape}\n`;
+  if (fiche.combustion?.construction) text += `🔧 Construction : ${fiche.combustion.construction}\n`;
+  if (fiche.combustion?.coupe) text += `✂️ Coupe : ${fiche.combustion.coupe}\n`;
+  if (fiche.combustion?.allumage) text += `🔥 Allumage : ${fiche.combustion.allumage}\n`;
+  if (fiche.combustion?.tirage) text += `💨 Tirage : ${fiche.combustion.tirage}\n`;
+  if (fiche.combustion?.combustion) text += `🔥 Combustion : ${fiche.combustion.combustion}\n`;
+  if (fiche.combustion?.cendre) text += `⚪ Cendre : ${fiche.combustion.cendre}\n`;
+  
+  text += '\n4️⃣ Palette Aromatique\n\n';
+  if (fiche.aromes?.dominantes) text += `🌿 Notes dominantes : ${fiche.aromes.dominantes}\n`;
+  if (fiche.aromes?.secondaires) text += `🍫 Nuances secondaires : ${fiche.aromes.secondaires}\n`;
+  
+  text += '\n5️⃣ Évaluation\n\n';
+  if (fiche.degustation?.positionnement) text += `📍 Positionnement local : ${fiche.degustation.positionnement}\n`;
+  
+  text += '\n6️⃣ Impressions de Dégustation\n\n';
+  if (fiche.degustation?.impressions) text += `${fiche.degustation.impressions}\n`;
+  if (fiche.degustation?.accords) text += `\n🥃 Accords : ${fiche.degustation.accords}\n`;
+  
+  return text.trim();
+};
+
+const parseFicheTechniqueJSON = (fiche) => {
+  if (!fiche) return null;
+  if (typeof fiche === 'string') {
+    try {
+      return JSON.parse(fiche);
+    } catch {
+      return null;
+    }
+  }
+  return fiche;
+};
 
 export default function ImportFiches() {
   const { products, refreshProducts } = useProducts();
@@ -14,6 +65,7 @@ export default function ImportFiches() {
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
 
   const parseFiche = (text) => {
     const data = {
@@ -41,11 +93,12 @@ export default function ImportFiches() {
       },
       degustation: {
         positionnement: '',
-        impressions: ''
+        impressions: '',
+        accords: ''
       }
     };
 
-    const cleanEmojis = (str) => str.replace(/🔸|✅|⭐|😃|🔥|🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨|🇺🇸|🌍|🌿|💨|🎯|📊|1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🔟|📦|🧾|💵|🏆|🥇|🥈|🥉/g, '').trim();
+    const cleanEmojis = (str) => str.replace(/🔸|✅|⭐|😃|🔥|🇳🇮|🇨🇺|🇭🇳|🇩🇴|🇪🇨|🇺🇸|🌍|🌿|💨|🎯|📊|1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🔟|📦|🧾|💵|🏆|🥇|🥈|🥉|🥃|🍫|⚪|✂️|🔧|🌫️|⏱️|📈|📍/g, '').trim();
     
     const extractValue = (line) => {
       if (!line.includes(':')) return '';
@@ -141,6 +194,8 @@ export default function ImportFiches() {
         data.aromes.evolution = value;
       } else if (cleanLower.includes('positionnement')) {
         data.degustation.positionnement = value;
+      } else if (cleanLower.includes('accords') || cleanLower.includes('accord')) {
+        data.degustation.accords = value;
       }
     }
     
@@ -164,6 +219,58 @@ export default function ImportFiches() {
 
     return data;
   };
+
+  const selectedProduct = products.find(p => p.sku === selectedSku);
+  
+  useEffect(() => {
+    if (selectedProduct) {
+      const existingFiche = parseFicheTechniqueJSON(selectedProduct.ficheTechnique);
+      if (existingFiche && Object.keys(existingFiche).length > 0) {
+        const reconstructed = reconstructFicheText(existingFiche);
+        setFicheText(reconstructed);
+        
+        const normalizedFiche = {
+          terroir: {
+            origine: existingFiche.terroir?.origine || '',
+            cape: existingFiche.terroir?.cape || '',
+            sousCape: existingFiche.terroir?.sousCape || '',
+            tripe: existingFiche.terroir?.tripe || ''
+          },
+          combustion: {
+            duree: existingFiche.duree || existingFiche.combustion?.duree || '',
+            aspectCape: existingFiche.combustion?.aspectCape || '',
+            construction: existingFiche.combustion?.construction || '',
+            coupe: existingFiche.combustion?.coupe || '',
+            allumage: existingFiche.combustion?.allumage || '',
+            tirage: existingFiche.combustion?.tirage || '',
+            combustion: existingFiche.combustion?.combustion || '',
+            cendre: existingFiche.combustion?.cendre || ''
+          },
+          aromes: {
+            fumee: existingFiche.aromes?.fumee || existingFiche.combustion?.fumee || '',
+            dominantes: existingFiche.aromes?.dominantes || '',
+            secondaires: existingFiche.aromes?.secondaires || '',
+            evolution: existingFiche.aromes?.evolution || ''
+          },
+          degustation: {
+            positionnement: existingFiche.positionnement || existingFiche.degustation?.positionnement || '',
+            impressions: existingFiche.impressions || existingFiche.degustation?.impressions || '',
+            accords: existingFiche.accords || existingFiche.degustation?.accords || ''
+          }
+        };
+        
+        setParsedData(normalizedFiche);
+        setEditableData(normalizedFiche);
+        setIsEditingExisting(true);
+        toast.info('✏️ Fiche existante chargée - Modifiez et sauvegardez');
+      } else {
+        setFicheText('');
+        setParsedData(null);
+        setEditableData(null);
+        setIsEditingExisting(false);
+      }
+    }
+  }, [selectedSku]);
 
   const handleParse = () => {
     if (!ficheText.trim()) {
@@ -193,6 +300,14 @@ export default function ImportFiches() {
     toast.info('Modifications annulées');
   };
 
+  const handleNewFiche = () => {
+    setFicheText('');
+    setParsedData(null);
+    setEditableData(null);
+    setIsEditingExisting(false);
+    toast.info('Éditeur vidé - Collez une nouvelle fiche');
+  };
+
   const handleSave = async () => {
     if (!selectedSku || !editableData) {
       toast.error('Sélectionnez un produit et parsez une fiche');
@@ -204,13 +319,14 @@ export default function ImportFiches() {
       await apiService.updateProduct(selectedSku, {
         ficheTechnique: editableData
       });
-      toast.success('Fiche technique enregistrée !');
+      toast.success(isEditingExisting ? 'Fiche technique mise à jour !' : 'Fiche technique enregistrée !');
       await refreshProducts();
       setFicheText('');
       setParsedData(null);
       setEditableData(null);
       setSelectedSku('');
       setIsEditing(false);
+      setIsEditingExisting(false);
     } catch (error) {
       toast.error('Erreur lors de la sauvegarde');
       console.error(error);
@@ -229,8 +345,6 @@ export default function ImportFiches() {
       p.sku?.toLowerCase().includes(q)
     ).slice(0, 20);
   }, [products, searchQuery]);
-
-  const selectedProduct = products.find(p => p.sku === selectedSku);
 
   const renderField = (section, field, label) => {
     const value = editableData?.[section]?.[field] || '';
@@ -264,17 +378,30 @@ export default function ImportFiches() {
       <div className="mb-6">
         <h1 className="text-2xl font-serif font-bold text-primary mb-2 flex items-center gap-2">
           <FileText className="w-6 h-6" />
-          Import Fiches Techniques
+          {isEditingExisting ? 'Modifier' : 'Import'} Fiches Techniques
         </h1>
         <p className="text-muted-foreground">
-          Collez le contenu d'une fiche technique, modifiez si nécessaire, puis associez à un produit.
+          {isEditingExisting 
+            ? 'Modifiez la fiche technique existante et sauvegardez vos changements.'
+            : 'Collez le contenu d\'une fiche technique, modifiez si nécessaire, puis associez à un produit.'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
+          {isEditingExisting && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800 flex items-center gap-2">
+                <FileEdit className="w-4 h-4" />
+                <strong>Mode édition</strong> - Fiche existante chargée
+              </p>
+            </div>
+          )}
+          
           <div>
-            <label className="block font-medium mb-2">1. Collez la fiche technique :</label>
+            <label className="block font-medium mb-2">
+              1. {isEditingExisting ? 'Modifiez' : 'Collez'} la fiche technique :
+            </label>
             <textarea
               value={ficheText}
               onChange={(e) => setFicheText(e.target.value)}
@@ -283,10 +410,19 @@ export default function ImportFiches() {
             />
           </div>
           
-          <Button onClick={handleParse} className="w-full">
-            <Search className="w-4 h-4 mr-2" />
-            Analyser la fiche
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleParse} className="flex-1">
+              <Search className="w-4 h-4 mr-2" />
+              Analyser la fiche
+            </Button>
+            
+            {isEditingExisting && (
+              <Button variant="outline" onClick={handleNewFiche}>
+                <FilePlus className="w-4 h-4 mr-2" />
+                Nouvelle fiche
+              </Button>
+            )}
+          </div>
 
           {editableData && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
@@ -342,6 +478,7 @@ export default function ImportFiches() {
                   <div className="grid grid-cols-1 gap-2">
                     {renderField('degustation', 'positionnement', 'Positionnement')}
                     {renderField('degustation', 'impressions', 'Impressions')}
+                    {renderField('degustation', 'accords', 'Accords recommandés')}
                   </div>
                 </div>
               </div>
@@ -372,28 +509,35 @@ export default function ImportFiches() {
             />
             
             <div className="border rounded-lg max-h-64 overflow-y-auto">
-              {filteredProducts.map(p => (
-                <div
-                  key={p.sku}
-                  onClick={() => setSelectedSku(p.sku)}
-                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 flex justify-between items-center ${
-                    selectedSku === p.sku ? 'bg-primary/10 border-primary' : ''
-                  }`}
-                >
-                  <div>
-                    <p className="font-medium">{p.marque} {p.ligne || p.modele}</p>
-                    <p className="text-xs text-muted-foreground">{p.sku}</p>
+              {filteredProducts.map(p => {
+                const hasFiche = parseFicheTechniqueJSON(p.ficheTechnique);
+                return (
+                  <div
+                    key={p.sku}
+                    onClick={() => setSelectedSku(p.sku)}
+                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 flex justify-between items-center ${
+                      selectedSku === p.sku ? 'bg-primary/10 border-primary' : ''
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium">{p.marque} {p.ligne || p.modele}</p>
+                      <p className="text-xs text-muted-foreground">{p.sku}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedSku === p.sku && <Check className="w-5 h-5 text-primary" />}
+                      {hasFiche && <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Fiche OK</span>}
+                    </div>
                   </div>
-                  {selectedSku === p.sku && <Check className="w-5 h-5 text-primary" />}
-                  {p.ficheTechnique && <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Fiche OK</span>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {selectedProduct && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-bold text-blue-800 mb-2">Produit sélectionné :</h3>
+            <div className={`border rounded-lg p-4 ${isEditingExisting ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+              <h3 className={`font-bold mb-2 ${isEditingExisting ? 'text-blue-800' : 'text-amber-800'}`}>
+                {isEditingExisting ? '✏️ Produit en édition :' : 'Produit sélectionné :'}
+              </h3>
               <p><strong>{selectedProduct.marque}</strong> {selectedProduct.ligne || selectedProduct.modele}</p>
               <p className="text-sm text-muted-foreground">{selectedProduct.sku}</p>
               <p className="text-sm">{selectedProduct.pays} • {selectedProduct.vitole}</p>
@@ -403,10 +547,10 @@ export default function ImportFiches() {
           <Button 
             onClick={handleSave} 
             disabled={!selectedSku || !editableData || saving}
-            className="w-full bg-green-600 hover:bg-green-700"
+            className={`w-full ${isEditingExisting ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
           >
             {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Sauvegarder la fiche
+            {isEditingExisting ? 'Mettre à jour la fiche' : 'Sauvegarder la fiche'}
           </Button>
         </div>
       </div>
