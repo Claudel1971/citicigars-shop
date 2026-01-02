@@ -102,9 +102,47 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProduct(sku: string, updates: Partial<InsertProduct>): Promise<Product | undefined> {
+    // Build update object with explicit field mapping for Drizzle ORM
+    const updateData: Record<string, any> = {
+      updatedAt: new Date()
+    };
+
+    // Map each field explicitly to ensure proper column name conversion
+    if ('prixUnitaire' in updates) updateData.prixUnitaire = updates.prixUnitaire;
+    if ('prixBoite' in updates) updateData.prixBoite = updates.prixBoite;
+    if ('prixPack' in updates) updateData.prixPack = updates.prixPack;
+    if ('inCatalogue' in updates) updateData.inCatalogue = updates.inCatalogue;
+    if ('coupDeCoeur' in updates) updateData.coupDeCoeur = updates.coupDeCoeur;
+    if ('promotions' in updates) updateData.promotions = updates.promotions;
+    if ('availabilityStatus' in updates) updateData.availabilityStatus = updates.availabilityStatus;
+    if ('soldOutAt' in updates) updateData.soldOutAt = updates.soldOutAt;
+    if ('marque' in updates) updateData.marque = updates.marque;
+    if ('ligne' in updates) updateData.ligne = updates.ligne;
+    if ('pays' in updates) updateData.pays = updates.pays;
+    if ('modele' in updates) updateData.modele = updates.modele;
+    if ('vitole' in updates) updateData.vitole = updates.vitole;
+    if ('format' in updates) updateData.format = updates.format;
+    if ('dimensions' in updates) updateData.dimensions = updates.dimensions;
+    if ('description' in updates) updateData.description = updates.description;
+    if ('origine' in updates) updateData.origine = updates.origine;
+    if ('puissance' in updates) updateData.puissance = updates.puissance;
+    if ('rating' in updates) updateData.rating = updates.rating;
+    if ('top25' in updates) updateData.top25 = updates.top25;
+    if ('rank' in updates) updateData.rank = updates.rank;
+    if ('year' in updates) updateData.year = updates.year;
+    if ('qteBoite' in updates) updateData.qteBoite = updates.qteBoite;
+    if ('quantiteBoite' in updates) updateData.quantiteBoite = updates.quantiteBoite;
+    if ('quantitePack' in updates) updateData.quantitePack = updates.quantitePack;
+    if ('typePack' in updates) updateData.typePack = updates.typePack;
+    if ('type' in updates) updateData.type = updates.type;
+    if ('badges' in updates) updateData.badges = updates.badges;
+    if ('composition' in updates) updateData.composition = updates.composition;
+    if ('prixBundle' in updates) updateData.prixBundle = updates.prixBundle;
+    if ('ficheTechnique' in updates) updateData.ficheTechnique = updates.ficheTechnique;
+
     await db
       .update(products)
-      .set({ ...updates, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(products.sku, sku));
     const [updated] = await db.select().from(products).where(eq(products.sku, sku));
     return updated;
