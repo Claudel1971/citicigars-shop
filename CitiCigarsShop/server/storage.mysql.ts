@@ -30,7 +30,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Helper pour parser les champs JSON venant de MySQL
   private parseJsonFields(product: Product): Product {
     if (product.composition && typeof product.composition === 'string') {
       try {
@@ -56,7 +55,6 @@ export class DatabaseStorage implements IStorage {
     if (product.ficheTechnique && typeof product.ficheTechnique === 'string') {
       try {
         let parsed = JSON.parse(product.ficheTechnique);
-        // Handle double-stringified JSON
         if (typeof parsed === 'string') {
           parsed = JSON.parse(parsed);
         }
@@ -102,12 +100,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProduct(sku: string, updates: Partial<InsertProduct>): Promise<Product | undefined> {
-    // Build update object with explicit field mapping for Drizzle ORM
-    const updateData: Record<string, any> = {
+    // Use Drizzle column references for proper mapping
+    const updateData: Partial<typeof products.$inferInsert> = {
       updatedAt: new Date()
     };
 
-    // Map each field explicitly to ensure proper column name conversion
+    // Map using schema property names (Drizzle handles snake_case conversion)
     if ('prixUnitaire' in updates) updateData.prixUnitaire = updates.prixUnitaire;
     if ('prixBoite' in updates) updateData.prixBoite = updates.prixBoite;
     if ('prixPack' in updates) updateData.prixPack = updates.prixPack;
@@ -145,7 +143,7 @@ export class DatabaseStorage implements IStorage {
       .set(updateData)
       .where(eq(products.sku, sku));
     const [updated] = await db.select().from(products).where(eq(products.sku, sku));
-    return updated;
+    return updated ? this.parseJsonFields(updated) : undefined;
   }
 
   async deleteProduct(sku: string): Promise<void> {
