@@ -1,41 +1,30 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 
+// Configuration CORS AVANT les routes
+app.use(cors({
+  origin: [
+    'https://citicigars.com',
+    'https://www.citicigars.com',
+    'http://localhost:5173',
+    'http://localhost:5000',
+    'http://localhost:3000',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-cms-token', 'Origin', 'X-Requested-With', 'Accept'],
+}));
+
 // Health check endpoint for UptimeRobot (lightweight, fast response)
 app.get("/health", (_req, res) => {
   res.status(200).send("OK");
 });
 const httpServer = createServer(app);
-
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'https://citicigars.com',
-    'https://www.citicigars.com',
-    'http://citicigars.com',
-    'http://www.citicigars.com',
-    'http://localhost:5000',
-    'http://localhost:3000'
-  ].filter(Boolean);
-  
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.some(allowed => allowed && origin.startsWith(allowed.replace(/\/$/, '')))) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
 
 declare module "http" {
   interface IncomingMessage {
