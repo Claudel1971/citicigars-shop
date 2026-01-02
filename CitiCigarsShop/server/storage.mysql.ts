@@ -100,20 +100,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProduct(sku: string, updates: Partial<InsertProduct>): Promise<Product | undefined> {
-    // Use Drizzle column references for proper mapping
+    // Handle availability status update with raw SQL (Drizzle has issues with this column)
+    if ('availabilityStatus' in updates || 'soldOutAt' in updates) {
+      const status = updates.availabilityStatus || 'IN_STOCK';
+      await db.execute(sql`
+        UPDATE products 
+        SET availability_status = ${status}, 
+            sold_out_at = ${updates.soldOutAt ? new Date(updates.soldOutAt as string) : null},
+            updated_at = NOW()
+        WHERE sku = ${sku}
+      `);
+    }
+
+    // Handle other fields with Drizzle ORM
     const updateData: Partial<typeof products.$inferInsert> = {
       updatedAt: new Date()
     };
 
-    // Map using schema property names (Drizzle handles snake_case conversion)
     if ('prixUnitaire' in updates) updateData.prixUnitaire = updates.prixUnitaire;
     if ('prixBoite' in updates) updateData.prixBoite = updates.prixBoite;
     if ('prixPack' in updates) updateData.prixPack = updates.prixPack;
     if ('inCatalogue' in updates) updateData.inCatalogue = updates.inCatalogue;
     if ('coupDeCoeur' in updates) updateData.coupDeCoeur = updates.coupDeCoeur;
     if ('promotions' in updates) updateData.promotions = updates.promotions;
-    if ('availabilityStatus' in updates) updateData.availabilityStatus = updates.availabilityStatus;
-    if ('soldOutAt' in updates) updateData.soldOutAt = updates.soldOutAt;
     if ('marque' in updates) updateData.marque = updates.marque;
     if ('ligne' in updates) updateData.ligne = updates.ligne;
     if ('pays' in updates) updateData.pays = updates.pays;
@@ -138,10 +147,15 @@ export class DatabaseStorage implements IStorage {
     if ('prixBundle' in updates) updateData.prixBundle = updates.prixBundle;
     if ('ficheTechnique' in updates) updateData.ficheTechnique = updates.ficheTechnique;
 
-    await db
-      .update(products)
-      .set(updateData)
-      .where(eq(products.sku, sku));
+    // Only run Drizzle update if there are non-status fields to update
+    const hasOtherUpdates = Object.keys(updateData).length > 1;
+    if (hasOtherUpdates) {
+      await db
+        .update(products)
+        .set(updateData)
+        .where(eq(products.sku, sku));
+    }
+
     const [updated] = await db.select().from(products).where(eq(products.sku, sku));
     return updated ? this.parseJsonFields(updated) : undefined;
   }
