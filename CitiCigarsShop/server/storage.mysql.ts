@@ -100,16 +100,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProduct(sku: string, updates: Partial<InsertProduct>): Promise<Product | undefined> {
+    console.log('[updateProduct] SKU:', sku);
+    console.log('[updateProduct] Updates received:', JSON.stringify(updates, null, 2));
+    
     // Handle availability status update with raw SQL (Drizzle has issues with this column)
     if ('availabilityStatus' in updates || 'soldOutAt' in updates) {
       const status = updates.availabilityStatus || 'IN_STOCK';
-      await db.execute(sql`
-        UPDATE products 
-        SET availability_status = ${status}, 
-            sold_out_at = ${updates.soldOutAt ? new Date(updates.soldOutAt as string) : null},
-            updated_at = NOW()
-        WHERE sku = ${sku}
-      `);
+      const soldOutDate = updates.soldOutAt ? new Date(updates.soldOutAt as string) : null;
+      
+      console.log('[updateProduct] Updating availability_status to:', status);
+      console.log('[updateProduct] Updating sold_out_at to:', soldOutDate);
+      
+      try {
+        const result = await db.execute(sql`
+          UPDATE products 
+          SET availability_status = ${status}, 
+              sold_out_at = ${soldOutDate},
+              updated_at = NOW()
+          WHERE sku = ${sku}
+        `);
+        console.log('[updateProduct] SQL execute result:', JSON.stringify(result));
+      } catch (err) {
+        console.error('[updateProduct] SQL execute error:', err);
+        throw err;
+      }
     }
 
     // Handle other fields with Drizzle ORM
