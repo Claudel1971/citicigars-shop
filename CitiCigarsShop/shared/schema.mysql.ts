@@ -35,6 +35,8 @@ export const products = mysqlTable("products", {
   prixBoite: int("prix_boite"),
   prixPack: int("prix_pack"),
   inCatalogue: boolean("in_catalogue").default(true),
+  availabilityStatus: varchar("availability_status", { length: 20 }).default("IN_STOCK"),
+  soldOutAt: timestamp("sold_out_at"),
   coupDeCoeur: boolean("coup_de_coeur").default(false),
   type: varchar("type", { length: 50 }).default("standard"),
   description: text("description"),
