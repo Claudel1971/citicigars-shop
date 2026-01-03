@@ -2,11 +2,13 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { bundleStorage } from "./storage.bundles";
 import { catalogueData } from "../client/src/data/catalogueData";
 import { bundlesData } from "../client/src/data/bundles";
 import * as fs from "fs";
 import * as path from "path";
 import multer from "multer";
+import { parseTechnicalSheetTXT } from "./services/technical-sheet-parser";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
@@ -54,14 +56,12 @@ export async function registerRoutes(
   
   // === PRODUCTS API ===
   
-  // Get all products (lightweight - no image data by default)
   app.get("/api/products", async (req, res) => {
     try {
       const includeImages = req.query.includeImages === 'true';
       const products = await storage.getAllProducts();
       
       if (includeImages) {
-        // Full load with images (slower)
         const productsWithImages = await Promise.all(
           products.map(async (product) => {
             const images = await storage.getImagesBySku(product.sku);
@@ -70,8 +70,6 @@ export async function registerRoutes(
         );
         res.json(productsWithImages);
       } else {
-        // Lightweight load - just product data, no images
-        // Parse JSON fields including ficheTechnique
         const parsedProducts = products.map(product => {
           let promotions = product.promotions;
           let badges = product.badges;
@@ -100,8 +98,7 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch products" });
     }
   });
-  
-  // Get distinct vitoles for filter (SELECT DISTINCT vitole FROM products)
+
   app.get("/api/filters/vitoles", async (req, res) => {
     try {
       const vitoles = await storage.getDistinctVitoles();
@@ -112,7 +109,6 @@ export async function registerRoutes(
     }
   });
 
-  // Get distinct pays for filter (SELECT DISTINCT pays FROM products)
   app.get("/api/filters/pays", async (req, res) => {
     try {
       const pays = await storage.getDistinctPays();
@@ -123,7 +119,6 @@ export async function registerRoutes(
     }
   });
 
-  // Get distinct formats for filter (SELECT DISTINCT format FROM products)
   app.get("/api/filters/formats", async (req, res) => {
     try {
       const formats = await storage.getDistinctFormats();
@@ -134,7 +129,6 @@ export async function registerRoutes(
     }
   });
 
-  // Get images for a specific product (called on demand)
   app.get("/api/products/:sku/images", async (req, res) => {
     try {
       const images = await storage.getImagesBySku(req.params.sku);
@@ -146,21 +140,11 @@ export async function registerRoutes(
     }
   });
 
-  // Get single product
   app.get("/api/products/:sku", async (req, res) => {
     try {
       const product = await storage.getProduct(req.params.sku);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
-      }
-      
-      // Parse ficheTechnique if it's a string
-      if (product.ficheTechnique && typeof product.ficheTechnique === 'string') {
-        try {
-          product.ficheTechnique = JSON.parse(product.ficheTechnique);
-        } catch (e) {
-          console.error('Error parsing ficheTechnique:', e);
-        }
       }
       
       const images = await storage.getImagesBySku(product.sku);
@@ -171,7 +155,6 @@ export async function registerRoutes(
     }
   });
 
-  // Create product
   app.post("/api/products", async (req, res) => {
     try {
       const product = req.body;
@@ -192,7 +175,6 @@ export async function registerRoutes(
     }
   });
 
-  // Update product
   app.put("/api/products/:sku", async (req, res) => {
     try {
       const updated = await storage.updateProduct(req.params.sku, req.body);
@@ -206,7 +188,6 @@ export async function registerRoutes(
     }
   });
 
-  // Delete product
   app.delete("/api/products/:sku", async (req, res) => {
     try {
       await storage.deleteProduct(req.params.sku);
@@ -217,7 +198,6 @@ export async function registerRoutes(
     }
   });
 
-  // Bulk update prices
   app.post("/api/products/bulk-update-prices", async (req, res) => {
     try {
       const { updates } = req.body;
@@ -280,7 +260,6 @@ export async function registerRoutes(
     }
   });
 
-  // Bulk update puissance
   app.post("/api/products/bulk-update-puissance", async (req, res) => {
     try {
       const { updates } = req.body;
@@ -333,7 +312,6 @@ export async function registerRoutes(
     }
   });
 
-  // Import products from Excel
   app.post("/api/products/import", async (req, res) => {
     try {
       const { products } = req.body;
@@ -382,20 +360,17 @@ export async function registerRoutes(
 
   // === IMAGES API ===
   
-  // Upload images for a product
   app.post("/api/products/:sku/images", async (req, res) => {
     try {
       const { sku } = req.params;
-      const { images } = req.body; // Array of { type, data }
+      const { images } = req.body;
       
       if (!images || !Array.isArray(images)) {
         return res.status(400).json({ error: "Images array required" });
       }
 
-      // Delete existing images for this SKU
       await storage.deleteImagesBySku(sku);
       
-      // Add new images
       for (const img of images) {
         await storage.addImage({
           sku,
@@ -411,7 +386,6 @@ export async function registerRoutes(
     }
   });
 
-  // Delete all images for a product
   app.delete("/api/products/:sku/images", async (req, res) => {
     try {
       await storage.deleteImagesBySku(req.params.sku);
@@ -422,7 +396,6 @@ export async function registerRoutes(
     }
   });
 
-  // Delete specific image type
   app.delete("/api/products/:sku/images/:type", async (req, res) => {
     try {
       await storage.deleteImageByType(req.params.sku, req.params.type);
@@ -435,7 +408,6 @@ export async function registerRoutes(
 
   // === SEED DATABASE ===
   
-  // Seed products from catalogueData if database is empty
   app.post("/api/seed", async (req, res) => {
     try {
       const existingProducts = await storage.getAllProducts();
@@ -447,7 +419,6 @@ export async function registerRoutes(
         });
       }
       
-      // Seed catalogue products
       for (const p of catalogueData) {
         await storage.createProduct({
           sku: p.sku,
@@ -485,7 +456,6 @@ export async function registerRoutes(
         });
       }
       
-      // Seed bundles
       for (const bundle of bundlesData) {
         await storage.createProduct({
           sku: bundle.sku,
@@ -513,7 +483,6 @@ export async function registerRoutes(
 
   // === CMS CONTENT API ===
 
-  // Helper: Read content file
   function readContent() {
     try {
       if (fs.existsSync(CONTENT_FILE)) {
@@ -526,7 +495,6 @@ export async function registerRoutes(
     return null;
   }
 
-  // Helper: Write content file
   function writeContent(content: any) {
     content._meta = {
       lastUpdated: new Date().toISOString(),
@@ -535,7 +503,6 @@ export async function registerRoutes(
     fs.writeFileSync(CONTENT_FILE, JSON.stringify(content, null, 2), "utf-8");
   }
 
-  // Helper: Sanitize strings (basic XSS prevention + length limits)
   function sanitizeString(str: string, maxLength = 1000): string {
     if (typeof str !== "string") return "";
     return str
@@ -563,7 +530,6 @@ export async function registerRoutes(
     return obj;
   }
 
-  // GET /api/content - Public: retrieve content
   app.get("/api/content", (req, res) => {
     const content = readContent();
     if (!content) {
@@ -572,7 +538,6 @@ export async function registerRoutes(
     res.json(content);
   });
 
-  // POST /api/content/login - Admin login
   app.post("/api/content/login", (req, res) => {
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
@@ -582,7 +547,6 @@ export async function registerRoutes(
     }
   });
 
-  // PUT /api/content - Admin: update content
   app.put("/api/content", (req, res) => {
     const authHeader = req.headers.authorization;
     const token = authHeader?.replace("Bearer ", "");
@@ -603,14 +567,13 @@ export async function registerRoutes(
 
   // === CMS ASSETS API ===
 
-  // Helper: Check CMS auth
   function checkCmsAuth(req: any): boolean {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.replace("Bearer ", "");
+    const cmsToken = req.headers['x-cms-token'];
+    const token = cmsToken || authHeader?.replace("Bearer ", "");
     return token && Buffer.from(token, "base64").toString() === ADMIN_PASSWORD;
   }
 
-  // GET /api/cms/assets - List all CMS assets
   app.get("/api/cms/assets", (req, res) => {
     try {
       const files = fs.readdirSync(CMS_ASSETS_DIR);
@@ -634,7 +597,6 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/cms/assets - Upload a new CMS asset
   app.post("/api/cms/assets", cmsUpload.single("image"), (req, res) => {
     if (!checkCmsAuth(req)) {
       return res.status(401).json({ error: "Non autorisé" });
@@ -653,7 +615,6 @@ export async function registerRoutes(
     });
   });
 
-  // DELETE /api/cms/assets/:filename - Delete a CMS asset
   app.delete("/api/cms/assets/:filename", (req, res) => {
     if (!checkCmsAuth(req)) {
       return res.status(401).json({ error: "Non autorisé" });
@@ -676,10 +637,224 @@ export async function registerRoutes(
     }
   });
 
+  // === TECHNICAL SHEETS API ===
+
+  app.get("/api/admin/products/skus", async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      const productList = products.map(p => ({
+        sku: p.sku,
+        marque: p.marque,
+        ligne: p.ligne,
+        modele: p.modele
+      })).sort((a, b) => a.sku.localeCompare(b.sku));
+      
+      res.json(productList);
+    } catch (error) {
+      console.error("Error fetching product SKUs:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+
+  app.post("/api/admin/technical-sheets/import", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const { sku, fileContent, isPremium } = req.body;
+      
+      if (!sku || !fileContent) {
+        return res.status(400).json({ error: "SKU et contenu requis" });
+      }
+
+      const parsed = parseTechnicalSheetTXT(fileContent);
+      
+      await storage.upsertTechnicalSheet({
+        sku,
+        ...parsed,
+        isPremium: isPremium || false
+      });
+      
+      res.json({ success: true, sku, parsed });
+    } catch (error) {
+      console.error("Import error:", error);
+      res.status(500).json({ error: "Failed to import technical sheet" });
+    }
+  });
+
+  app.get("/api/products/:sku/technical-sheet", async (req, res) => {
+    try {
+      const sheet = await storage.getTechnicalSheet(req.params.sku);
+      
+      if (!sheet) {
+        return res.status(404).json({ error: "Technical sheet not found" });
+      }
+      
+      res.json(sheet);
+    } catch (error) {
+      console.error("Error fetching technical sheet:", error);
+      res.status(500).json({ error: "Failed to fetch technical sheet" });
+    }
+  });
+
+  app.get("/api/admin/technical-sheets", async (req, res) => {
+    try {
+      const sheets = await storage.getAllTechnicalSheets();
+      res.json(sheets);
+    } catch (error) {
+      console.error("Error fetching technical sheets:", error);
+      res.status(500).json({ error: "Failed to fetch technical sheets" });
+    }
+  });
+
+  app.delete("/api/admin/technical-sheets/:sku", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      await storage.deleteTechnicalSheet(req.params.sku);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting technical sheet:", error);
+      res.status(500).json({ error: "Failed to delete technical sheet" });
+    }
+  });
+
+  // === BUNDLES API ===
+
+  app.get("/api/bundles", async (req, res) => {
+    try {
+      const bundles = await bundleStorage.getAllBundles();
+      res.json(bundles);
+    } catch (error) {
+      console.error("Error fetching bundles:", error);
+      res.status(500).json({ error: "Failed to fetch bundles" });
+    }
+  });
+
+  app.get("/api/bundles/:sku", async (req, res) => {
+    try {
+      const bundle = await bundleStorage.getBundleWithProducts(req.params.sku);
+      if (!bundle) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      res.json(bundle);
+    } catch (error) {
+      console.error("Error fetching bundle:", error);
+      res.status(500).json({ error: "Failed to fetch bundle" });
+    }
+  });
+
+  app.post("/api/bundles", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const { bundleData, items } = req.body;
+      if (!bundleData?.sku || !bundleData?.nom) {
+        return res.status(400).json({ error: "SKU et nom sont requis" });
+      }
+      
+      const bundle = await bundleStorage.createBundle(bundleData, items || []);
+      res.status(201).json(bundle);
+    } catch (error) {
+      console.error("Error creating bundle:", error);
+      res.status(500).json({ error: "Failed to create bundle" });
+    }
+  });
+
+  app.put("/api/bundles/:sku", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const { bundleData, items } = req.body;
+      const bundle = await bundleStorage.updateBundle(req.params.sku, bundleData || {}, items);
+      if (!bundle) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      res.json(bundle);
+    } catch (error) {
+      console.error("Error updating bundle:", error);
+      res.status(500).json({ error: "Failed to update bundle" });
+    }
+  });
+
+  app.put("/api/bundles/:sku/availability", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const { availabilityStatus, soldOutAt } = req.body;
+      const bundle = await bundleStorage.updateBundleAvailability(
+        req.params.sku, 
+        availabilityStatus,
+        soldOutAt ? new Date(soldOutAt) : undefined
+      );
+      if (!bundle) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      res.json(bundle);
+    } catch (error) {
+      console.error("Error updating bundle availability:", error);
+      res.status(500).json({ error: "Failed to update bundle availability" });
+    }
+  });
+
+  app.delete("/api/bundles/:sku", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const deleted = await bundleStorage.deleteBundle(req.params.sku);
+      if (!deleted) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting bundle:", error);
+      res.status(500).json({ error: "Failed to delete bundle" });
+    }
+  });
+
+  app.get("/api/admin/bundles/products", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const products = await bundleStorage.getProductsForSelection();
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching products for bundle:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+
+  app.post("/api/admin/bundles/calculate-price", async (req, res) => {
+    if (!checkCmsAuth(req)) {
+      return res.status(401).json({ error: "Non autorisé" });
+    }
+
+    try {
+      const { items } = req.body;
+      const suggestedPrice = await bundleStorage.calculateSuggestedPrice(items || []);
+      res.json({ suggestedPrice });
+    } catch (error) {
+      console.error("Error calculating price:", error);
+      res.status(500).json({ error: "Failed to calculate price" });
+    }
+  });
+
   return httpServer;
 }
 
-// Helper function to map images to product fields
 function mapProductWithImages(product: any, images: any[]) {
   const normalizeType = (type: string) =>
     (type || "")
@@ -718,14 +893,35 @@ function mapProductWithImages(product: any, images: any[]) {
     }
   });
 
+  let promotions = product.promotions;
+  let badges = product.badges;
+  let composition = product.composition;
+  let ficheTechnique = product.ficheTechnique;
+  
+  if (typeof promotions === 'string') {
+    try { promotions = JSON.parse(promotions); } catch (e) { promotions = null; }
+  }
+  if (typeof badges === 'string') {
+    try { badges = JSON.parse(badges); } catch (e) { badges = null; }
+  }
+  if (typeof composition === 'string') {
+    try { composition = JSON.parse(composition); } catch (e) { composition = null; }
+  }
+  if (typeof ficheTechnique === 'string') {
+    try { ficheTechnique = JSON.parse(ficheTechnique); } catch (e) { ficheTechnique = null; }
+  }
+
   return {
     ...product,
     ...imageMap,
+    promotions,
+    badges,
+    composition,
+    ficheTechnique,
     images: images.map(img => ({ ...img, data: img.url || img.data })),
   };
 }
 
-// Helper to map images to field names (without product data)
 function mapImagesToFields(images: any[]) {
   const normalizeType = (type: string) =>
     (type || "")
