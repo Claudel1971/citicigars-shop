@@ -10,6 +10,8 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { ConfigProvider } from "@/context/ConfigContext";
 import { ContentProvider } from "@/context/ContentContext";
 
+import ProductPage from "@/pages/ProductPage";
+
 import Home from "@/pages/Home";
 import Catalogue from "@/pages/Catalogue";
 import WishlistPage from "@/pages/WishlistPage";
@@ -29,6 +31,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/catalogue" component={Catalogue} />
+      <Route path="/p/:sku" component={ProductPage} />
       <Route path="/promotions" component={PromotionsPage} />
       <Route path="/assortiments" component={BundlesPage} />
       <Route path="/wishlist" component={WishlistPage} />
