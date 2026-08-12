@@ -1,0 +1,52 @@
+name: WHC Staging - Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-whc-connection:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${{ secrets.WHC_SSH_KEY }}" > ~/.ssh/whc_key
+          chmod 600 ~/.ssh/whc_key
+
+          printf '%s\n' "${{ vars.WHC_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Test WHC connection and staging path
+        shell: bash
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
+        run: |
+          set -euo pipefail
+
+          EXPECTED_PATH="/home/bwljrj22/citicigars_staging"
+
+          if [ "$WHC_STAGING_PATH" != "$EXPECTED_PATH" ]; then
+            echo "SECURITY ERROR: unexpected staging path"
+            exit 1
+          fi
+
+          ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "test -d '$WHC_STAGING_PATH' && echo 'SSH CONNECTION: OK' && echo 'STAGING DIRECTORY: OK' && echo 'PRODUCTION NOT TOUCHED'"
+
+      - name: Cleanup SSH key
+        if: always()
+        shell: bash
+        run: |
+          rm -f ~/.ssh/whc_key
