@@ -1,0 +1,96 @@
+name: WHC Staging - Deploy Frontend
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: CitiCigarsShop
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: CitiCigarsShop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          NODE_ENV: production
+        run: npx vite build
+
+      - name: Verify frontend build
+        run: |
+          set -euo pipefail
+
+          test -f dist/public/index.html
+          test -d dist/public/assets
+
+          echo "FRONTEND BUILD: OK"
+          echo "OUTPUT: dist/public"
+
+      - name: Configure SSH
+        working-directory: .
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${{ secrets.WHC_SSH_KEY }}" > ~/.ssh/whc_key
+          chmod 600 ~/.ssh/whc_key
+
+          printf '%s\n' "${{ vars.WHC_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy frontend to WHC staging
+        working-directory: .
+        shell: bash
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
+        run: |
+          set -euo pipefail
+
+          EXPECTED_PATH="/home/bwljrj22/citicigars_staging"
+
+          if [ "$WHC_STAGING_PATH" != "$EXPECTED_PATH" ]; then
+            echo "SECURITY ERROR: unexpected staging path"
+            exit 1
+          fi
+
+          ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "test -d '$WHC_STAGING_PATH'"
+
+          rsync -avz \
+            -e "ssh -p $WHC_PORT -i ~/.ssh/whc_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            CitiCigarsShop/dist/public/ \
+            "$WHC_USER@$WHC_HOST:$WHC_STAGING_PATH/"
+
+          echo "STAGING DEPLOYMENT: OK"
+          echo "PRODUCTION NOT TOUCHED"
+
+      - name: Cleanup SSH key
+        if: always()
+        working-directory: .
+        shell: bash
+        run: |
+          rm -f ~/.ssh/whc_key
