@@ -11,6 +11,8 @@ app.use(cors({
   origin: [
     'https://citicigars.com',
     'https://www.citicigars.com',
+    'http://staging.citicigars.com',
+    'https://staging.citicigars.com',
     'http://localhost:5173',
     'http://localhost:5000',
     'http://localhost:3000',
