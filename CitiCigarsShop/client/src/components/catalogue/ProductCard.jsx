@@ -33,6 +33,90 @@ function getMainImage(p) {
   );
 }
 
+/**
+ * Normalise une valeur texte produit.
+ */
+function normalizeProductText(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+/**
+ * Détermine si la vitole doit réellement être affichée.
+ *
+ * Règle CitiCigars :
+ * - vide => pas de vitole
+ * - N/A / NA => pas de vitole
+ * - vitole identique au format => pas de vitole distincte
+ * - sinon => vitole distincte
+ */
+function hasDistinctVitole(vitole, format) {
+  const v = normalizeProductText(vitole);
+  const f = normalizeProductText(format);
+
+  if (!v) return false;
+
+  const normalizedVitole = v
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/\./g, "");
+
+  if (
+    normalizedVitole === "n/a" ||
+    normalizedVitole === "na" ||
+    normalizedVitole === "n-a" ||
+    normalizedVitole === "-"
+  ) {
+    return false;
+  }
+
+  if (
+    f &&
+    v.localeCompare(f, undefined, {
+      sensitivity: "base",
+    }) === 0
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Construit la deuxième ligne de dénomination conformément
+ * à la nomenclature CitiCigars.
+ *
+ * Avec vitole distincte :
+ *   Vitole, Format - Dimension
+ *
+ * Sans vitole distincte :
+ *   Format - Dimension
+ */
+function getProductDesignationLine2(product) {
+  const vitole = normalizeProductText(product.vitole);
+  const format = normalizeProductText(product.format);
+
+  const dimensions =
+    normalizeProductText(product.dimensions) ||
+    (product.longueur && product.diametre
+      ? `${product.longueur} × ${product.diametre}`
+      : "");
+
+  let designation = "";
+
+  if (hasDistinctVitole(vitole, format)) {
+    designation = [vitole, format].filter(Boolean).join(", ");
+  } else {
+    designation = format;
+  }
+
+  if (designation && dimensions) {
+    return `${designation} - ${dimensions}`;
+  }
+
+  return designation || dimensions || "";
+}
+
 // Fonctions de calcul des prix
 const arrondirMultiple = (valeur, multiple = 500) => {
   return Math.round(valeur / multiple) * multiple;
@@ -72,12 +156,12 @@ const ProductCard = ({ product, onOpenDetails }) => {
   const produit = { ...product };
 
   const [selectedFormat, setSelectedFormat] = useState("unitaire");
-  
+
   const [, setLang] = useState(i18n.language);
   useEffect(() => {
     const handleLangChange = (lng) => setLang(lng);
-    i18n.on('languageChanged', handleLangChange);
-    return () => i18n.off('languageChanged', handleLangChange);
+    i18n.on("languageChanged", handleLangChange);
+    return () => i18n.off("languageChanged", handleLangChange);
   }, []);
   const t = (key, options) => i18n.t(key, options);
 
@@ -103,7 +187,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
   // Image pour le panier selon le format
   const getCartImage = (format) => {
-    if (produit.type === 'bundle') {
+    if (produit.type === "bundle") {
       return produit.imageBoite || produit.imagePrincipale || generatedImage;
     }
     return imageForFormat(format) || generatedImage;
@@ -129,7 +213,11 @@ const ProductCard = ({ product, onOpenDetails }) => {
     } else {
       switch (format) {
         case "pack":
-          price = calculerPrixPack(currentPrixUnitaire, qtyPack, currentRabais);
+          price = calculerPrixPack(
+            currentPrixUnitaire,
+            qtyPack,
+            currentRabais,
+          );
           break;
         case "boite":
           price = calculerPrixBoite(
@@ -178,6 +266,7 @@ const ProductCard = ({ product, onOpenDetails }) => {
             const activePromo =
               (bundlePromo?.actif ? bundlePromo : null) ||
               (unitPromo?.actif ? unitPromo : null);
+
             return (
               activePromo?.pourcentage > 0 && (
                 <div className="absolute bottom-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
@@ -209,14 +298,24 @@ const ProductCard = ({ product, onOpenDetails }) => {
           </h3>
 
           <p className="text-sm text-muted-foreground mb-3">
-            {t(`bundles.${produit.sku}`, { defaultValue: produit.description }) ||
-              t("product.bundleDescription", { count: produit.quantiteBoite || produit.qteBoite || 4 })}
+            {t(`bundles.${produit.sku}`, {
+              defaultValue: produit.description,
+            }) ||
+              t("product.bundleDescription", {
+                count:
+                  produit.quantiteBoite ||
+                  produit.qteBoite ||
+                  4,
+              })}
           </p>
 
           <div>
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
               <div className="flex justify-between items-center py-1 px-1">
-                <span className="text-sm font-bold text-primary">{t("product.price")} :</span>
+                <span className="text-sm font-bold text-primary">
+                  {t("product.price")} :
+                </span>
+
                 <div className="text-right">
                   {(() => {
                     const bundlePromo = produit.promotions?.bundle;
@@ -224,16 +323,26 @@ const ProductCard = ({ product, onOpenDetails }) => {
                     const activePromo =
                       (bundlePromo?.actif ? bundlePromo : null) ||
                       (unitPromo?.actif ? unitPromo : null);
+
                     const basePrice =
                       produit.prixUnitaire || produit.prixBundle;
-                    const rabais = activePromo?.pourcentage || 0;
-                    const isPromo = activePromo?.actif && rabais > 0;
-                    const prixPromoCalcule = isPromo ? calculerPrixPromo(basePrice, rabais) : basePrice;
+
+                    const rabais =
+                      activePromo?.pourcentage || 0;
+
+                    const isPromo =
+                      activePromo?.actif && rabais > 0;
+
+                    const prixPromoCalcule = isPromo
+                      ? calculerPrixPromo(basePrice, rabais)
+                      : basePrice;
+
                     return isPromo ? (
                       <>
                         <span className="text-xs line-through text-muted-foreground mr-1">
                           {formatPrice(basePrice)}
                         </span>
+
                         <span className="text-sm font-bold text-destructive">
                           {formatPrice(prixPromoCalcule)}
                         </span>
@@ -251,7 +360,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
             <Button
               size="sm"
               className="w-full bg-[#B87333] hover:bg-[#9A5F2A] text-white"
-              onClick={() => onOpenDetails && onOpenDetails(produit)}
+              onClick={() =>
+                onOpenDetails && onOpenDetails(produit)
+              }
             >
               {t("product.viewDetails")}
             </Button>
@@ -261,46 +372,60 @@ const ProductCard = ({ product, onOpenDetails }) => {
     );
   }
 
+  const designationLine2 = getProductDesignationLine2(produit);
+
   return (
     <div className="group relative bg-card rounded-lg border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden">
       <div
         className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
-        onClick={() => onOpenDetails && onOpenDetails(produit)}
+        onClick={() =>
+          onOpenDetails && onOpenDetails(produit)
+        }
       >
         <LazyProductImage
           sku={produit.sku}
           format={selectedFormat}
-          existingImages={produit.imagePrincipale ? produit : null}
+          existingImages={
+            produit.imagePrincipale ? produit : null
+          }
           alt={produit.marque}
           className="w-full h-64 bg-gray-50"
         />
 
         {(produit.badges?.coty ||
           produit.badges?.top25 ||
-          (produit.badges?.rating && produit.badges.rating !== "NA")) && (
+          (produit.badges?.rating &&
+            produit.badges.rating !== "NA")) && (
           <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
             {produit.badges?.coty && (
               <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <Crown className="w-3 h-3" />
-                <span>{t("product.cigarOfYear")} ({produit.badges.top25Year})</span>
-              </div>
-            )}
-
-            {produit.badges?.top25 && !produit.badges?.coty && (
-              <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                 <span>
-                  {produit.badges.top25Rang === 1
-                    ? `${t("product.cigarOfYear")}, ${produit.badges.top25Year}`
-                    : `#${produit.badges.top25Rang}, ${produit.badges.top25Year}`}
+                  {t("product.cigarOfYear")} (
+                  {produit.badges.top25Year})
                 </span>
               </div>
             )}
 
-            {produit.badges?.rating && produit.badges.rating !== "NA" && (
-              <div className="bg-white/95 backdrop-blur-sm w-8 h-8 rounded-full text-sm font-bold text-amber-700 border border-amber-200 shadow-sm flex items-center justify-center">
-                {produit.badges.rating}
-              </div>
-            )}
+            {produit.badges?.top25 &&
+              !produit.badges?.coty && (
+                <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                  <span>
+                    {produit.badges.top25Rang === 1
+                      ? `${t(
+                          "product.cigarOfYear",
+                        )}, ${produit.badges.top25Year}`
+                      : `#${produit.badges.top25Rang}, ${produit.badges.top25Year}`}
+                  </span>
+                </div>
+              )}
+
+            {produit.badges?.rating &&
+              produit.badges.rating !== "NA" && (
+                <div className="bg-white/95 backdrop-blur-sm w-8 h-8 rounded-full text-sm font-bold text-amber-700 border border-amber-200 shadow-sm flex items-center justify-center">
+                  {produit.badges.rating}
+                </div>
+              )}
           </div>
         )}
 
@@ -319,32 +444,52 @@ const ProductCard = ({ product, onOpenDetails }) => {
         </button>
 
         {produit.promotions?.unitaire?.actif &&
-          produit.promotions.unitaire.pourcentage > 0 && (
+          produit.promotions.unitaire.pourcentage >
+            0 && (
             <div className="absolute bottom-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-              -{produit.promotions.unitaire.pourcentage}%
+              -
+              {
+                produit.promotions.unitaire
+                  .pourcentage
+              }
+              %
             </div>
           )}
       </div>
 
       <div className="p-5">
+        {/* LIGNE 1 : Marque, Ligne */}
         <h3 className="text-xl font-serif font-bold text-primary mb-1 leading-tight group-hover:text-secondary transition-colors">
           {produit.marque}
           {produit.ligne ? `, ${produit.ligne}` : ""}
+
           {(produit.origine || produit.pays) && (
             <span className="text-sm text-muted-foreground font-sans font-normal ml-2">
-              · {t(`countries.${produit.origine || produit.pays}`, { defaultValue: produit.origine || produit.pays })}
+              ·{" "}
+              {t(
+                `countries.${
+                  produit.origine || produit.pays
+                }`,
+                {
+                  defaultValue:
+                    produit.origine ||
+                    produit.pays,
+                },
+              )}
             </span>
           )}
         </h3>
 
-        {(produit.modele || produit.vitole || produit.format) && (
+        {/* LIGNE 2 :
+            Avec vitole distincte :
+              Vitole, Format - Dimension
+
+            Sans vitole distincte :
+              Format - Dimension
+        */}
+        {designationLine2 && (
           <p className="text-sm text-muted-foreground mb-2">
-            {produit.modele === produit.vitole
-              ? `${produit.modele || ''}, ${produit.format || ''}`.replace(/, $/, '').replace(/^, /, '')
-              : `${produit.modele || ''}, ${produit.vitole || ''}, ${produit.format || ''}`.replace(/, ,/g, ',').replace(/, $/, '').replace(/^, /, '')}
-            {produit.longueur && produit.diametre
-              ? ` (${produit.longueur} × ${produit.diametre})`
-              : ""}
+            {designationLine2}
           </p>
         )}
 
@@ -361,28 +506,48 @@ const ProductCard = ({ product, onOpenDetails }) => {
               />
             ))}
           </div>
+
           <p className="text-xs text-muted-foreground font-medium">
-            {getPuissanceLabel(produit.puissance, t)}
+            {getPuissanceLabel(
+              produit.puissance,
+              t,
+            )}
           </p>
         </div>
 
         <div>
           {(() => {
-            const currentPrixUnitaire = produit.prixUnitaire;
+            const currentPrixUnitaire =
+              produit.prixUnitaire;
+
             const currentRabais =
-              produit.promotions?.unitaire?.pourcentage || 0;
-            const qtyPack = produit.quantitePack || produit.typePack || 5;
-            const qtyBoite = produit.qteBoite || produit.quantiteBoite || 25;
+              produit.promotions?.unitaire
+                ?.pourcentage || 0;
+
+            const qtyPack =
+              produit.quantitePack ||
+              produit.typePack ||
+              5;
+
+            const qtyBoite =
+              produit.qteBoite ||
+              produit.quantiteBoite ||
+              25;
 
             const prixFinal =
               currentRabais > 0
-                ? calculerPrixPromo(currentPrixUnitaire, currentRabais)
+                ? calculerPrixPromo(
+                    currentPrixUnitaire,
+                    currentRabais,
+                  )
                 : currentPrixUnitaire;
+
             const prixPack = calculerPrixPack(
               currentPrixUnitaire,
               qtyPack,
               currentRabais,
             );
+
             const prixBoite = calculerPrixBoite(
               currentPrixUnitaire,
               qtyBoite,
@@ -393,29 +558,38 @@ const ProductCard = ({ product, onOpenDetails }) => {
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-100">
                 <div
                   className="flex justify-between items-center py-1 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
-                  onClick={() => setSelectedFormat("unitaire")}
+                  onClick={() =>
+                    setSelectedFormat("unitaire")
+                  }
                 >
                   <span
                     className={cn(
                       "text-sm text-gray-600",
-                      selectedFormat === "unitaire" && "font-bold text-primary",
+                      selectedFormat === "unitaire" &&
+                        "font-bold text-primary",
                     )}
                   >
                     {t("product.unit")} :
                   </span>
+
                   <div className="text-right">
                     {currentRabais > 0 ? (
                       <>
                         <span className="text-xs line-through text-muted-foreground mr-1">
-                          {formatPrice(currentPrixUnitaire)}
+                          {formatPrice(
+                            currentPrixUnitaire,
+                          )}
                         </span>
+
                         <span className="text-sm font-bold text-destructive">
                           {formatPrice(prixFinal)}
                         </span>
                       </>
                     ) : (
                       <span className="text-sm font-bold text-primary">
-                        {formatPrice(currentPrixUnitaire)}
+                        {formatPrice(
+                          currentPrixUnitaire,
+                        )}
                       </span>
                     )}
                   </div>
@@ -423,16 +597,20 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
                 <div
                   className="flex justify-between items-center py-1 border-t border-amber-200 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
-                  onClick={() => setSelectedFormat("pack")}
+                  onClick={() =>
+                    setSelectedFormat("pack")
+                  }
                 >
                   <span
                     className={cn(
                       "text-sm text-gray-600",
-                      selectedFormat === "pack" && "font-bold text-primary",
+                      selectedFormat === "pack" &&
+                        "font-bold text-primary",
                     )}
                   >
                     {t("product.pack")} ({qtyPack}) :
                   </span>
+
                   <span className="text-sm font-semibold text-orange-800">
                     {formatPrice(prixPack)}
                   </span>
@@ -440,16 +618,20 @@ const ProductCard = ({ product, onOpenDetails }) => {
 
                 <div
                   className="flex justify-between items-center py-1 border-t border-amber-200 cursor-pointer hover:bg-black/5 rounded px-1 transition-colors"
-                  onClick={() => setSelectedFormat("boite")}
+                  onClick={() =>
+                    setSelectedFormat("boite")
+                  }
                 >
                   <span
                     className={cn(
                       "text-sm text-gray-600",
-                      selectedFormat === "boite" && "font-bold text-primary",
+                      selectedFormat === "boite" &&
+                        "font-bold text-primary",
                     )}
                   >
                     {t("product.box")} ({qtyBoite}) :
                   </span>
+
                   <span className="text-sm font-semibold text-orange-800">
                     {formatPrice(prixBoite)}
                   </span>
@@ -461,7 +643,9 @@ const ProductCard = ({ product, onOpenDetails }) => {
           <Button
             size="sm"
             className="w-full bg-[#B87333] hover:bg-[#9A5F2A] text-white"
-            onClick={() => onOpenDetails && onOpenDetails(produit)}
+            onClick={() =>
+              onOpenDetails && onOpenDetails(produit)
+            }
           >
             {t("product.viewDetails")}
           </Button>
