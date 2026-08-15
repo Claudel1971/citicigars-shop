@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { mysqlTable, text, varchar, int, boolean, json, timestamp } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { skus, cigarCatalog } from "./schema.stock";
 
 export const users = mysqlTable("users", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -10,7 +11,14 @@ export const users = mysqlTable("users", {
 });
 
 export const products = mysqlTable("products", {
-  sku: varchar("sku", { length: 50 }).primaryKey(),
+  sku: varchar("sku", { length: 50 }).primaryKey().references(() => skus.sku),
+  // CIGAR_ID : nullable (accessoires/bundles n'en ont pas — mais les bundles ne
+  // sont de toute façon pas dans `products`), UNIQUE (amendement 1 : empêche
+  // deux SKU différents de pointer vers le même CIGAR_ID par erreur de saisie).
+  cigarId: varchar("cigar_id", { length: 20 }).unique().references(() => cigarCatalog.cigarId),
+  // Propriété de dimensionnement Box->Pack/Loose, scopée par SKU (cohérent
+  // avec pack_size_config qui est lui aussi par SKU, pas par CIGAR_ID).
+  cigarsPerBox: int("cigars_per_box"),
   marque: text("marque").notNull(),
   ligne: text("ligne"),
   pays: text("pays"),

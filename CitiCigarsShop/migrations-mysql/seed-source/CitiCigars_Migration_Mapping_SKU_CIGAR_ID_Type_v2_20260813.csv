@@ -1,0 +1,82 @@
+row_kind;sku;source_sku;type;cigar_id;component_cigar_id;component_sku;component_qty;brand;line;vitole_ou_bundle;cigars_per_unit;held_units;deposit_units;pairing_method;source_doctrine;note
+SKU_CIGAR_ID;CTGHO0001;;Pack;CTG000001;;;;Bolivar;Cofradia N° 654;Toro;5;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0001;;Box;CTG000002;;;;CAO;Flathead Big;V770 Gigante;24;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0003;;Pack;CTG000003;;;;My Father;Jaime Garcia RE;Gordo;4;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0004;;Box;CTG000004;;;;My Father;Jaime Garcia RE;Gigante (Gordo Extra);14;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0005;;Pack;CTG000005;;;;My Father;Jaime Garcia RE;Super Gordo;4;5;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0006;;Pack;CTG000006;;;;My Father;Jaime Garcia RE;Toro;5;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0007;;Pack;CTG000007;;;;La Aroma de Cuba;Mi Amor;Belicoso;5;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0008;;Pack;CTG000008;;;;La Aroma de Cuba;Monarch;Toro;5;0;0;single_form;Master CATALOG;9.1: solde final inclut 3 Loose déjà implicites — voir ligne Type=Loose dédiée ci-dessous
+SKU_CIGAR_ID;CTGNI0008;;Loose;CTG000008;;;;La Aroma de Cuba;Monarch;Toro;;3;0;;9.1;Loose implicite pré-existant côté Master (10_Pack Allocation) — solde d'ouverture à intégrer tel quel en migration, jamais traité comme preuve de disponibilité Pack/Box
+SKU_CIGAR_ID;CTGNI0009;;Box;CTG000009;;;;Montecristo;Nicaragua;Churchill;20;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0010;;Pack;CTG000010;;;;Montecristo;1935 Anniversary Nicaragua;N°2 Figurado;5;3;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0011;;Box;CTG000011;;;;My Father;Le Bijou 1922;Grand Robusto;23;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0012;;Box;CTG000012;;;;My Father;Le Bijou 1922;Torpedo;23;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0013;;Box;CTG000013;;;;My Father;Le Bijou 1922;Toro;23;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0014;;Pack;CTG000014;;;;My Father;Connecticut;Toro Gordo;4;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0015;;Pack;CTG000015;;;;My Father;Connecticut;Toro;5;0;1;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0016;;Pack;CTG000016;;;;My Father;Connecticut;Robusto;5;0;0;single_form;Master CATALOG;9.1: solde final inclut 2 Loose déjà implicites — voir ligne Type=Loose dédiée ci-dessous
+SKU_CIGAR_ID;CTGNI0016;;Loose;CTG000016;;;;My Father;Connecticut;Robusto;;2;0;;9.1;Loose implicite pré-existant côté Master (10_Pack Allocation) — solde d'ouverture à intégrer tel quel en migration, jamais traité comme preuve de disponibilité Pack/Box
+SKU_CIGAR_ID;CTGNI0017;;Box;CTG000017;;;;My Father;The Judge;Grand Robusto;23;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0018;;Box;CTG000018;;;;My Father;The Judge;Toro Grande;23;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0019;;Pack;CTG000019;;;;My Father;The Judge;Toro Fino;4;0;0;single_form;Master CATALOG;9.1: solde final inclut 1 Loose déjà implicite — voir ligne Type=Loose dédiée ci-dessous
+SKU_CIGAR_ID;CTGNI0019;;Loose;CTG000019;;;;My Father;The Judge;Toro Fino;;1;0;;9.1;Loose implicite pré-existant côté Master (10_Pack Allocation) — solde d'ouverture à intégrer tel quel en migration, jamais traité comme preuve de disponibilité Pack/Box
+SKU_CIGAR_ID;CTGNI0020;;Box;CTG000020;;;;My Father;Flor de Las Antillas;Gordo (Toro Grande);20;1;0;single_form (forme Pack du même SKU sur ligne suivante);Master CATALOG;
+SKU_CIGAR_ID;CTGNI0020;CTGNI0020-P;Pack;CTG000020;;;;My Father;Flor de Las Antillas;Gordo (Toro Grande);4;2;0;brand_line_vitole_match+suffixe_-P (migration one-shot, jamais réutilisé en runtime);Master CATALOG;Ancien SKU historique CTGNI0020-P conservé uniquement dans source_sku — le champ sku est désormais CTGNI0020 (même SKU métier que la ligne Box, Type=Pack)
+SKU_CIGAR_ID;CTGNI0021;;Box;CTG000021;;;;Oliva;Serie V;Double Toro;24;0;0;single_form (forme Pack du même SKU sur ligne suivante);9.1 (alignement Top 25 confirmé);
+SKU_CIGAR_ID;CTGNI0021;CTGNI0021-P;Pack;CTG000021;;;;Oliva;Serie V;Double Toro;4;3;0;brand_line_vitole_match+suffixe_-P (migration one-shot, jamais réutilisé en runtime);9.1 (alignement Top 25 confirmé);Ancien SKU historique CTGNI0021-P conservé uniquement dans source_sku — le champ sku est désormais CTGNI0021 (même SKU métier que la ligne Box, Type=Pack)
+SKU_CIGAR_ID;CTGNI0022;;Box;CTG000022;;;;Oliva;Serie V Melanio;Churchill;10;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0023;;Box;CTG000023;;;;Oliva;Serie V Melanio;Torpedo;10;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0024;;Box;CTG000024;;;;Oliva;Serie V Melanio;Gordo (Double Toro);10;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0025;;Box;CTG000025;;;;Oliva;Serie V Melanio;Toro;10;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0026;;Box;CTG000026;;;;Oliva;Serie V Melanio Maduro;Churchill;10;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0027;;Box;CTG000027;;;;Oliva;Serie V Melanio Maduro;Toro;10;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0028;;Box;CTG000028;;;;Oliva;Serie V Melanio Maduro;Gordo (Double Toro);8;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0029;;Pack;CTG000029;;;;Oliva;Master Blends 3;Robusto;5;0;0;single_form;Master CATALOG;9.1: solde final inclut 2 Loose déjà implicites — voir ligne Type=Loose dédiée ci-dessous
+SKU_CIGAR_ID;CTGNI0029;;Loose;CTG000029;;;;Oliva;Master Blends 3;Robusto;;2;0;;9.1;Loose implicite pré-existant côté Master (10_Pack Allocation) — solde d'ouverture à intégrer tel quel en migration, jamais traité comme preuve de disponibilité Pack/Box
+SKU_CIGAR_ID;CTGNI0032;;Box;CTG000030;;;;Plasencia;Alma Fuerte;Gordo (Sixto I);10;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGNI0033;;Box;CTG000031;;;;Plasencia;Alma Fuerte;Toro (Nestor IV);10;0;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0001;;Pack;CTG000032;;;;Montecristo;White;Toro;4;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0002;;Box;CTG000033;;;;Perez-Carrillo Series;Allegiance;Confidant;20;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0003;;Box;CTG000034;;;;Perez-Carrillo Series;Encore;Celestial;20;3;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0004;;Box;CTG000035;;;;Perez-Carrillo Series;Encore;Majestic;20;2;1;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0005;;Box;CTG000036;;;;Perez-Carrillo Series;La Historia;E-III;20;4;1;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0006;;Box;CTG000037;;;;Perez-Carrillo Series;La Historia;El Senador;20;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0007;;Box;CTG000038;;;;Perez-Carrillo Series;Pledge;Prequel;20;1;1;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0008;;Box;CTG000039;;;;Perez-Carrillo Series;Pledge;Sojourn;20;2;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0009;;Box;CTG000040;;;;Inch Series;Natural;No. 62;24;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0010;;Box;CTG000041;;;;Inch Series;Nicaragua;No. 62;24;1;0;single_form;Master CATALOG;
+SKU_CIGAR_ID;CTGRD0011;;Box;CTG000042;;;;New Wave Series;New Wave Connecticut;Brillantes;20;0;0;single_form;Master CATALOG;
+BUNDLE_HEADER;CTGBDL001;;Pack;;;;;Oliva;Taste of Oliva;Sampler (multi-vitole);8;1;0;;9.1 (exception ouverte);Composition inconnue — voir fichier exceptions, aucun composant listé ci-dessous
+BUNDLE_HEADER;CTGBDL002;;Pack;;;;;Perez-Carrillo Series;Triumph 3-Pack;E-III / Majestic / Prequel;3;290;10;;9.1 (résolu);290 détenus + 10 dépôt confirmés intentionnels par Claudel (achat volontaire en volume) — ne pas corriger sans mouvement d'inventaire
+BUNDLE_COMPONENT;CTGBDL002;;;;CTG000038;CTGRD0007;1;Perez-Carrillo Series;Pledge;Prequel;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGRD0007 ci-dessus
+BUNDLE_COMPONENT;CTGBDL002;;;;CTG000035;CTGRD0004;1;Perez-Carrillo Series;Encore;Majestic;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGRD0004 ci-dessus
+BUNDLE_COMPONENT;CTGBDL002;;;;CTG000036;CTGRD0005;1;Perez-Carrillo Series;La Historia;E-III;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGRD0005 ci-dessus
+BUNDLE_HEADER;CTGBDL003;;Pack;;;;;Horacio;Le Coffret;Sampler (multi-vitole, composition connue);4;1;0;;9.1 (résolu);
+BUNDLE_COMPONENT;CTGBDL003;;;;CTG000868;;1;Horacio;Le Coffret;SLED;;;;;9.1;CIGAR_ID pré-existant côté Master, aucun SKU (jamais acheté seul par CitiCigars) — normal, pas une exception
+BUNDLE_COMPONENT;CTGBDL003;;;;CTG000869;;1;Horacio;Le Coffret;Jacques Chancel;;;;;9.1;CIGAR_ID pré-existant côté Master, aucun SKU — normal
+BUNDLE_COMPONENT;CTGBDL003;;;;CTG000870;;1;Horacio;Le Coffret;Colosso;;;;;9.1;CIGAR_ID pré-existant côté Master, aucun SKU — normal
+BUNDLE_COMPONENT;CTGBDL003;;;;CTG000871;;1;Horacio;Le Coffret;Bolosos;;;;;9.1;CIGAR_ID pré-existant côté Master, aucun SKU — normal
+BUNDLE_HEADER;CTGBDL004;;Pack;;;;;CitiCigars;Nos meilleurs 660;Composite (multi-vitole, composition connue);4;11;0;;9.1 (résolu);
+BUNDLE_COMPONENT;CTGBDL004;;;;CTG000003;CTGNI0003;1;My Father;Jaime Garcia RE;Gordo;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0003 ci-dessus
+BUNDLE_COMPONENT;CTGBDL004;;;;CTG000014;CTGNI0014;1;My Father;Connecticut;Toro Gordo;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0014 ci-dessus
+BUNDLE_COMPONENT;CTGBDL004;;;;CTG000020;CTGNI0020;1;My Father;Flor de Las Antillas;Gordo (Toro Grande);;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0020 (forme Box) ci-dessus
+BUNDLE_COMPONENT;CTGBDL004;;;;CTG000021;CTGNI0021;1;Oliva;Serie V;Double Toro;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0021 (forme Box) ci-dessus
+BUNDLE_HEADER;CTGBDL005;;Pack;;;;;CitiCigars;Pack Aficionado;Composite (multi-vitole, composition connue);4;9;0;;9.1 (résolu);
+BUNDLE_COMPONENT;CTGBDL005;;;;CTG000016;CTGNI0016;2;My Father;Connecticut;Robusto;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0016 ci-dessus
+BUNDLE_COMPONENT;CTGBDL005;;;;CTG000029;CTGNI0029;2;Oliva;Master Blends 3;Robusto;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0029 ci-dessus
+BUNDLE_HEADER;CTGBDL006;;Pack;;;;;CitiCigars;Pack Initiation;Composite (multi-vitole, composition connue);4;10;0;;9.1 (résolu);
+BUNDLE_COMPONENT;CTGBDL006;;;;CTG000008;CTGNI0008;2;La Aroma de Cuba;Monarch;Toro;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0008 ci-dessus
+BUNDLE_COMPONENT;CTGBDL006;;;;CTG000019;CTGNI0019;2;My Father;The Judge;Toro Fino;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0019 ci-dessus
+BUNDLE_HEADER;CTGBDL007;;Pack;;;;;CitiCigars;Toro Prestige;Composite (multi-vitole, composition connue);5;14;0;;9.1 (résolu);
+BUNDLE_COMPONENT;CTGBDL007;;;;CTG000001;CTGHO0001;1;Bolivar;Cofradia N° 654;Toro;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGHO0001 ci-dessus
+BUNDLE_COMPONENT;CTGBDL007;;;;CTG000006;CTGNI0006;1;My Father;Jaime Garcia RE;Toro;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0006 ci-dessus
+BUNDLE_COMPONENT;CTGBDL007;;;;CTG000007;CTGNI0007;1;La Aroma de Cuba;Mi Amor;Belicoso;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0007 ci-dessus
+BUNDLE_COMPONENT;CTGBDL007;;;;CTG000015;CTGNI0015;1;My Father;Connecticut;Toro;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGNI0015 ci-dessus
+BUNDLE_COMPONENT;CTGBDL007;;;;CTG000032;CTGRD0001;1;Montecristo;White;Toro;;;;;9.1;component_sku déjà couvert par la ligne SKU_CIGAR_ID CTGRD0001 ci-dessus
+ACCESSORY_SKU;CTGACC-ETU;;Accessory;;;;;Divers;-;Étui;;5;0;;9.1 (résolu, Type=Accessory);Aucun CIGAR_ID (accessoire, hors périmètre DNA)
+ACCESSORY_SKU;CTGACC-CEN;;Accessory;;;;;Divers;-;Cendrier;;3;0;;9.1 (résolu, Type=Accessory);Aucun CIGAR_ID
+ACCESSORY_SKU;CTGACC-HUM;;Accessory;;;;;Divers;-;Humidor / Boîte;;1;0;;9.1 (résolu, Type=Accessory);Aucun CIGAR_ID
+ACCESSORY_SKU;CTGACC-CUT;;Accessory;;;;;Divers;-;Coupe-cigare;;13;0;;9.1 (résolu, Type=Accessory);Aucun CIGAR_ID
+ACCESSORY_SKU;CTGACC-CAP;;Accessory;;;;;Divers;-;Casquette;;2;0;;9.1 (résolu, Type=Accessory);Aucun CIGAR_ID
+ACCESSORY_SKU;CTGACC-BRI;;Accessory;;;;;Hilands;-;Briquet;;14;0;;9.1 (résolu, Type=Accessory);Aucun CIGAR_ID

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786743104041,
+      "tag": "0000_stock_central_cigar_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786743119112,
+      "tag": "0001_stock_central_triggers",
+      "breakpoints": true
+    }
+  ]
+}
