@@ -7,7 +7,7 @@ CTGNI0005;;Pack;SKU_CIGAR_ID;5;0;2;0;-3.0;0.0;MATCHED;
 CTGNI0006;;Pack;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0007;;Pack;SKU_CIGAR_ID;2;0;1;0;-1.0;0.0;MATCHED;
 CTGNI0008;;Pack;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
-CTGNI0008;;Loose;SKU_CIGAR_ID;3;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boǩte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
+CTGNI0008;;Loose;SKU_CIGAR_ID;3;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boîte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
 CTGNI0009;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0010;;Pack;SKU_CIGAR_ID;3;0;3;0;0.0;0.0;MATCHED;
 CTGNI0011;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
@@ -16,11 +16,11 @@ CTGNI0013;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0014;;Pack;SKU_CIGAR_ID;2;0;1;0;-1.0;0.0;MATCHED;
 CTGNI0015;;Pack;SKU_CIGAR_ID;0;1;2;0;2.0;-1.0;MATCHED;
 CTGNI0016;;Pack;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
-CTGNI0016;;Loose;SKU_CIGAR_ID;2;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boǩte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
+CTGNI0016;;Loose;SKU_CIGAR_ID;2;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boîte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
 CTGNI0017;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0018;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0019;;Pack;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
-CTGNI0019;;Loose;SKU_CIGAR_ID;1;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boǩte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
+CTGNI0019;;Loose;SKU_CIGAR_ID;1;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boîte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
 CTGNI0020;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0020;CTGNI0020-P;Pack;SKU_CIGAR_ID;2;0;2;0;0.0;0.0;MATCHED;
 CTGNI0021;;Box;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
@@ -33,7 +33,7 @@ CTGNI0026;;Box;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
 CTGNI0027;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0028;;Box;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
 CTGNI0029;;Pack;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
-CTGNI0029;;Loose;SKU_CIGAR_ID;2;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boǩte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
+CTGNI0029;;Loose;SKU_CIGAR_ID;2;0;;;;;EXCEPTION_NON_RECOMPTEE;Aucune forme Loose dans 13_Stock_Actuel (types physiques: Boîte/Pack/Accessoire/Coffret Composite/Coffret Fabricant/Service)
 CTGNI0032;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGNI0033;;Box;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
 CTGRD0001;;Pack;SKU_CIGAR_ID;2;0;0;0;-2.0;0.0;MATCHED;
@@ -47,13 +47,13 @@ CTGRD0008;;Box;SKU_CIGAR_ID;2;0;2;0;0.0;0.0;MATCHED;
 CTGRD0009;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGRD0010;;Box;SKU_CIGAR_ID;1;0;1;0;0.0;0.0;MATCHED;
 CTGRD0011;;Box;SKU_CIGAR_ID;0;0;0;0;0.0;0.0;MATCHED;
-CTGBDL001;;Pack;BUNDLE_HEADER;1;0;0;1;-1.0;1.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Fabricant"""
-CTGBDL002;;Pack;BUNDLE_HEADER;290;10;275;10;-15.0;0.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Fabricant"""
-CTGBDL003;;Pack;BUNDLE_HEADER;1;0;1;0;0.0;0.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Fabricant"""
-CTGBDL004;;Pack;BUNDLE_HEADER;11;0;3;0;-8.0;0.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Composite"""
-CTGBDL005;;Pack;BUNDLE_HEADER;9;0;9;0;0.0;0.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Composite"""
-CTGBDL006;;Pack;BUNDLE_HEADER;10;0;7;0;-3.0;0.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Composite"""
-CTGBDL007;;Pack;BUNDLE_HEADER;14;0;4;0;-10.0;0.0;MATCHED;"TrouvǸ sous Type physique=""Coffret Composite"""
+CTGBDL001;;Pack;BUNDLE_HEADER;1;0;0;1;-1.0;1.0;MATCHED;"Trouvé sous Type physique=""Coffret Fabricant"""
+CTGBDL002;;Pack;BUNDLE_HEADER;290;10;275;10;-15.0;0.0;MATCHED;"Trouvé sous Type physique=""Coffret Fabricant"""
+CTGBDL003;;Pack;BUNDLE_HEADER;1;0;1;0;0.0;0.0;MATCHED;"Trouvé sous Type physique=""Coffret Fabricant"""
+CTGBDL004;;Pack;BUNDLE_HEADER;11;0;3;0;-8.0;0.0;MATCHED;"Trouvé sous Type physique=""Coffret Composite"""
+CTGBDL005;;Pack;BUNDLE_HEADER;9;0;9;0;0.0;0.0;MATCHED;"Trouvé sous Type physique=""Coffret Composite"""
+CTGBDL006;;Pack;BUNDLE_HEADER;10;0;7;0;-3.0;0.0;MATCHED;"Trouvé sous Type physique=""Coffret Composite"""
+CTGBDL007;;Pack;BUNDLE_HEADER;14;0;4;0;-10.0;0.0;MATCHED;"Trouvé sous Type physique=""Coffret Composite"""
 CTGACC-ETU;;Accessory;ACCESSORY_SKU;5;0;5;0;0.0;0.0;MATCHED;
 CTGACC-CEN;;Accessory;ACCESSORY_SKU;3;0;3;0;0.0;0.0;MATCHED;
 CTGACC-HUM;;Accessory;ACCESSORY_SKU;1;0;1;0;0.0;0.0;MATCHED;
