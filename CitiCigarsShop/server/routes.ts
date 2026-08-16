@@ -9,6 +9,7 @@ import * as fs from "fs";
 import * as path from "path";
 import multer from "multer";
 import { parseTechnicalSheetTXT } from "./services/technical-sheet-parser";
+import { registerDnaRoutes } from "./routes.dna";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
@@ -52,7 +53,9 @@ export async function registerRoutes(
     etag: true,
     lastModified: true
   }));
-  
+
+  registerDnaRoutes(app);
+
   app.get("/api/products", async (req, res) => {
     try {
       const includeImages = req.query.includeImages === 'true';
