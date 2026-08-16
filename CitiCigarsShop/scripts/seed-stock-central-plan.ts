@@ -107,6 +107,7 @@ export type SeedOp =
   | { kind: "UPSERT_PRODUCT"; sku: string; cigarId: string | null; brand: string; line: string; vitole: string; cigarsPerBox: number | null }
   | { kind: "UPSERT_ACCESSORY"; sku: string; nom: string; brand: string }
   | { kind: "UPSERT_BUNDLE"; sku: string; nom: string }
+  | { kind: "UPSERT_PACK_SIZE_CONFIG"; sku: string; packSize: number }
   | { kind: "INSERT_BUNDLE_ITEM"; bundleSku: string; productSku: string | null; componentCigarId: string | null; qty: number }
   | {
       kind: "MOVEMENT";
@@ -144,6 +145,13 @@ function resolveQuantities(
 
 export function buildSeedPlan(rows: MappingRow[], reconMap: Map<string, ReconRow> | null = null): SeedOp[] {
   const ops: SeedOp[] = [];
+  // Point 3 (audit) : suit les CIGAR_ID déjà couverts par une ligne SKU_CIGAR_ID,
+  // pour émettre un UPSERT_CIGAR_CATALOG pour tout componentCigarId de bundle qui
+  // n'a jamais de SKU propre (ex. CTG000868-871, Horacio) — TOUJOURS avant le
+  // INSERT_BUNDLE_ITEM qui le référence, sinon la FK échouerait à l'application réelle.
+  const knownCigarIds = new Set<string>();
+  // Point 4 (audit) : dédup (sku, packSize) pour pack_size_config.
+  const knownPackSizeConfigs = new Set<string>();
 
   for (const row of rows) {
     if (row.rowKind === "SKU_CIGAR_ID") {
@@ -153,7 +161,10 @@ export function buildSeedPlan(rows: MappingRow[], reconMap: Map<string, ReconRow
 
       ops.push({ kind: "UPSERT_SKU", sku: row.sku, skuKind: "CIGAR" });
       if (row.cigarId) {
-        ops.push({ kind: "UPSERT_CIGAR_CATALOG", cigarId: row.cigarId, brand: row.brand, line: row.line, vitole: row.vitole });
+        if (!knownCigarIds.has(row.cigarId)) {
+          ops.push({ kind: "UPSERT_CIGAR_CATALOG", cigarId: row.cigarId, brand: row.brand, line: row.line, vitole: row.vitole });
+          knownCigarIds.add(row.cigarId);
+        }
       }
       ops.push({
         kind: "UPSERT_PRODUCT",
@@ -164,6 +175,14 @@ export function buildSeedPlan(rows: MappingRow[], reconMap: Map<string, ReconRow
         vitole: row.vitole,
         cigarsPerBox: row.type === "Box" ? row.cigarsPerUnit : null,
       });
+      // Point 4 : pack_size_config alimenté depuis les tailles Pack validées du mapping.
+      if (row.type === "Pack" && row.cigarsPerUnit) {
+        const key = `${row.sku}|${row.cigarsPerUnit}`;
+        if (!knownPackSizeConfigs.has(key)) {
+          ops.push({ kind: "UPSERT_PACK_SIZE_CONFIG", sku: row.sku, packSize: row.cigarsPerUnit });
+          knownPackSizeConfigs.add(key);
+        }
+      }
       // Correction 11 : RECEPTION toujours -> onHand ; deposit_units chaîné via MISE_EN_DEPOT séparée.
       if (q.held > 0) {
         ops.push({ kind: "MOVEMENT", movementType: "RECEPTION", sku: row.sku, type: row.type, packSize, qty: q.held, referenceLabel: ref, confirmed: q.confirmed });
@@ -187,6 +206,15 @@ export function buildSeedPlan(rows: MappingRow[], reconMap: Map<string, ReconRow
       }
     } else if (row.rowKind === "BUNDLE_COMPONENT") {
       // Composition, jamais concernée par le recomptage de quantités.
+      // Point 3 : si ce componentCigarId n'a encore aucun SKU propre (ex. les
+      // composants Horacio CTG000868-871), il n'a jamais reçu de ligne
+      // UPSERT_CIGAR_CATALOG côté SKU_CIGAR_ID -> on l'émet ici, AVANT le
+      // INSERT_BUNDLE_ITEM, avec les brand/line/vitole disponibles dans cette
+      // ligne de mapping (seule source pour ces CIGAR_ID sans SKU).
+      if (row.componentCigarId && !knownCigarIds.has(row.componentCigarId)) {
+        ops.push({ kind: "UPSERT_CIGAR_CATALOG", cigarId: row.componentCigarId, brand: row.brand, line: row.line, vitole: row.vitole });
+        knownCigarIds.add(row.componentCigarId);
+      }
       ops.push({
         kind: "INSERT_BUNDLE_ITEM",
         bundleSku: row.sku,

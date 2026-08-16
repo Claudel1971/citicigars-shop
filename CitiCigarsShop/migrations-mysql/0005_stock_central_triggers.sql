@@ -4,7 +4,7 @@
 -- dans ce repo) — un CHECK est accepté à la syntaxe mais silencieusement
 -- ignoré sur MySQL <8.0.16. Les triggers fonctionnent sur toute version
 -- MySQL/MariaDB depuis longtemps, donc portable indépendamment de la
--- version réelle. Les colonnes unsigned (migration 0000) couvrent déjà
+-- version réelle. Les colonnes unsigned (migration 0001) couvrent déjà
 -- "jamais de quantité négative" indépendamment de la version.
 
 CREATE TRIGGER `trg_stock_balances_bi` BEFORE INSERT ON `stock_balances`

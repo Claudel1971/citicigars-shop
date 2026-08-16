@@ -1,8 +1,8 @@
 {
+  "id": "589357f7-efb0-4324-b11b-c0805bd58de2",
+  "prevId": "22b9d454-f8da-40a4-9e5e-18151913e903",
   "version": "5",
   "dialect": "mysql",
-  "id": "22b9d454-f8da-40a4-9e5e-18151913e903",
-  "prevId": "55553b34-1540-42fd-89fb-018fd214036f",
   "tables": {
     "accessories": {
       "name": "accessories",
@@ -56,8 +56,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {},
@@ -65,15 +65,15 @@
         "accessories_sku_skus_sku_fk": {
           "name": "accessories_sku_skus_sku_fk",
           "tableFrom": "accessories",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -167,8 +167,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -297,15 +297,15 @@
         "dna_availability_watch_lead_id_dna_leads_id_fk": {
           "name": "dna_availability_watch_lead_id_dna_leads_id_fk",
           "tableFrom": "dna_availability_watch",
-          "tableTo": "dna_leads",
           "columnsFrom": [
             "lead_id"
           ],
+          "tableTo": "dna_leads",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -441,8 +441,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -535,15 +535,15 @@
         "pack_size_config_sku_skus_sku_fk": {
           "name": "pack_size_config_sku_skus_sku_fk",
           "tableFrom": "pack_size_config",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -675,8 +675,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "last_movement_group_id": {
           "name": "last_movement_group_id",
@@ -691,15 +691,15 @@
         "stock_balances_sku_skus_sku_fk": {
           "name": "stock_balances_sku_skus_sku_fk",
           "tableFrom": "stock_balances",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -878,15 +878,15 @@
         "stock_movements_sku_skus_sku_fk": {
           "name": "stock_movements_sku_skus_sku_fk",
           "tableFrom": "stock_movements",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -952,15 +952,15 @@
         "product_images_sku_products_sku_fk": {
           "name": "product_images_sku_products_sku_fk",
           "tableFrom": "product_images",
-          "tableTo": "products",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "products",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1248,8 +1248,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {},
@@ -1405,28 +1405,28 @@
         "bundle_items_bundle_sku_bundles_sku_fk": {
           "name": "bundle_items_bundle_sku_bundles_sku_fk",
           "tableFrom": "bundle_items",
-          "tableTo": "bundles",
           "columnsFrom": [
             "bundle_sku"
           ],
+          "tableTo": "bundles",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "bundle_items_product_sku_products_sku_fk": {
           "name": "bundle_items_product_sku_products_sku_fk",
           "tableFrom": "bundle_items",
-          "tableTo": "products",
           "columnsFrom": [
             "product_sku"
           ],
+          "tableTo": "products",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1529,8 +1529,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -1564,9 +1564,9 @@
   },
   "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
+    "tables": {}
   },
   "internal": {
     "tables": {},

@@ -140,10 +140,24 @@
   // donc rétro-compatible avec tout appelant existant qui ne le passe pas.
   function eligiblePool(a,widen,allowAdjacentPower,liveAvailabilityByCigarId){
     const cc=corridor(a.power);
+    // Fail-closed CORRIGÉ (audit) : si liveAvailabilityByCigarId est fourni (même
+    // vide), c'est le SEUL juge de disponibilité, cigarId par cigarId. L'absence
+    // d'entrée pour un cigarId précis = indisponible pour CE cigarId — ne retombe
+    // JAMAIS sur p.stock.available (le CATALOG figé), même si d'autres cigarId
+    // sont bien présents dans la map. Seule l'ABSENCE TOTALE du paramètre
+    // (undefined, aucun contrôle live tenté) conserve l'ancien comportement local.
+    const hasLiveOverride = liveAvailabilityByCigarId != null;
     return CATALOG.filter(p=>{
-      const live=liveAvailabilityByCigarId&&liveAvailabilityByCigarId[p.cigarId];
-      const available=live?(!!live.packAvailable||!!live.boxAvailable):(p.stock&&p.stock.available);
-      if(!(available&&(live||Number(p.stock.heldUnits)>0))) return false; // détenu physiquement = vérité opérationnelle
+      let available, heldOk;
+      if(hasLiveOverride){
+        const live=liveAvailabilityByCigarId[p.cigarId];
+        available=!!live&&(!!live.packAvailable||!!live.boxAvailable);
+        heldOk=true; // heldUnits figé n'a plus de sens dès qu'une source live existe
+      }else{
+        available=!!(p.stock&&p.stock.available);
+        heldOk=Number(p.stock&&p.stock.heldUnits)>0;
+      }
+      if(!(available&&heldOk)) return false; // détenu physiquement = vérité opérationnelle
       if(p.allocation&&p.allocation.curatorEligible===false) return false; // stock réservé aux événements: hors Curator sans falsifier le stock
       if(!durationEligible(p,a.duration,widen||0)) return false;
       if(!Number.isFinite(p.power)) return false;
@@ -245,11 +259,12 @@
   }
   return {
     // Bump volontaire 1.3.1-rc -> 1.3.2-rc (liveAvailabilityByCigarId) -> 1.3.3-rc
-    // (export de publicItem pour le déroulé "voir les autres" côté HTML).
-    // Aucun changement de scoring/selectDiverse dans les deux cas.
+    // (export de publicItem) -> 1.3.4-rc (correction audit : fail-closed par
+    // CIGAR_ID individuel dans eligiblePool, cf. commentaire ci-dessus).
+    // Aucun changement de scoring/selectDiverse dans aucun de ces cas.
     // dna_availability_watch.lastEvaluatedEngineVersion trace cette valeur
     // à chaque évaluation pour détecter toute divergence future HTML/Node.
-    version:'1.3.3-rc',
+    version:'1.3.4-rc',
     doctrine:'Stock détenu Curator-eligible → durée → corridor puissance → DNA Fit ≥70 → raffinements → 1 à 3 recommandations → fallback explicite',
     catalogAsOf:'2026-08-11',
     CATALOG,

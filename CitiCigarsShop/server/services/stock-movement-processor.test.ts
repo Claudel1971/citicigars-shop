@@ -144,8 +144,27 @@ describe("VENTE (amendement 6 : décrément conjoint si réservée)", () => {
       { balanceField: "reservedClient", delta: -2 },
     ]);
   });
-  it("refuse si availableNow insuffisant", () => {
+  it("refuse si availableNow insuffisant (vente directe)", () => {
     expect(() => effectsForVente(10, b({ onHand: 5 }), false)).toThrow(StockRuleViolation);
+  });
+  it("(correction audit) vente référencée qui consomme TOUT le réservé doit réussir — jamais jugée sur availableNow", () => {
+    // onHand=5, reservedClient=5 -> availableNow serait 0, mais la vente référencée
+    // ne doit PAS être bloquée : elle concrétise exactement cette réservation.
+    const balance = b({ onHand: 5, reservedClient: 5 });
+    expect(computeAvailability(balance).availableNow).toBe(0); // vérifie la prémisse du piège
+    expect(() => effectsForVente(5, balance, true)).not.toThrow();
+    expect(effectsForVente(5, balance, true)).toEqual([
+      { balanceField: "onHand", delta: -5 },
+      { balanceField: "reservedClient", delta: -5 },
+    ]);
+  });
+  it("vente référencée refusée si la quantité dépasse le réservé, même si onHand suffirait", () => {
+    const balance = b({ onHand: 10, reservedClient: 2 });
+    expect(() => effectsForVente(3, balance, true)).toThrow(StockRuleViolation);
+  });
+  it("vente référencée refusée si onHand insuffisant, même si reservedClient suffirait (incohérence à détecter)", () => {
+    const balance = b({ onHand: 1, reservedClient: 5 });
+    expect(() => effectsForVente(3, balance, true)).toThrow(StockRuleViolation);
   });
 });
 

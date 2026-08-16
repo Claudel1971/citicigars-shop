@@ -28,3 +28,19 @@ const poolNoOverride = engine.eligiblePool(a2, 0, false);
 const poolWithOverride = engine.eligiblePool(a2, 0, false, liveOverrideAvailable);
 console.log('pool WITHOUT override has CTG000021:', poolNoOverride.some(p => p.cigarId === 'CTG000021'));
 console.log('pool WITH override has CTG000021:', poolWithOverride.some(p => p.cigarId === 'CTG000021'));
+
+// --- Correction audit (point 5) : fail-closed PAR CIGAR_ID, pas seulement quand
+// la map entière est absente. CTG000020 a stock.available=true dans le CATALOG
+// figé (donc apparaîtrait sans aucun override). Ici on fournit une map non vide,
+// mais qui ne contient AUCUNE entrée pour CTG000020 (seulement pour un autre
+// cigarId sans rapport) -> doit être exclu, jamais un repli sur p.stock.available.
+const a3 = { family: 'veloute', power: 3, intensity: 3, secondaryFamily: null, spice: null, sweetness: null, signatures: [], duration: null };
+const poolStale = engine.eligiblePool(a3, 0, false); // sans map -> comportement local existant
+const mapMissingThisCigarId = { CTG999999: { packAvailable: true, boxAvailable: true } }; // non vide, mais ne couvre pas CTG000020
+const poolWithPartialMap = engine.eligiblePool(a3, 0, false, mapMissingThisCigarId);
+console.log('pool SANS map (legacy) has CTG000020:', poolStale.some(p => p.cigarId === 'CTG000020'));
+console.log('pool AVEC map non vide mais SANS entrée CTG000020 has CTG000020 (doit être false):', poolWithPartialMap.some(p => p.cigarId === 'CTG000020'));
+if (poolWithPartialMap.some(p => p.cigarId === 'CTG000020')) {
+  console.error('ECHEC : fail-closed par CIGAR_ID individuel ne fonctionne pas (repli détecté sur p.stock.available)');
+  process.exitCode = 1;
+}

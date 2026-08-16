@@ -1,3 +1,7 @@
+-- ÉTAPE 1/5 (point 1, audit) : les 8 nouvelles tables SEULEMENT. Aucune
+-- table existante (products/users/product_images/bundles/bundle_items)
+-- n'est touchée ici. Les FK de cette étape ne relient que des tables
+-- neuves entre elles (aucun risque sur des données déjà existantes).
 CREATE TABLE `accessories` (
 	`sku` varchar(50) NOT NULL,
 	`nom` varchar(255) NOT NULL,
@@ -116,121 +120,15 @@ CREATE TABLE `stock_movements` (
 	CONSTRAINT `stock_movements_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-CREATE TABLE `product_images` (
-	`id` varchar(36) NOT NULL,
-	`sku` varchar(50) NOT NULL,
-	`type` text NOT NULL,
-	`data` text,
-	`url` text,
-	`created_at` timestamp DEFAULT (now()),
-	CONSTRAINT `product_images_id` PRIMARY KEY(`id`)
-);
---> statement-breakpoint
-CREATE TABLE `products` (
-	`sku` varchar(50) NOT NULL,
-	`cigar_id` varchar(20),
-	`cigars_per_box` int,
-	`marque` text NOT NULL,
-	`ligne` text,
-	`pays` text,
-	`modele` text,
-	`vitole` text,
-	`format` text,
-	`dimensions` text,
-	`dimensions_mm` text,
-	`longueur` text,
-	`ring_gauge` int,
-	`diametre` text,
-	`qte_boite` int,
-	`quantite_boite` int,
-	`quantite_pack` int,
-	`type_pack` int,
-	`puissance` int,
-	`rating` text,
-	`top25` boolean DEFAULT false,
-	`rank` int,
-	`year` int,
-	`prix_unitaire` int,
-	`prix_boite` int,
-	`prix_pack` int,
-	`in_catalogue` boolean DEFAULT true,
-	`availability_status` varchar(20) DEFAULT 'IN_STOCK',
-	`sold_out_at` timestamp,
-	`coup_de_coeur` boolean DEFAULT false,
-	`type` varchar(50) DEFAULT 'standard',
-	`description` text,
-	`origine` text,
-	`promotions` json,
-	`badges` json,
-	`composition` json,
-	`prix_bundle` int,
-	`fiche_technique` json,
-	`created_at` timestamp DEFAULT (now()),
-	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `products_sku` PRIMARY KEY(`sku`),
-	CONSTRAINT `products_cigar_id_unique` UNIQUE(`cigar_id`)
-);
---> statement-breakpoint
-CREATE TABLE `users` (
-	`id` varchar(36) NOT NULL,
-	`username` varchar(255) NOT NULL,
-	`password` text NOT NULL,
-	CONSTRAINT `users_id` PRIMARY KEY(`id`),
-	CONSTRAINT `users_username_unique` UNIQUE(`username`)
-);
---> statement-breakpoint
-CREATE TABLE `bundle_items` (
-	`id` int AUTO_INCREMENT NOT NULL,
-	`bundle_sku` varchar(50) NOT NULL,
-	`product_sku` varchar(50),
-	`component_cigar_id` varchar(20),
-	`quantite` int NOT NULL,
-	`prix_unitaire` int,
-	`marque` varchar(100),
-	`modele` varchar(255),
-	`rating` varchar(50),
-	`top25` varchar(100),
-	`created_at` timestamp DEFAULT (now()),
-	CONSTRAINT `bundle_items_id` PRIMARY KEY(`id`)
-);
---> statement-breakpoint
-CREATE TABLE `bundles` (
-	`sku` varchar(50) NOT NULL,
-	`nom` varchar(255) NOT NULL,
-	`description` text,
-	`prix_bundle` int NOT NULL,
-	`prix_suggere` int,
-	`image_url` varchar(500),
-	`availability_status` varchar(20) DEFAULT 'IN_STOCK',
-	`sold_out_at` timestamp,
-	`in_catalogue` boolean DEFAULT true,
-	`promo_pourcentage` int,
-	`created_at` timestamp DEFAULT (now()),
-	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `bundles_sku` PRIMARY KEY(`sku`)
-);
---> statement-breakpoint
 ALTER TABLE `accessories` ADD CONSTRAINT `accessories_sku_skus_sku_fk` FOREIGN KEY (`sku`) REFERENCES `skus`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `dna_availability_watch` ADD CONSTRAINT `dna_availability_watch_lead_id_dna_leads_id_fk` FOREIGN KEY (`lead_id`) REFERENCES `dna_leads`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pack_size_config` ADD CONSTRAINT `pack_size_config_sku_skus_sku_fk` FOREIGN KEY (`sku`) REFERENCES `skus`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `stock_balances` ADD CONSTRAINT `stock_balances_sku_skus_sku_fk` FOREIGN KEY (`sku`) REFERENCES `skus`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `stock_movements` ADD CONSTRAINT `stock_movements_sku_skus_sku_fk` FOREIGN KEY (`sku`) REFERENCES `skus`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `product_images` ADD CONSTRAINT `product_images_sku_products_sku_fk` FOREIGN KEY (`sku`) REFERENCES `products`(`sku`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `products` ADD CONSTRAINT `products_sku_skus_sku_fk` FOREIGN KEY (`sku`) REFERENCES `skus`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `products` ADD CONSTRAINT `products_cigar_id_cigar_catalog_cigar_id_fk` FOREIGN KEY (`cigar_id`) REFERENCES `cigar_catalog`(`cigar_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `bundle_items` ADD CONSTRAINT `bundle_items_bundle_sku_bundles_sku_fk` FOREIGN KEY (`bundle_sku`) REFERENCES `bundles`(`sku`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `bundle_items` ADD CONSTRAINT `bundle_items_product_sku_products_sku_fk` FOREIGN KEY (`product_sku`) REFERENCES `products`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `bundle_items` ADD CONSTRAINT `bundle_items_component_cigar_id_cigar_catalog_cigar_id_fk` FOREIGN KEY (`component_cigar_id`) REFERENCES `cigar_catalog`(`cigar_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `bundles` ADD CONSTRAINT `bundles_sku_skus_sku_fk` FOREIGN KEY (`sku`) REFERENCES `skus`(`sku`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX `idx_cigar_catalog_mlv` ON `cigar_catalog` (`marque`,`ligne`,`vitole`);--> statement-breakpoint
 CREATE INDEX `idx_dna_watch_status` ON `dna_availability_watch` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_dna_leads_profile` ON `dna_leads` (`dna_profile_id`);--> statement-breakpoint
 CREATE INDEX `idx_pack_size_config_sku` ON `pack_size_config` (`sku`);--> statement-breakpoint
 CREATE INDEX `idx_stock_movements_history` ON `stock_movements` (`sku`,`type`,`balance_field`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_stock_movements_group` ON `stock_movements` (`group_id`);--> statement-breakpoint
-CREATE INDEX `idx_stock_movements_type_date` ON `stock_movements` (`movement_type`,`created_at`);--> statement-breakpoint
-CREATE INDEX `idx_bundle` ON `bundle_items` (`bundle_sku`);--> statement-breakpoint
-CREATE INDEX `idx_product` ON `bundle_items` (`product_sku`);--> statement-breakpoint
-CREATE INDEX `idx_bundle_items_component_cigar_id` ON `bundle_items` (`component_cigar_id`);--> statement-breakpoint
-CREATE INDEX `idx_availability` ON `bundles` (`availability_status`);--> statement-breakpoint
-CREATE INDEX `idx_catalogue` ON `bundles` (`in_catalogue`);
+CREATE INDEX `idx_stock_movements_type_date` ON `stock_movements` (`movement_type`,`created_at`);

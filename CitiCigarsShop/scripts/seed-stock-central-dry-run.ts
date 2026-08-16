@@ -25,9 +25,14 @@ const skus = new Map<string, string>();
 const cigarCatalog = new Map<string, { brand: string; line: string; vitole: string }>();
 const bundles = new Set<string>();
 const bundleItems: { bundleSku: string; productSku: string | null; componentCigarId: string | null; qty: number }[] = [];
+const packSizeConfigs: { sku: string; packSize: number }[] = [];
 let confirmedMovements = 0;
 let unconfirmedMovements = 0;
 const unconfirmedLines: string[] = [];
+// Point 3 (audit) : vérifie, en rejouant les ops DANS L'ORDRE, qu'aucun INSERT_BUNDLE_ITEM
+// ne référence un componentCigarId absent de cigarCatalog AU MOMENT où il est traité —
+// exactement la contrainte FK que l'application réelle rencontrerait.
+const fkOrderViolations: string[] = [];
 
 function keyOf(sku: string, type: string, packSize: number): BalanceKey {
   return `${sku}|${type}|${packSize}`;
@@ -44,7 +49,13 @@ for (const op of plan as SeedOp[]) {
     case "UPSERT_BUNDLE":
       bundles.add(op.sku);
       break;
+    case "UPSERT_PACK_SIZE_CONFIG":
+      packSizeConfigs.push({ sku: op.sku, packSize: op.packSize });
+      break;
     case "INSERT_BUNDLE_ITEM":
+      if (op.componentCigarId && !cigarCatalog.has(op.componentCigarId)) {
+        fkOrderViolations.push(`bundle_items(${op.bundleSku}) référence componentCigarId=${op.componentCigarId} AVANT sa création dans cigar_catalog`);
+      }
       bundleItems.push({ bundleSku: op.bundleSku, productSku: op.productSku, componentCigarId: op.componentCigarId, qty: op.qty });
       break;
     case "MOVEMENT": {
@@ -61,6 +72,15 @@ for (const op of plan as SeedOp[]) {
     }
   }
 }
+
+console.log("\n=== Vérification ordre FK bundle_items -> cigar_catalog (point 3) ===");
+if (fkOrderViolations.length) {
+  fkOrderViolations.forEach((v) => console.error("VIOLATION: " + v));
+} else {
+  console.log(`OK : les ${bundleItems.length} lignes bundle_items référencent toutes un cigar_catalog déjà créé au moment de leur insertion.`);
+}
+console.log(`cigar_catalog : ${cigarCatalog.size} CIGAR_ID au total`);
+console.log(`pack_size_config : ${packSizeConfigs.length} ligne(s) — ${packSizeConfigs.map((p) => `${p.sku}:${p.packSize}`).join(", ")}`);
 
 console.log("=== Seed dry-run — mapping 81 lignes + réconciliation inventaire 13/08 (aucune écriture DB) ===");
 console.log(`Lignes mapping lues: ${rows.length}`);

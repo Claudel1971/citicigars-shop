@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "22b9d454-f8da-40a4-9e5e-18151913e903",
-  "prevId": "55553b34-1540-42fd-89fb-018fd214036f",
+  "id": "5d6c0958-f1c5-4c05-bb21-46ea86bf074f",
+  "prevId": "589357f7-efb0-4324-b11b-c0805bd58de2",
   "tables": {
     "accessories": {
       "name": "accessories",
@@ -984,6 +984,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "cigar_id": {
+          "name": "cigar_id",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cigars_per_box": {
+          "name": "cigars_per_box",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "marque": {
           "name": "marque",
           "type": "text",
@@ -1262,7 +1276,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "products_cigar_id_unique": {
+          "name": "products_cigar_id_unique",
+          "columns": [
+            "cigar_id"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "users": {
@@ -1331,7 +1352,14 @@
           "name": "product_sku",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "component_cigar_id": {
+          "name": "component_cigar_id",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "quantite": {
@@ -1397,6 +1425,13 @@
           "name": "idx_product",
           "columns": [
             "product_sku"
+          ],
+          "isUnique": false
+        },
+        "idx_bundle_items_component_cigar_id": {
+          "name": "idx_bundle_items_component_cigar_id",
+          "columns": [
+            "component_cigar_id"
           ],
           "isUnique": false
         }

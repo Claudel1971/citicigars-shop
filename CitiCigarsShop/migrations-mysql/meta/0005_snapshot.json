@@ -1,8 +1,8 @@
 {
+  "id": "884dc3b6-1bd5-4aaa-838b-deac3f9dc4b3",
+  "prevId": "c6459d67-f431-42aa-823d-80870cb61d6b",
   "version": "5",
   "dialect": "mysql",
-  "id": "22b9d454-f8da-40a4-9e5e-18151913e903",
-  "prevId": "55553b34-1540-42fd-89fb-018fd214036f",
   "tables": {
     "accessories": {
       "name": "accessories",
@@ -56,8 +56,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {},
@@ -65,15 +65,15 @@
         "accessories_sku_skus_sku_fk": {
           "name": "accessories_sku_skus_sku_fk",
           "tableFrom": "accessories",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -167,8 +167,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -297,15 +297,15 @@
         "dna_availability_watch_lead_id_dna_leads_id_fk": {
           "name": "dna_availability_watch_lead_id_dna_leads_id_fk",
           "tableFrom": "dna_availability_watch",
-          "tableTo": "dna_leads",
           "columnsFrom": [
             "lead_id"
           ],
+          "tableTo": "dna_leads",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -441,8 +441,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -535,15 +535,15 @@
         "pack_size_config_sku_skus_sku_fk": {
           "name": "pack_size_config_sku_skus_sku_fk",
           "tableFrom": "pack_size_config",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -675,8 +675,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         },
         "last_movement_group_id": {
           "name": "last_movement_group_id",
@@ -691,15 +691,15 @@
         "stock_balances_sku_skus_sku_fk": {
           "name": "stock_balances_sku_skus_sku_fk",
           "tableFrom": "stock_balances",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -878,15 +878,15 @@
         "stock_movements_sku_skus_sku_fk": {
           "name": "stock_movements_sku_skus_sku_fk",
           "tableFrom": "stock_movements",
-          "tableTo": "skus",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "skus",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -952,15 +952,15 @@
         "product_images_sku_products_sku_fk": {
           "name": "product_images_sku_products_sku_fk",
           "tableFrom": "product_images",
-          "tableTo": "products",
           "columnsFrom": [
             "sku"
           ],
+          "tableTo": "products",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -982,6 +982,20 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "cigar_id": {
+          "name": "cigar_id",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cigars_per_box": {
+          "name": "cigars_per_box",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "marque": {
@@ -1248,12 +1262,39 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "products_sku_skus_sku_fk": {
+          "name": "products_sku_skus_sku_fk",
+          "tableFrom": "products",
+          "columnsFrom": [
+            "sku"
+          ],
+          "tableTo": "skus",
+          "columnsTo": [
+            "sku"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "products_cigar_id_cigar_catalog_cigar_id_fk": {
+          "name": "products_cigar_id_cigar_catalog_cigar_id_fk",
+          "tableFrom": "products",
+          "columnsFrom": [
+            "cigar_id"
+          ],
+          "tableTo": "cigar_catalog",
+          "columnsTo": [
+            "cigar_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "products_sku": {
           "name": "products_sku",
@@ -1262,7 +1303,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "products_cigar_id_unique": {
+          "name": "products_cigar_id_unique",
+          "columns": [
+            "cigar_id"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "users": {
@@ -1331,7 +1379,14 @@
           "name": "product_sku",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "component_cigar_id": {
+          "name": "component_cigar_id",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "quantite": {
@@ -1399,34 +1454,54 @@
             "product_sku"
           ],
           "isUnique": false
+        },
+        "idx_bundle_items_component_cigar_id": {
+          "name": "idx_bundle_items_component_cigar_id",
+          "columns": [
+            "component_cigar_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
         "bundle_items_bundle_sku_bundles_sku_fk": {
           "name": "bundle_items_bundle_sku_bundles_sku_fk",
           "tableFrom": "bundle_items",
-          "tableTo": "bundles",
           "columnsFrom": [
             "bundle_sku"
           ],
+          "tableTo": "bundles",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "bundle_items_product_sku_products_sku_fk": {
           "name": "bundle_items_product_sku_products_sku_fk",
           "tableFrom": "bundle_items",
-          "tableTo": "products",
           "columnsFrom": [
             "product_sku"
           ],
+          "tableTo": "products",
           "columnsTo": [
             "sku"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "bundle_items_component_cigar_id_cigar_catalog_cigar_id_fk": {
+          "name": "bundle_items_component_cigar_id_cigar_catalog_cigar_id_fk",
+          "tableFrom": "bundle_items",
+          "columnsFrom": [
+            "component_cigar_id"
+          ],
+          "tableTo": "cigar_catalog",
+          "columnsTo": [
+            "cigar_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1529,8 +1604,8 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
-          "default": "(now())"
+          "default": "(now())",
+          "onUpdate": true
         }
       },
       "indexes": {
@@ -1549,7 +1624,21 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "bundles_sku_skus_sku_fk": {
+          "name": "bundles_sku_skus_sku_fk",
+          "tableFrom": "bundles",
+          "columnsFrom": [
+            "sku"
+          ],
+          "tableTo": "skus",
+          "columnsTo": [
+            "sku"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "bundles_sku": {
           "name": "bundles_sku",
@@ -1564,9 +1653,9 @@
   },
   "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
+    "tables": {}
   },
   "internal": {
     "tables": {},

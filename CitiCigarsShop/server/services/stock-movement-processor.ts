@@ -117,12 +117,23 @@ export function effectsForLiberationReservationEvenement(qty: number): Effect[] 
 }
 
 // Amendement 6 : vente référencée décrémente onHand ET reservedClient ensemble ; vente directe, onHand seul.
+// Correction (audit) : une vente qui référence une réservation existante ne doit
+// JAMAIS être jugée sur availableNow (= onHand-reservedClient-reservedEvent, qui
+// vaut 0 dès que tout onHand est déjà réservé) — sinon on bloque à tort la vente
+// qui concrétise exactement cette réservation. Le bon contrôle pour ce cas précis :
+// la quantité doit être couverte par reservedClient ET par onHand, indépendamment.
 export function effectsForVente(qty: number, balance: Balance, withReservation: boolean): Effect[] {
+  if (withReservation) {
+    if (qty > balance.reservedClient) throw new StockRuleViolation("insufficient_reserved_for_vente");
+    if (qty > balance.onHand) throw new StockRuleViolation("insufficient_onhand_for_vente");
+    return [
+      { balanceField: "onHand", delta: -qty },
+      { balanceField: "reservedClient", delta: -qty },
+    ];
+  }
   const { availableNow } = computeAvailability(balance);
   if (qty > availableNow) throw new StockRuleViolation("insufficient_availability_for_vente");
-  const effects: Effect[] = [{ balanceField: "onHand", delta: -qty }];
-  if (withReservation) effects.push({ balanceField: "reservedClient", delta: -qty });
-  return effects;
+  return [{ balanceField: "onHand", delta: -qty }];
 }
 
 // Correction 4 : sourceBalanceField paramétrable (onHand ou atEvent) pour la Box consommée.
