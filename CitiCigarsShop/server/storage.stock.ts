@@ -433,7 +433,16 @@ export class StockStorage {
     return { resolved, unresolved };
   }
 
-  /** POST /api/dna/contact : idempotent sur clientRequestId (unique index), jamais de doublon. */
+  /**
+   * POST /api/dna/contact : idempotent sur clientRequestId (unique index), jamais
+   * de doublon. Décision de consentement de Claudel (remplace la précédente) :
+   * `consentGiven` est reçu explicitement de l'appelant (le routeur HTTP a déjà
+   * rejeté 400 tout ce qui n'est pas strictement `true` avant d'arriver ici) —
+   * ce storage ne fabrique JAMAIS consentGiven=true lui-même. consentTimestamp
+   * est toujours généré ici, côté serveur, au moment de l'acceptation ; un
+   * timestamp éventuellement fourni par l'appelant est ignoré (le frontend n'en
+   * envoie de toute façon plus).
+   */
   async upsertLeadIdempotent(input: {
     clientRequestId: string;
     firstName: string;
@@ -444,6 +453,7 @@ export class StockStorage {
     dnaProfileId: string;
     answersSnapshot: unknown;
     refinementsSnapshot: unknown;
+    consentGiven: boolean;
   }): Promise<{ lead: DnaLead; created: boolean }> {
     const [existing] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     if (existing) return { lead: existing, created: false };
@@ -464,14 +474,10 @@ export class StockStorage {
         dnaProfileId: input.dnaProfileId,
         answersSnapshot: input.answersSnapshot,
         refinementsSnapshot: input.refinementsSnapshot,
-        // Décision serveur (audit, endpoint /contact) : la soumission du formulaire
-        // WhatsApp/coordonnées EST le geste de consentement dans ce flow (le frontend
-        // n'a pas de case à cocher séparée) — cohérent avec le fait que le frontend
-        // envoie déjà consentGiven:true en dur au moment du watch. capturedAtStep
-        // démarre à STEP4_WITH_RESULTS ; upsertWatchIdempotent le fait basculer à
-        // STEP6_ZERO_CASE, seul cas où un watch est jamais créé.
-        consentGiven: true,
+        consentGiven: input.consentGiven,
         consentTimestamp: new Date(),
+        // capturedAtStep démarre à STEP4_WITH_RESULTS ; upsertWatchIdempotent le
+        // fait basculer à STEP6_ZERO_CASE, seul cas où un watch est jamais créé.
         capturedAtStep: "STEP4_WITH_RESULTS",
       });
     } catch (e: any) {
@@ -484,15 +490,22 @@ export class StockStorage {
     return { lead: row!, created };
   }
 
-  /** POST /api/dna/watch : erreur si le lead n'existe pas, idempotent sur leadId (unique index). */
+  /**
+   * POST /api/dna/watch : erreur si le lead n'existe pas, idempotent sur leadId
+   * (unique index). Décision de consentement de Claudel : ne dépend d'aucun
+   * consentGiven envoyé dans SA PROPRE requête — vérifie exclusivement
+   * lead.consentGiven déjà persisté (source de vérité unique). Un lead créé
+   * avant que ce champ existe / sans consentement explicite est refusé.
+   */
   async upsertWatchIdempotent(input: {
     clientRequestId: string;
     dnaProfileId: string;
     answersSnapshot: unknown;
     refinementsSnapshot: unknown;
-  }): Promise<{ watch: DnaAvailabilityWatch; created: boolean } | { error: "lead_not_found" }> {
+  }): Promise<{ watch: DnaAvailabilityWatch; created: boolean } | { error: "lead_not_found" } | { error: "consent_missing" }> {
     const [lead] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     if (!lead) return { error: "lead_not_found" };
+    if (lead.consentGiven !== true) return { error: "consent_missing" };
 
     const [existing] = await db.select().from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, lead.id));
     if (existing) return { watch: existing, created: false };

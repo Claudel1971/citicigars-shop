@@ -253,11 +253,71 @@ console.log("\n--- 10. POST /api/dna/availability : CIGAR_ID inconnu = erreur ex
   } else bad(`POST /api/dna/availability (inconnu): attendu non-2xx + error=unresolved_cigar_ids, obtenu status=${r.status} body=${JSON.stringify(r.json)}`);
 }
 
+console.log("\n--- 10b. POST /api/dna/contact sans consentGiven : 400 (décision consentement Claudel) ---");
+{
+  const payload = {
+    clientRequestId: "test-crid-noconsent-" + Date.now(),
+    participant: { firstName: "NoConsent", lastName: "Test" },
+    customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
+    refinements: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] },
+    contact: { country: "CM", city: "Douala", phone: "690000001" },
+  };
+  const r = await post("/api/dna/contact", payload);
+  if (r.status === 400 && r.json.error === "consent_required") ok("POST /api/dna/contact sans consentGiven: 400 consent_required");
+  else bad(`POST /api/dna/contact sans consentGiven: attendu 400/consent_required, obtenu status=${r.status} body=${JSON.stringify(r.json)}`);
+}
+
+console.log("\n--- 10c. POST /api/dna/contact avec consentGiven:false : 400 ---");
+{
+  const payload = {
+    clientRequestId: "test-crid-falseconsent-" + Date.now(),
+    consentGiven: false,
+    participant: { firstName: "FalseConsent", lastName: "Test" },
+    customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
+    refinements: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] },
+    contact: { country: "CM", city: "Douala", phone: "690000002" },
+  };
+  const r = await post("/api/dna/contact", payload);
+  if (r.status === 400 && r.json.error === "consent_required") ok("POST /api/dna/contact avec consentGiven:false: 400 consent_required");
+  else bad(`POST /api/dna/contact avec consentGiven:false: attendu 400/consent_required, obtenu status=${r.status} body=${JSON.stringify(r.json)}`);
+}
+
+console.log("\n--- 10d. POST /api/dna/contact avec consentGiven:true : lead créé, consentTimestamp généré côté serveur (jamais celui du payload) ---");
+{
+  const clientRequestId = "test-crid-realconsent-" + Date.now();
+  const bogusClientTimestamp = "2001-01-01T00:00:00.000Z"; // date volontairement absurde envoyée par ce test, doit être ignorée
+  const beforeCall = new Date();
+  const payload = {
+    clientRequestId,
+    consentGiven: true,
+    consentTimestamp: bogusClientTimestamp, // le frontend réel n'envoie plus ce champ ; on vérifie ici qu'un backend qui le recevrait quand même l'ignore
+    participant: { firstName: "RealConsent", lastName: "Test" },
+    customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
+    refinements: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] },
+    contact: { country: "CM", city: "Douala", phone: "690000003" },
+  };
+  const r = await post("/api/dna/contact", payload);
+  const [leadRow] = await db.select({ consentGiven: dnaLeads.consentGiven, consentTimestamp: dnaLeads.consentTimestamp }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
+  const afterCall = new Date();
+  const tsIsServerGenerated =
+    leadRow &&
+    leadRow.consentTimestamp instanceof Date &&
+    leadRow.consentTimestamp.getTime() >= beforeCall.getTime() - 2000 &&
+    leadRow.consentTimestamp.getTime() <= afterCall.getTime() + 2000 &&
+    leadRow.consentTimestamp.toISOString() !== bogusClientTimestamp;
+  if (r.status === 200 && leadRow && leadRow.consentGiven === true && tsIsServerGenerated) {
+    ok(`POST /api/dna/contact avec consentGiven:true: lead créé, consentGiven=true en base, consentTimestamp=${leadRow.consentTimestamp.toISOString()} généré côté serveur (le timestamp bidon du payload a bien été ignoré).`);
+  } else {
+    bad(`POST /api/dna/contact avec consentGiven:true: status=${r.status} leadRow=${JSON.stringify(leadRow)}`);
+  }
+}
+
 console.log("\n--- 11. POST /api/dna/contact rejoué avec le même clientRequestId = une seule ligne ---");
 {
   const clientRequestId = "test-crid-" + Date.now();
   const payload = {
     clientRequestId,
+    consentGiven: true,
     participant: { firstName: "Jean", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "Le Velouté Délicat", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 2, sweetness: 3, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: ["evening"] },
@@ -276,6 +336,7 @@ console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId,
   const clientRequestId = "test-crid-concurrent-" + Date.now();
   const payload = {
     clientRequestId,
+    consentGiven: true,
     participant: { firstName: "Concurrent", lastName: "Test" },
     customerDNA: { id: "BOI-1-1", label: "Le Boisé Délicat", family: "boise", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
@@ -298,18 +359,49 @@ console.log("\n--- 12. POST /api/dna/watch : erreur si le lead n'existe pas ---"
   else bad(`POST /api/dna/watch sans lead: attendu 404/lead_not_found, obtenu status=${r.status} body=${JSON.stringify(r.json)}`);
 }
 
+console.log("\n--- 12b. POST /api/dna/watch avec un lead existant NON consentant : rejeté (403) ---");
+{
+  // /contact rejette désormais tout consentGiven!==true en amont : pour simuler un
+  // lead existant sans consentement (ex. donnée historique), on passe directement
+  // par le storage, comme le décrit la doctrine "lead créé avant que ce champ
+  // existe" — jamais via la route HTTP publique, qui l'empêche structurellement.
+  const clientRequestId = "crid-noconsent-" + Date.now(); // varchar(36) : rester court
+  await stockStorage.upsertLeadIdempotent({
+    clientRequestId,
+    firstName: "NonConsenting",
+    lastName: "Lead",
+    country: "CM",
+    city: "Douala",
+    whatsapp: "690000004",
+    dnaProfileId: "VEL-1-1",
+    answersSnapshot: {},
+    refinementsSnapshot: {},
+    consentGiven: false,
+  });
+  const r = await post("/api/dna/watch", { clientRequestId, dnaProfileId: "VEL-1-1", answersSnapshot: {}, refinementsSnapshot: {} });
+  if (r.status === 403 && r.json.error === "consent_missing") {
+    ok("POST /api/dna/watch sur un lead non consentant: 403 consent_missing (source de vérité = lead.consentGiven persisté)");
+  } else {
+    bad(`POST /api/dna/watch sur un lead non consentant: attendu 403/consent_missing, obtenu status=${r.status} body=${JSON.stringify(r.json)}`);
+  }
+}
+
 console.log("\n--- 13. POST /api/dna/watch rejoué = un seul watch (idempotent sur leadId) ---");
 {
   const clientRequestId = "test-crid-watch-" + Date.now();
   const contactPayload = {
     clientRequestId,
+    consentGiven: true,
     participant: { firstName: "Awa", lastName: "Test" },
     customerDNA: { id: "GOU-1-1", label: "Le Gourmand Délicat", family: "gourmand", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
     contact: { country: "CM", city: "Douala", phone: "690987654" },
   };
   const contactRes = await post("/api/dna/contact", contactPayload);
-  const watchPayload = { clientRequestId, dnaProfileId: "GOU-1-1", answersSnapshot: { power: 1, intensity: 1, family: "gourmand", secondaryFamily: null }, refinementsSnapshot: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] }, consentGiven: true, consentTimestamp: new Date().toISOString() };
+  // consentGiven/consentTimestamp volontairement absents : décision Claudel, /watch
+  // ne dépend d'aucun consentGiven envoyé dans sa propre requête (source de vérité
+  // = lead.consentGiven déjà persisté), et le frontend n'envoie plus de timestamp.
+  const watchPayload = { clientRequestId, dnaProfileId: "GOU-1-1", answersSnapshot: { power: 1, intensity: 1, family: "gourmand", secondaryFamily: null }, refinementsSnapshot: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] } };
   const w1 = await post("/api/dna/watch", watchPayload);
   const w2 = await post("/api/dna/watch", watchPayload);
   const watchesForLead = await db.select({ id: dnaAvailabilityWatch.id }).from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, contactRes.json.leadId));

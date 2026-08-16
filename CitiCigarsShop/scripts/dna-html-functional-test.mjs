@@ -93,6 +93,8 @@ async function run(family, power, intensity, label) {
     doc.getElementById("phone").value = "690123456";
 
     doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+    await new Promise((r) => setTimeout(r, 10));
+    doc.getElementById("consentContinue").dispatchEvent(new window.Event("click")); // modale de consentement : Continuer
     await new Promise((r) => setTimeout(r, 300));
 
     console.log(`Appels recommend() après loadReco: ${recommendCalls}`);
@@ -252,6 +254,8 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
     citySel.value = citySel.options[1].value;
     doc.getElementById("phone").value = "690123456";
     doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+    await new Promise((r) => setTimeout(r, 10));
+    doc.getElementById("consentContinue").dispatchEvent(new window.Event("click")); // modale de consentement : Continuer
     await new Promise((r) => setTimeout(r, 50));
   } else {
     if (!doc.getElementById("interestBox").hidden) fail("Réessayer réussi N=0: interestBox ne devrait pas être visible");
@@ -267,6 +271,8 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
     citySel.value = citySel.options[1].value;
     doc.getElementById("phone").value = "690123456";
     doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+    await new Promise((r) => setTimeout(r, 10));
+    doc.getElementById("consentContinue").dispatchEvent(new window.Event("click")); // modale de consentement : Continuer
     await new Promise((r) => setTimeout(r, 50));
   }
 
@@ -283,6 +289,136 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
 
 await runResolutionErrorThenRetry("veloute", 3, 3, "N>0");
 await runResolutionErrorThenRetry("gourmand", 1, 1, "N=0");
+
+// --- Modale de consentement (décision figée de Claudel) ---
+// Vérifie : ouverture après validation des champs et AVANT tout appel réseau ;
+// texte correct selon le mode (normal/zero) ; Annuler = zéro appel réseau +
+// champs préservés ; Continuer = envoie consentGiven:true, débloque saveLead/saveWatch.
+const CONSENT_TEXT_NORMAL =
+  "En continuant, vous acceptez que CitiCigars enregistre votre profil Cigar DNA et vos coordonnées afin de personnaliser vos recommandations et de vous accompagner concernant cette demande. Vos informations ne seront pas utilisées pour des communications marketing sans votre accord.";
+const CONSENT_TEXT_ZERO =
+  "En continuant, vous acceptez que CitiCigars enregistre votre profil Cigar DNA et vos coordonnées afin de vous contacter sur WhatsApp lorsqu'un cigare correspondant à votre profil sera disponible. Vos informations ne seront pas utilisées pour des communications marketing sans votre accord.";
+
+async function runConsentModal(family, power, intensity, expectedLabel) {
+  const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
+  const { window } = dom;
+  window.Element.prototype.scrollIntoView = () => {};
+  await new Promise((r) => setTimeout(r, 50));
+  const doc = window.document;
+
+  doc.getElementById("firstName").value = "Test";
+  doc.getElementById("lastName").value = "User";
+  doc.getElementById("startBtn").dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-axis="power"] [data-val="${power}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-axis="intensity"] [data-val="${intensity}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[0].dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-group="family"] [data-val="${family}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[1].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="spice"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="sweetness"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#signatureChips [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[2].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-group="duration"] [data-val="around_60"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#ritualMoments [data-val="evening"]').dispatchEvent(new window.Event("click"));
+
+  doc.getElementById("revealBtn").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 20));
+
+  console.log(`\n--- Modale de consentement (${family}/power${power}/intensity${intensity} -> ${expectedLabel}) ---`);
+
+  if (expectedLabel === "N>0") {
+    doc.getElementById("wantReco").dispatchEvent(new window.Event("click"));
+  }
+  // Sinon (N=0) : contactGate déjà ouvert directement par reveal().
+
+  let saveLeadCalls = 0;
+  let saveWatchCalls = 0;
+  let capturedPayload = null;
+  const originalSaveLead = window.saveLead;
+  const originalSaveWatch = window.saveWatch;
+  window.saveLead = (payload) => { saveLeadCalls++; capturedPayload = payload; return Promise.resolve(true); };
+  window.saveWatch = (payload) => { saveWatchCalls++; return Promise.resolve(true); };
+
+  doc.getElementById("country").value = "CM";
+  doc.getElementById("country").dispatchEvent(new window.Event("change"));
+  await new Promise((r) => setTimeout(r, 10));
+  const citySel = doc.getElementById("city");
+  citySel.value = citySel.options[1].value;
+  doc.getElementById("phone").value = "690123456";
+
+  doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 10));
+
+  const overlay = doc.getElementById("consentModalOverlay");
+  if (overlay.hidden) fail(`${expectedLabel}: la modale de consentement devrait s'ouvrir après validation des champs`);
+  else ok(`${expectedLabel}: modale de consentement ouverte après validation des champs, avant tout appel réseau`);
+
+  const expectedText = expectedLabel === "N>0" ? CONSENT_TEXT_NORMAL : CONSENT_TEXT_ZERO;
+  const actualText = doc.getElementById("consentModalBody").textContent;
+  if (actualText === expectedText) ok(`${expectedLabel}: texte de la modale conforme au mode (${expectedLabel === "N>0" ? "normal" : "zero"})`);
+  else fail(`${expectedLabel}: texte de la modale inattendu.\nAttendu: ${expectedText}\nObtenu:  ${actualText}`);
+
+  if (saveLeadCalls !== 0 || saveWatchCalls !== 0) {
+    fail(`${expectedLabel}: saveLead/saveWatch appelé(s) avant le clic sur Continuer (saveLead=${saveLeadCalls}, saveWatch=${saveWatchCalls})`);
+  } else {
+    ok(`${expectedLabel}: aucun appel saveLead/saveWatch avant le clic sur Continuer`);
+  }
+
+  // Annuler : ferme la modale, conserve les champs, zéro appel réseau.
+  doc.getElementById("consentCancel").dispatchEvent(new window.Event("click"));
+  const overlayAfterCancel = doc.getElementById("consentModalOverlay").hidden;
+  if (!overlayAfterCancel) fail(`${expectedLabel}: Annuler devrait fermer la modale`);
+  else ok(`${expectedLabel}: Annuler ferme la modale`);
+  if (doc.getElementById("country").value !== "CM" || doc.getElementById("phone").value !== "690123456") {
+    fail(`${expectedLabel}: Annuler a effacé des champs déjà saisis`);
+  } else {
+    ok(`${expectedLabel}: Annuler conserve les champs déjà saisis (pays/téléphone)`);
+  }
+  if (saveLeadCalls !== 0 || saveWatchCalls !== 0) {
+    fail(`${expectedLabel}: Annuler a déclenché un appel réseau (saveLead=${saveLeadCalls}, saveWatch=${saveWatchCalls})`);
+  } else {
+    ok(`${expectedLabel}: Annuler = zéro appel réseau`);
+  }
+
+  // Ré-ouvre et clique Continuer cette fois.
+  doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 10));
+  if (doc.getElementById("consentModalOverlay").hidden) fail(`${expectedLabel}: la modale devrait pouvoir se rouvrir après Annuler`);
+  else ok(`${expectedLabel}: la modale se rouvre normalement après un Annuler précédent`);
+
+  doc.getElementById("consentContinue").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 300));
+
+  if (doc.getElementById("consentModalOverlay").hidden) ok(`${expectedLabel}: Continuer ferme la modale`);
+  else fail(`${expectedLabel}: la modale devrait être fermée après Continuer`);
+
+  if (saveLeadCalls !== 1) fail(`${expectedLabel}: saveLead appelé ${saveLeadCalls} fois après Continuer (attendu 1)`);
+  else ok(`${expectedLabel}: saveLead appelé exactement 1 fois après Continuer`);
+
+  if (!capturedPayload || capturedPayload.consentGiven !== true) {
+    fail(`${expectedLabel}: le payload envoyé à /contact ne contient pas consentGiven:true (obtenu: ${JSON.stringify(capturedPayload && capturedPayload.consentGiven)})`);
+  } else {
+    ok(`${expectedLabel}: le payload envoyé à /contact contient bien consentGiven:true`);
+  }
+  if (capturedPayload && "consentTimestamp" in capturedPayload) {
+    fail(`${expectedLabel}: le frontend ne devrait envoyer aucun timestamp de consentement`);
+  } else {
+    ok(`${expectedLabel}: aucun consentTimestamp envoyé par le frontend (généré côté serveur)`);
+  }
+
+  if (expectedLabel === "N=0") {
+    if (saveWatchCalls !== 1) fail(`N=0: saveWatch appelé ${saveWatchCalls} fois après Continuer (attendu 1)`);
+    else ok("N=0: saveWatch appelé exactement 1 fois après Continuer (cas zéro, bloquant)");
+  }
+
+  window.saveLead = originalSaveLead;
+  window.saveWatch = originalSaveWatch;
+
+  dom.window.close();
+}
+
+await runConsentModal("veloute", 3, 3, "N>0");
+await runConsentModal("gourmand", 1, 1, "N=0");
 
 if (process.exitCode === 1) {
   console.log("\n=== DES ECHECS ONT ETE DETECTES CI-DESSUS ===");

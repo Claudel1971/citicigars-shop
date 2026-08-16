@@ -70,6 +70,14 @@ export function registerDnaRoutes(app: Express): void {
         return;
       }
 
+      // Décision de consentement de Claudel (remplace toute logique précédente) :
+      // rejeté si absent, false, ou toute valeur autre que le booléen strict true.
+      // Le backend ne fabrique jamais consentGiven=true lui-même.
+      if (body.consentGiven !== true) {
+        res.status(400).json({ error: "consent_required", message: "consentGiven doit être explicitement true." });
+        return;
+      }
+
       const { lead, created } = await stockStorage.upsertLeadIdempotent({
         clientRequestId,
         firstName: participant.firstName,
@@ -91,6 +99,7 @@ export function registerDnaRoutes(app: Express): void {
           duration: refinements.duration ?? null,
           ritualMoments: refinements.ritualMoments ?? [],
         },
+        consentGiven: true,
       });
 
       res.status(200).json({ ok: true, leadId: lead.id, created });
@@ -124,6 +133,14 @@ export function registerDnaRoutes(app: Express): void {
       });
 
       if ("error" in result) {
+        if (result.error === "consent_missing") {
+          // Décision de consentement de Claudel : source de vérité unique = le lead
+          // persisté (lead.consentGiven), jamais un flag répété dans la requête /watch.
+          // 403 : autorisation sur un état existant, pas une erreur de validation de
+          // la requête courante (elle-même bien formée).
+          res.status(403).json({ error: "consent_missing", message: "Le lead associé n'a pas de consentement enregistré." });
+          return;
+        }
         res.status(404).json({ error: "lead_not_found", message: "Aucun lead trouvé pour ce clientRequestId — appelez /api/dna/contact d'abord." });
         return;
       }
