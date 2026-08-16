@@ -46,6 +46,23 @@ BEGIN
   END IF;
 END
 --> statement-breakpoint
+-- Point 4 (audit) : stock_movements est un historique append-only. Aucune ligne
+-- existante ne doit jamais pouvoir être modifiée ou supprimée après coup — la
+-- seule façon de "corriger" un mouvement est d'en insérer un nouveau qui
+-- compense le premier. Testé par exécution réelle (UPDATE et DELETE rejetés)
+-- contre l'instance MariaDB jetable.
+CREATE TRIGGER `trg_stock_movements_bu` BEFORE UPDATE ON `stock_movements`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'stock_movements_immutable_no_update';
+END
+--> statement-breakpoint
+CREATE TRIGGER `trg_stock_movements_bd` BEFORE DELETE ON `stock_movements`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'stock_movements_immutable_no_delete';
+END
+--> statement-breakpoint
 CREATE TRIGGER `trg_bundle_items_bi` BEFORE INSERT ON `bundle_items`
 FOR EACH ROW
 BEGIN

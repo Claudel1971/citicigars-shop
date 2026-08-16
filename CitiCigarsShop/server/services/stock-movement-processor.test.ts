@@ -18,7 +18,8 @@ import {
   effectsForVente,
   effectsForSortieEvenement,
   effectsForRetourEvenement,
-  effectsForCadeauEchantillonPerte,
+  effectsForCadeauEchantillon,
+  effectsForPerteCasse,
   effectsForCorrectionInventaire,
   planOuvertureBoite,
   effectsForOuvertureBoiteSource,
@@ -188,14 +189,33 @@ describe("SORTIE_EVENEMENT / RETOUR_EVENEMENT (§1.2 : distinct de la réservati
   });
 });
 
-describe("CADEAU / ECHANTILLON / PERTE_CASSE — jamais prélevé sur du réservé", () => {
+describe("CADEAU / ECHANTILLON — jamais prélevé sur du réservé (consommation volontaire)", () => {
   it("refuse si la quantité empièterait sur une réservation", () => {
     const balance = b({ onHand: 3, reservedClient: 3 });
-    expect(() => effectsForCadeauEchantillonPerte(1, balance)).toThrow(StockRuleViolation);
+    expect(() => effectsForCadeauEchantillon(1, balance)).toThrow(StockRuleViolation);
   });
   it("accepté dans la limite du disponible net", () => {
     const balance = b({ onHand: 5, reservedClient: 3 });
-    expect(effectsForCadeauEchantillonPerte(2, balance)).toEqual([{ balanceField: "onHand", delta: -2 }]);
+    expect(effectsForCadeauEchantillon(2, balance)).toEqual([{ balanceField: "onHand", delta: -2 }]);
+  });
+  it("stock entièrement réservé -> toujours rejeté (point 5)", () => {
+    const balance = b({ onHand: 5, reservedClient: 5 });
+    expect(() => effectsForCadeauEchantillon(1, balance)).toThrow(StockRuleViolation);
+  });
+});
+
+describe("PERTE_CASSE — constat physique, autorisé même en déficit de réservation (point 5)", () => {
+  it("stock entièrement réservé + PERTE_CASSE -> autorisé si onHand >= qty", () => {
+    const balance = b({ onHand: 5, reservedClient: 5 });
+    expect(effectsForPerteCasse(2, balance)).toEqual([{ balanceField: "onHand", delta: -2 }]);
+  });
+  it("perte > onHand -> rejetée (jamais de onHand négatif, constat physique impossible)", () => {
+    const balance = b({ onHand: 3, reservedClient: 0 });
+    expect(() => effectsForPerteCasse(5, balance)).toThrow(StockRuleViolation);
+  });
+  it("perte exactement égale à onHand -> autorisée, onHand tombe à 0", () => {
+    const balance = b({ onHand: 4, reservedClient: 4 });
+    expect(effectsForPerteCasse(4, balance)).toEqual([{ balanceField: "onHand", delta: -4 }]);
   });
 });
 

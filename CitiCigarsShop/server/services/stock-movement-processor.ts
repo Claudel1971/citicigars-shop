@@ -154,9 +154,20 @@ export function effectsForRetourEvenement(qty: number): Effect[] {
   ];
 }
 
-export function effectsForCadeauEchantillonPerte(qty: number, balance: Balance): Effect[] {
+// CADEAU/ECHANTILLON : consommation volontaire, ne doit jamais empiéter sur du stock réservé.
+export function effectsForCadeauEchantillon(qty: number, balance: Balance): Effect[] {
   const { availableNow } = computeAvailability(balance);
   if (qty > availableNow) throw new StockRuleViolation("insufficient_availability");
+  return [{ balanceField: "onHand", delta: -qty }];
+}
+
+// PERTE_CASSE (point 5, audit) : une perte/casse physique est un constat, pas un choix.
+// Elle doit pouvoir être enregistrée dès que la quantité physique onHand le permet,
+// même si elle crée ensuite un déficit de réservation (symétrique à l'amendement 8
+// pour CORRECTION_INVENTAIRE) — contrairement à CADEAU/ECHANTILLON qui restent bornés
+// par availableNow puisqu'il s'agit là d'une consommation volontaire évitable.
+export function effectsForPerteCasse(qty: number, balance: Balance): Effect[] {
+  if (qty > balance.onHand) throw new StockRuleViolation("insufficient_onhand_for_perte_casse");
   return [{ balanceField: "onHand", delta: -qty }];
 }
 
