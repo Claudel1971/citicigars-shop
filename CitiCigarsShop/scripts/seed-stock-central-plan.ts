@@ -152,6 +152,18 @@ export function buildSeedPlan(rows: MappingRow[], reconMap: Map<string, ReconRow
   const knownCigarIds = new Set<string>();
   // Point 4 (audit) : dédup (sku, packSize) pour pack_size_config.
   const knownPackSizeConfigs = new Set<string>();
+  // P0.3 (audit) : cigarsPerBox est une propriété du SKU (Box ET Pack du même SKU
+  // la partagent), pas de la ligne CSV en cours. Pré-passe sur TOUTES les lignes
+  // AVANT de construire le moindre op, pour que la valeur soit connue quel que
+  // soit l'ordre Box/Pack dans le fichier (déterministe, indépendant de l'ordre) :
+  // sans ça, si la ligne Pack précédait la ligne Box du même SKU, son propre
+  // UPSERT_PRODUCT resterait figé à cigarsPerBox=null pour toujours.
+  const productCigarsPerBox = new Map<string, number>();
+  for (const r of rows) {
+    if (r.rowKind === "SKU_CIGAR_ID" && r.type === "Box" && r.cigarsPerUnit) {
+      productCigarsPerBox.set(r.sku, r.cigarsPerUnit);
+    }
+  }
 
   for (const row of rows) {
     if (row.rowKind === "SKU_CIGAR_ID") {
@@ -173,7 +185,7 @@ export function buildSeedPlan(rows: MappingRow[], reconMap: Map<string, ReconRow
         brand: row.brand,
         line: row.line,
         vitole: row.vitole,
-        cigarsPerBox: row.type === "Box" ? row.cigarsPerUnit : null,
+        cigarsPerBox: productCigarsPerBox.get(row.sku) ?? null,
       });
       // Point 4 : pack_size_config alimenté depuis les tailles Pack validées du mapping.
       if (row.type === "Pack" && row.cigarsPerUnit) {

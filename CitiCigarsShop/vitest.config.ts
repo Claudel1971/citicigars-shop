@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 // hérite de ce fichier. On isole donc explicitement la racine ici.
 export default defineConfig({
   test: {
-    include: ["server/**/*.test.ts"],
+    include: ["server/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",
   },
 });

@@ -11,12 +11,25 @@ INSERT INTO `skus` (`sku`, `kind`, `created_at`)
 SELECT `sku`, 'BUNDLE', `created_at` FROM `bundles`;
 --> statement-breakpoint
 
--- Vérification des comptes (schéma diff §13) : le nombre de lignes dans `skus`
--- doit être exactement `products` + `bundles`. Si ce n'est pas le cas, la
--- division par zéro ci-dessous fait échouer la migration explicitement plutôt
--- que de laisser une table skus incomplète passer inaperçue.
-SELECT IF(
-  (SELECT COUNT(*) FROM `skus`) = (SELECT COUNT(*) FROM `products`) + (SELECT COUNT(*) FROM `bundles`),
-  1,
-  1/0
-) AS `backfill_skus_count_check`;
+-- P0.2 (audit) : le SELECT IF(...,1,1/0) précédent ne fait PAS réellement
+-- échouer la migration (1/0 renvoie NULL + un warning en MySQL/MariaDB, pas
+-- une erreur, y compris en sql_mode strict pour un simple SELECT). Remplacé
+-- par une procédure stockée temporaire qui SIGNAL une vraie erreur SQLSTATE
+-- 45000 si le compte ne correspond pas — testé par exécution réelle contre
+-- une instance MariaDB jetable (voir commit) : provoque un vrai abort.
+DROP PROCEDURE IF EXISTS `_verify_skus_backfill`;
+--> statement-breakpoint
+CREATE PROCEDURE `_verify_skus_backfill`()
+BEGIN
+  DECLARE cnt_skus INT;
+  DECLARE cnt_expected INT;
+  SELECT COUNT(*) INTO cnt_skus FROM `skus`;
+  SELECT (SELECT COUNT(*) FROM `products`) + (SELECT COUNT(*) FROM `bundles`) INTO cnt_expected;
+  IF cnt_skus <> cnt_expected THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'backfill_skus_count_mismatch';
+  END IF;
+END
+--> statement-breakpoint
+CALL `_verify_skus_backfill`();
+--> statement-breakpoint
+DROP PROCEDURE `_verify_skus_backfill`;
