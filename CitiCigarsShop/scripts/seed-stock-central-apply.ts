@@ -37,6 +37,10 @@
 // cause. Un bundle qui existe déjà garde son vrai prix (jamais écrasé, ce
 // comportement était déjà correct).
 //
+// Audit dump réel WHC 16/08/2026 : les anciennes lignes bundle_items sont
+// réconciliées dans la transaction globale avant le seed, afin de ne pas
+// dupliquer les compositions historiques dont component_cigar_id est NULL.
+//
 // Usage :
 //   MYSQL_URL="mysql://root@127.0.0.1:3399/citicigars_rehearsal" \
 //     npx tsx scripts/seed-stock-central-apply.ts <mapping_csv> [reconciliation_csv]
@@ -101,8 +105,71 @@ export class SeedApplyError extends Error {
   }
 }
 
+/**
+ * Réconcilie les compositions historiques déjà présentes dans bundle_items
+ * avec les BUNDLE_COMPONENT explicites du mapping avant d'appliquer le seed.
+ *
+ * - Les bundles sans composant validé dans le mapping (ex. CTGBDL001) ne sont
+ *   jamais touchés.
+ * - Si product_sku existe, l'identité historique est (bundle_sku, product_sku).
+ * - Pour un composant sans SKU (Horacio), l'identité est
+ *   (bundle_sku, component_cigar_id).
+ * - Les anciennes lignes non présentes dans la composition validée sont
+ *   supprimées.
+ *
+ * Cette fonction tourne dans la transaction globale du seed : toute erreur
+ * provoque un rollback intégral.
+ */
+async function reconcileLegacyBundleItems(plan: SeedOp[], tx: Tx): Promise<void> {
+  const desiredByBundle = new Map<string, Extract<SeedOp, { kind: "INSERT_BUNDLE_ITEM" }>[]>();
+
+  for (const op of plan) {
+    if (op.kind !== "INSERT_BUNDLE_ITEM") continue;
+    const desired = desiredByBundle.get(op.bundleSku) ?? [];
+    desired.push(op);
+    desiredByBundle.set(op.bundleSku, desired);
+  }
+
+  for (const [bundleSku, desired] of desiredByBundle) {
+    const existingRows = await tx.select().from(bundleItems).where(eq(bundleItems.bundleSku, bundleSku));
+    const desiredProductSkus = new Set(
+      desired.map((op) => op.productSku).filter((sku): sku is string => !!sku),
+    );
+    const desiredCigarOnlyIds = new Set(
+      desired
+        .filter((op) => !op.productSku && op.componentCigarId)
+        .map((op) => op.componentCigarId as string),
+    );
+    const seenProductSkus = new Set<string>();
+    const seenCigarOnlyIds = new Set<string>();
+
+    for (const row of existingRows) {
+      let keep = false;
+
+      if (row.productSku && desiredProductSkus.has(row.productSku) && !seenProductSkus.has(row.productSku)) {
+        seenProductSkus.add(row.productSku);
+        keep = true;
+      } else if (
+        !row.productSku &&
+        row.componentCigarId &&
+        desiredCigarOnlyIds.has(row.componentCigarId) &&
+        !seenCigarOnlyIds.has(row.componentCigarId)
+      ) {
+        seenCigarOnlyIds.add(row.componentCigarId);
+        keep = true;
+      }
+
+      if (!keep) {
+        await tx.delete(bundleItems).where(eq(bundleItems.id, row.id));
+      }
+    }
+  }
+}
+
 /** Applique le plan complet DANS la transaction fournie (voir en-tête : atomicité globale, point 1). */
 export async function applySeedPlan(plan: SeedOp[], tx: Tx): Promise<void> {
+  await reconcileLegacyBundleItems(plan, tx);
+
   for (let i = 0; i < plan.length; i++) {
     try {
       await applyOp(plan[i], tx);
@@ -155,16 +222,29 @@ export async function applyOp(op: SeedOp, tx: Tx): Promise<void> {
         .onDuplicateKeyUpdate({ set: { active: true } });
       break;
     case "INSERT_BUNDLE_ITEM": {
-      // Pas d'unique index naturel sur (bundleSku,productSku,componentCigarId) :
-      // vérifie l'existence avant d'insérer. Avec l'atomicité globale (point 1),
-      // ce n'est plus une question de "reprise après échec partiel" (impossible
-      // désormais) mais une simple protection si ce script est explicitement
-      // relancé par-dessus des données déjà présentes (ex. --force).
-      const conditions = [eq(bundleItems.bundleSku, op.bundleSku)];
-      if (op.productSku) conditions.push(eq(bundleItems.productSku, op.productSku));
-      if (op.componentCigarId) conditions.push(eq(bundleItems.componentCigarId, op.componentCigarId));
-      const existing = await tx.select({ id: bundleItems.id }).from(bundleItems).where(and(...conditions));
-      if (!existing.length) {
+      // Dans la DB historique, component_cigar_id est NULL avant migration.
+      // On rapproche donc d'abord par (bundle_sku, product_sku) quand un SKU
+      // composant existe, afin d'enrichir la ligne au lieu de la dupliquer.
+      let existing: { id: number }[] = [];
+
+      if (op.productSku) {
+        existing = await tx
+          .select({ id: bundleItems.id })
+          .from(bundleItems)
+          .where(and(eq(bundleItems.bundleSku, op.bundleSku), eq(bundleItems.productSku, op.productSku)));
+      } else if (op.componentCigarId) {
+        existing = await tx
+          .select({ id: bundleItems.id })
+          .from(bundleItems)
+          .where(and(eq(bundleItems.bundleSku, op.bundleSku), eq(bundleItems.componentCigarId, op.componentCigarId)));
+      }
+
+      if (existing.length) {
+        await tx
+          .update(bundleItems)
+          .set({ componentCigarId: op.componentCigarId, quantite: op.qty })
+          .where(eq(bundleItems.id, existing[0].id));
+      } else {
         await tx.insert(bundleItems).values({
           bundleSku: op.bundleSku,
           productSku: op.productSku,

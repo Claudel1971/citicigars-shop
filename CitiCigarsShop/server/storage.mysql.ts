@@ -2,10 +2,11 @@ import { db } from "./db.mysql";
 import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { 
-  users, products, productImages,
+  users, products, productImages, productTechnicalSheets,
   type User, type InsertUser,
   type Product, type InsertProduct,
-  type ProductImage, type InsertProductImage
+  type ProductImage, type InsertProductImage,
+  type TechnicalSheet, type InsertTechnicalSheet
 } from "../shared/schema.mysql";
 
 function generateId(): string {
@@ -27,6 +28,11 @@ export interface IStorage {
   addImage(image: InsertProductImage): Promise<ProductImage>;
   deleteImagesBySku(sku: string): Promise<void>;
   deleteImageByType(sku: string, type: string): Promise<void>;
+
+  getTechnicalSheet(sku: string): Promise<TechnicalSheet | undefined>;
+  getAllTechnicalSheets(): Promise<TechnicalSheet[]>;
+  upsertTechnicalSheet(data: Omit<InsertTechnicalSheet, "id" | "createdAt" | "updatedAt">): Promise<TechnicalSheet>;
+  deleteTechnicalSheet(sku: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -106,7 +112,7 @@ export class DatabaseStorage implements IStorage {
     // Handle availability status update with raw SQL (Drizzle has issues with this column)
     if ('availabilityStatus' in updates || 'soldOutAt' in updates) {
       const status = updates.availabilityStatus || 'IN_STOCK';
-      const soldOutDate = updates.soldOutAt ? new Date(updates.soldOutAt as string) : null;
+      const soldOutDate = updates.soldOutAt ?? null;
       
       console.log('[updateProduct] Updating availability_status to:', status);
       console.log('[updateProduct] Updating sold_out_at to:', soldOutDate);
@@ -236,6 +242,43 @@ export class DatabaseStorage implements IStorage {
       .map(r => r.format)
       .filter((v): v is string => v !== null && v !== undefined && v.trim() !== '')
       .sort();
+  }
+
+  async getTechnicalSheet(sku: string): Promise<TechnicalSheet | undefined> {
+    const [sheet] = await db
+      .select()
+      .from(productTechnicalSheets)
+      .where(eq(productTechnicalSheets.sku, sku));
+    return sheet;
+  }
+
+  async getAllTechnicalSheets(): Promise<TechnicalSheet[]> {
+    return await db.select().from(productTechnicalSheets);
+  }
+
+  async upsertTechnicalSheet(
+    data: Omit<InsertTechnicalSheet, "id" | "createdAt" | "updatedAt">,
+  ): Promise<TechnicalSheet> {
+    const existing = await this.getTechnicalSheet(data.sku);
+
+    if (existing) {
+      await db
+        .update(productTechnicalSheets)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(productTechnicalSheets.sku, data.sku));
+    } else {
+      await db.insert(productTechnicalSheets).values(data);
+    }
+
+    const [sheet] = await db
+      .select()
+      .from(productTechnicalSheets)
+      .where(eq(productTechnicalSheets.sku, data.sku));
+    return sheet;
+  }
+
+  async deleteTechnicalSheet(sku: string): Promise<void> {
+    await db.delete(productTechnicalSheets).where(eq(productTechnicalSheets.sku, sku));
   }
 }
 

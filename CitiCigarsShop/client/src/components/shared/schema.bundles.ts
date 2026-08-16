@@ -1,6 +1,6 @@
 import { mysqlTable, varchar, text, int, boolean, timestamp, index } from 'drizzle-orm/mysql-core';
 import { createInsertSchema } from 'drizzle-zod';
-import { products } from './schema.mysql';
+import { products } from '../../../../shared/schema.mysql';
 
 export const bundles = mysqlTable('bundles', {
   sku: varchar('sku', { length: 50 }).primaryKey(),

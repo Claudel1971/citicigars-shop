@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
+import type { PoolOptions } from "mysql2";
 import * as schema from "../shared/schema.mysql";
 
 if (!process.env.MYSQL_URL) {
@@ -8,7 +9,9 @@ if (!process.env.MYSQL_URL) {
 
 const pool = mysql.createPool({
   uri: process.env.MYSQL_URL,
-  ssl: false,
+  // mysql2 accepte `false` à l'exécution pour désactiver TLS, mais sa
+  // déclaration TypeScript n'expose que string | SslOptions.
+  ssl: false as unknown as PoolOptions["ssl"],
   connectTimeout: 30000,
   waitForConnections: true,
   connectionLimit: 10,

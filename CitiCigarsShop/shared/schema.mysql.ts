@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, text, varchar, int, boolean, json, timestamp } from "drizzle-orm/mysql-core";
+import { mysqlTable, text, varchar, int, boolean, json, timestamp, customType } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { skus, cigarCatalog } from "./schema.stock";
@@ -67,6 +67,47 @@ export const productImages = mysqlTable("product_images", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+const mediumtext = customType<{ data: string }>({
+  dataType() {
+    return "mediumtext";
+  },
+});
+
+// Table historique déjà présente dans le schéma MySQL réel. Sa déclaration
+// Drizzle restaure le contrat utilisé par les routes de fiches techniques.
+export const productTechnicalSheets = mysqlTable("product_technical_sheets", {
+  id: int("id").primaryKey().autoincrement(),
+  sku: varchar("sku", { length: 50 }).notNull().unique().references(() => products.sku, { onDelete: "cascade" }),
+  smokeType: varchar("smoke_type", { length: 255 }),
+  durationMin: int("duration_min"),
+  durationMax: int("duration_max"),
+  evolution: text("evolution"),
+  originCountry: varchar("origin_country", { length: 100 }),
+  wrapper: varchar("wrapper", { length: 255 }),
+  binder: varchar("binder", { length: 255 }),
+  filler: text("filler"),
+  wrapperAppearance: text("wrapper_appearance"),
+  construction: text("construction"),
+  cutting: varchar("cutting", { length: 255 }),
+  lighting: text("lighting"),
+  draw: text("draw"),
+  burn: text("burn"),
+  ash: text("ash"),
+  smokeQuality: text("smoke_quality"),
+  dominantNotes: text("dominant_notes"),
+  secondaryNotes: text("secondary_notes"),
+  flavorEvolution: text("flavor_evolution"),
+  localPositioning: text("local_positioning"),
+  ratingScore: int("rating_score"),
+  ratingSource: varchar("rating_source", { length: 255 }),
+  ratingDate: varchar("rating_date", { length: 50 }),
+  top25Rank: int("top25_rank"),
+  tastingNotes: mediumtext("tasting_notes"),
+  isPremium: boolean("is_premium").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -85,3 +126,5 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type ProductImage = typeof productImages.$inferSelect;
 export type InsertProductImage = z.infer<typeof insertProductImageSchema>;
+export type TechnicalSheet = typeof productTechnicalSheets.$inferSelect;
+export type InsertTechnicalSheet = typeof productTechnicalSheets.$inferInsert;
