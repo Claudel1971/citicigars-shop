@@ -245,11 +245,18 @@ export interface ApplyOuvertureBoiteResult {
 }
 
 export class StockStorage {
-  /** Un seul mouvement, une seule ligne stock_balances, atomique (lock FOR UPDATE + calcul + write + ledger). */
-  async applyMovement(input: ApplyMovementInput): Promise<ApplyMovementResult> {
+  /**
+   * Un seul mouvement, une seule ligne stock_balances, atomique (lock FOR UPDATE
+   * + calcul + write + ledger). Accepte optionnellement une transaction externe
+   * (`tx`) pour participer à une transaction plus large orchestrée par
+   * l'appelant (ex. scripts/seed-stock-central-apply.ts, point 1 audit :
+   * les 257 opérations du seed de genèse doivent réussir ou échouer comme un
+   * tout, jamais laisser un état partiel) — sinon ouvre sa propre transaction.
+   */
+  async applyMovement(input: ApplyMovementInput, tx?: Tx): Promise<ApplyMovementResult> {
     assertPackSizeSentinel(input.type, input.packSize);
-    return db.transaction(async (tx) => {
-      const row = await lockOrCreateBalanceRow(tx, input.sku, input.type, input.packSize);
+    const run = async (t: Tx): Promise<ApplyMovementResult> => {
+      const row = await lockOrCreateBalanceRow(t, input.sku, input.type, input.packSize);
       const before = rowToBalance(row);
       const effects = computeSimpleEffects(input, before);
       for (const effect of effects) assertLooseNeverInTransit(input.type, effect.balanceField, effect.delta);
@@ -265,11 +272,12 @@ export class StockStorage {
         current = next;
       }
 
-      await writeBalanceRow(tx, input.sku, input.type, input.packSize, current, groupId);
-      if (movementRows.length) await tx.insert(stockMovements).values(movementRows);
+      await writeBalanceRow(t, input.sku, input.type, input.packSize, current, groupId);
+      if (movementRows.length) await t.insert(stockMovements).values(movementRows);
 
       return { groupId, balanceBefore: before, balanceAfter: current };
-    });
+    };
+    return tx ? run(tx) : db.transaction(run);
   }
 
   /**
@@ -279,15 +287,15 @@ export class StockStorage {
    * moindre effet, pour ne jamais pouvoir deadlocker contre une autre transaction
    * touchant un sous-ensemble chevauchant de ces mêmes lignes.
    */
-  async applyOuvertureBoite(input: ApplyOuvertureBoiteInput): Promise<ApplyOuvertureBoiteResult> {
-    return db.transaction(async (tx) => {
-      const [productRow] = await tx.select({ cigarsPerBox: products.cigarsPerBox }).from(products).where(eq(products.sku, input.sku));
+  async applyOuvertureBoite(input: ApplyOuvertureBoiteInput, tx?: Tx): Promise<ApplyOuvertureBoiteResult> {
+    const run = async (t: Tx): Promise<ApplyOuvertureBoiteResult> => {
+      const [productRow] = await t.select({ cigarsPerBox: products.cigarsPerBox }).from(products).where(eq(products.sku, input.sku));
       if (!productRow || productRow.cigarsPerBox == null) {
         throw new StockRuleViolation("cigars_per_box_not_configured", `Aucun cigarsPerBox configuré pour sku=${input.sku}`);
       }
       const cigarsPerBox = productRow.cigarsPerBox;
 
-      const activeConfigs = await tx
+      const activeConfigs = await t
         .select({ packSize: packSizeConfig.packSize })
         .from(packSizeConfig)
         .where(and(eq(packSizeConfig.sku, input.sku), eq(packSizeConfig.active, true)));
@@ -300,7 +308,7 @@ export class StockStorage {
 
       const lockedByKey = new Map<string, typeof stockBalances.$inferSelect>();
       for (const r of rowsToLock) {
-        const row = await lockOrCreateBalanceRow(tx, input.sku, r.type, r.packSize);
+        const row = await lockOrCreateBalanceRow(t, input.sku, r.type, r.packSize);
         lockedByKey.set(`${r.type}|${r.packSize}`, row);
       }
 
@@ -309,8 +317,9 @@ export class StockStorage {
       const looseRow = lockedByKey.get("Loose|0");
       const currentLooseTotalInSourceBucket = looseRow ? looseRow[`${input.sourceBalanceField}Qty` as "onHandQty" | "atEventQty"] : 0;
 
-      // Validation pure (planOuvertureBoite lève StockRuleViolation si incohérent) :
-      // rollback automatique puisqu'on est déjà dans la transaction.
+      // Validation pure (planOuvertureBoite lève StockRuleViolation si incohérent,
+      // y compris packSize dupliqué / packQty<=0 / quantités négatives — point 2
+      // audit) : rollback automatique puisqu'on est déjà dans la transaction.
       planOuvertureBoite({
         cigarsPerBox,
         allowedPackSizes,
@@ -333,10 +342,11 @@ export class StockStorage {
         movementRows.push(buildMovementRow(groupId, input.sku, "Box", 0, "OUVERTURE_BOITE", effect, qtyBefore, qtyAfter, input));
         sourceCurrent = next;
       }
-      await writeBalanceRow(tx, input.sku, "Box", 0, sourceCurrent, groupId);
+      await writeBalanceRow(t, input.sku, "Box", 0, sourceCurrent, groupId);
 
+      // planOuvertureBoite garantit désormais packQty>0 pour chaque entrée
+      // (point 2 audit) : plus besoin de filtrer les entrées nulles ici.
       for (const d of input.distribution) {
-        if (d.packQty <= 0) continue;
         const row = lockedByKey.get(`Pack|${d.packSize}`)!;
         const balance = rowToBalance(row);
         const destEffects = effectsForOuvertureBoiteDestination(d.packQty, input.sourceBalanceField);
@@ -346,7 +356,7 @@ export class StockStorage {
           movementRows.push(buildMovementRow(groupId, input.sku, "Pack", d.packSize, "OUVERTURE_BOITE", effect, qtyBefore, qtyAfter, input));
           current = next;
         }
-        await writeBalanceRow(tx, input.sku, "Pack", d.packSize, current, groupId);
+        await writeBalanceRow(t, input.sku, "Pack", d.packSize, current, groupId);
       }
 
       if (input.looseQty > 0) {
@@ -359,13 +369,14 @@ export class StockStorage {
           movementRows.push(buildMovementRow(groupId, input.sku, "Loose", 0, "OUVERTURE_BOITE", effect, qtyBefore, qtyAfter, input));
           current = next;
         }
-        await writeBalanceRow(tx, input.sku, "Loose", 0, current, groupId);
+        await writeBalanceRow(t, input.sku, "Loose", 0, current, groupId);
       }
 
-      if (movementRows.length) await tx.insert(stockMovements).values(movementRows);
+      if (movementRows.length) await t.insert(stockMovements).values(movementRows);
 
       return { groupId, cigarsPerBox };
-    });
+    };
+    return tx ? run(tx) : db.transaction(run);
   }
 
   /**
@@ -437,6 +448,11 @@ export class StockStorage {
     const [existing] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     if (existing) return { lead: existing, created: false };
 
+    // Point 3 (audit) : `created` doit refléter si CET appel a réellement inséré
+    // la ligne, pas seulement "existing était absent au moment du SELECT initial"
+    // — sinon le perdant d'une course sur ER_DUP_ENTRY se voit répondre created:true
+    // à tort. Recalculé après la tentative d'insertion, jamais avant.
+    let created = true;
     try {
       await db.insert(dnaLeads).values({
         clientRequestId: input.clientRequestId,
@@ -460,11 +476,12 @@ export class StockStorage {
       });
     } catch (e: any) {
       if (e?.code !== "ER_DUP_ENTRY") throw e;
-      // Course entre deux requêtes concurrentes avec le même clientRequestId :
-      // l'unique index a gagné, on relit simplement la ligne gagnante.
+      // Course perdue contre une requête concurrente avec le même clientRequestId :
+      // l'unique index a gagné côté adversaire, on relit simplement la ligne gagnante.
+      created = false;
     }
     const [row] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
-    return { lead: row!, created: !existing };
+    return { lead: row!, created };
   }
 
   /** POST /api/dna/watch : erreur si le lead n'existe pas, idempotent sur leadId (unique index). */
@@ -480,6 +497,9 @@ export class StockStorage {
     const [existing] = await db.select().from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, lead.id));
     if (existing) return { watch: existing, created: false };
 
+    // Point 3 (audit) : même correction que upsertLeadIdempotent — `created`
+    // recalculé après la tentative d'insertion, pas avant.
+    let created = true;
     try {
       await db.insert(dnaAvailabilityWatch).values({
         leadId: lead.id,
@@ -490,6 +510,7 @@ export class StockStorage {
       });
     } catch (e: any) {
       if (e?.code !== "ER_DUP_ENTRY") throw e;
+      created = false;
     }
 
     // Un watch n'existe QUE pour le cas zéro (mission §2 étape 6) : marque le
@@ -497,7 +518,7 @@ export class StockStorage {
     await db.update(dnaLeads).set({ capturedAtStep: "STEP6_ZERO_CASE" }).where(eq(dnaLeads.id, lead.id));
 
     const [row] = await db.select().from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, lead.id));
-    return { watch: row!, created: !existing };
+    return { watch: row!, created };
   }
 }
 

@@ -209,10 +209,30 @@ export function planOuvertureBoite(plan: OuvertureBoitePlan): void {
   if (plan.cigarsPerBox == null) {
     throw new StockRuleViolation("cigars_per_box_not_configured");
   }
+  // Point 2 (audit) : une distribution dangereuse doit être rejetée ICI, avant
+  // d'atteindre storage.stock.ts — pas seulement documentée comme risquée.
+  // Un packSize dupliqué écraserait silencieusement une des deux quantités
+  // lors de l'écriture (une seule ligne stock_balances par packSize) ; un
+  // packQty<=0 ou une quantité négative pourrait compenser artificiellement
+  // le total attendu sans représenter un état physique réel.
+  const seenPackSizes = new Set<number>();
   for (const d of plan.distribution) {
+    if (seenPackSizes.has(d.packSize)) {
+      throw new StockRuleViolation("ouverture_boite_duplicate_pack_size", `packSize=${d.packSize} apparaît plusieurs fois dans la distribution`);
+    }
+    seenPackSizes.add(d.packSize);
+    if (d.packQty <= 0) {
+      throw new StockRuleViolation("ouverture_boite_invalid_pack_qty", `packQty=${d.packQty} doit être > 0 pour packSize=${d.packSize}`);
+    }
     if (!plan.allowedPackSizes.includes(d.packSize)) {
       throw new StockRuleViolation("pack_size_not_configured", `packSize=${d.packSize} non configuré/actif pour ce SKU`);
     }
+  }
+  if (plan.looseQty < 0) {
+    throw new StockRuleViolation("ouverture_boite_invalid_loose_qty", `looseQty=${plan.looseQty} ne peut pas être négatif`);
+  }
+  if ((plan.otherExplicitQty ?? 0) < 0) {
+    throw new StockRuleViolation("ouverture_boite_invalid_other_qty", `otherExplicitQty=${plan.otherExplicitQty} ne peut pas être négatif`);
   }
   const distributedInPacks = plan.distribution.reduce((t, d) => t + d.packSize * d.packQty, 0);
   const total = distributedInPacks + plan.looseQty + (plan.otherExplicitQty || 0);

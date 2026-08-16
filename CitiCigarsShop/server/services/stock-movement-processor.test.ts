@@ -294,6 +294,62 @@ describe("OUVERTURE_BOITE (correction 3, 4, 12/2)", () => {
   it("refuse de consommer une Box absente du bucket source", () => {
     expect(() => effectsForOuvertureBoiteSource(1, "onHand", b({ onHand: 0 }))).toThrow(StockRuleViolation);
   });
+
+  // Point 2 (audit) : distribution dangereuse rejetée AVANT storage.stock.ts.
+  it("rejette un packSize dupliqué dans la distribution, même si le total tombe juste", () => {
+    expect(() =>
+      planOuvertureBoite({
+        cigarsPerBox: 20,
+        allowedPackSizes: [4],
+        // 4 + 4 = 8 packs de taille 4 en deux lignes -> écraserait silencieusement
+        // l'une des deux écritures sur la même ligne stock_balances(sku,Pack,4).
+        distribution: [
+          { packSize: 4, packQty: 2 },
+          { packSize: 4, packQty: 3 },
+        ],
+        looseQty: 0,
+        sourceBalanceField: "onHand",
+        currentLooseTotalInSourceBucket: 0,
+      }),
+    ).toThrow(StockRuleViolation);
+  });
+  it("rejette un packQty<=0 dans la distribution", () => {
+    expect(() =>
+      planOuvertureBoite({
+        cigarsPerBox: 20,
+        allowedPackSizes: [4],
+        distribution: [{ packSize: 4, packQty: 0 }],
+        looseQty: 20,
+        sourceBalanceField: "onHand",
+        currentLooseTotalInSourceBucket: 0,
+      }),
+    ).toThrow(StockRuleViolation);
+  });
+  it("rejette un looseQty négatif (ne doit jamais compenser artificiellement le total)", () => {
+    expect(() =>
+      planOuvertureBoite({
+        cigarsPerBox: 20,
+        allowedPackSizes: [4],
+        distribution: [{ packSize: 4, packQty: 6 }], // 24
+        looseQty: -4, // 24-4=20 tomberait juste sans ce garde-fou
+        sourceBalanceField: "onHand",
+        currentLooseTotalInSourceBucket: 0,
+      }),
+    ).toThrow(StockRuleViolation);
+  });
+  it("rejette un otherExplicitQty négatif", () => {
+    expect(() =>
+      planOuvertureBoite({
+        cigarsPerBox: 20,
+        allowedPackSizes: [4],
+        distribution: [{ packSize: 4, packQty: 6 }], // 24
+        looseQty: 0,
+        otherExplicitQty: -4,
+        sourceBalanceField: "onHand",
+        currentLooseTotalInSourceBucket: 0,
+      }),
+    ).toThrow(StockRuleViolation);
+  });
 });
 
 describe("Scénario bout-en-bout : ouverture de boîte onHand, packs+loose, puis vente d'un pack", () => {

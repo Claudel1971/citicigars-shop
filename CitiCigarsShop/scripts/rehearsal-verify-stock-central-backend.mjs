@@ -126,6 +126,30 @@ console.log("\n--- 4. OUVERTURE_BOITE atomique multi-lignes ---");
       }),
     "OUVERTURE_BOITE avec distribution incohérente (12 != cigarsPerBox=20)",
   );
+
+  // Point 2 (audit, 2e revue) : packSize dupliqué rejeté AVANT d'atteindre le
+  // storage — même si le total tombe juste (2*4 + 3*4 = 20 = cigarsPerBox).
+  const boxBeforeDup = await getBalance("CTGTEST01", "Box", 0);
+  await expectThrow(
+    () =>
+      stockStorage.applyOuvertureBoite({
+        sku: "CTGTEST01",
+        sourceBalanceField: "onHand",
+        distribution: [
+          { packSize: 4, packQty: 2 },
+          { packSize: 4, packQty: 3 },
+        ],
+        looseQty: 0,
+        author: "test",
+      }),
+    "OUVERTURE_BOITE avec packSize dupliqué (4 apparaît deux fois), total pourtant correct",
+  );
+  const boxAfterDup = await getBalance("CTGTEST01", "Box", 0);
+  if (boxBeforeDup.onHandQty === boxAfterDup.onHandQty) {
+    ok("OUVERTURE_BOITE packSize dupliqué: rejeté avant toute écriture, Box onHand inchangé (aucune boîte consommée pour une opération invalide)");
+  } else {
+    bad(`OUVERTURE_BOITE packSize dupliqué: Box onHand a changé malgré le rejet attendu (${boxBeforeDup.onHandQty} -> ${boxAfterDup.onHandQty})`);
+  }
 }
 
 console.log("\n--- 5. PERTE_CASSE autorisée même en déficit de réservation, CADEAU/ECHANTILLON refusés ---");
@@ -245,6 +269,26 @@ console.log("\n--- 11. POST /api/dna/contact rejoué avec le même clientRequest
   if (r1.status === 200 && r2.status === 200 && r1.json.leadId === r2.json.leadId && leadsForCrid.length === 1) {
     ok(`POST /api/dna/contact rejoué: même leadId=${r1.json.leadId} les 2 fois, 1 seule ligne en base (created=${r1.json.created}/${r2.json.created})`);
   } else bad(`POST /api/dna/contact rejoué: r1=${JSON.stringify(r1)} r2=${JSON.stringify(r2)} lignes en base=${leadsForCrid.length}`);
+}
+
+console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId, 2 requêtes en vol en même temps) : created correct pour chacune (point 3) ---");
+{
+  const clientRequestId = "test-crid-concurrent-" + Date.now();
+  const payload = {
+    clientRequestId,
+    participant: { firstName: "Concurrent", lastName: "Test" },
+    customerDNA: { id: "BOI-1-1", label: "Le Boisé Délicat", family: "boise", power: 1, intensity: 1, secondaryFamily: null },
+    refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
+    contact: { country: "CM", city: "Douala", phone: "690111222" },
+  };
+  const [rA, rB] = await Promise.all([post("/api/dna/contact", payload), post("/api/dna/contact", payload)]);
+  const leadsForCrid = await db.select({ id: dnaLeads.id }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
+  const createdFlags = [rA.json.created, rB.json.created].sort();
+  if (rA.json.leadId === rB.json.leadId && leadsForCrid.length === 1 && JSON.stringify(createdFlags) === JSON.stringify([false, true])) {
+    ok(`Course réelle sur /contact: 1 seule ligne en base, exactement une réponse created=true et une created=false (jamais les deux à true) — bug du point 3 corrigé.`);
+  } else {
+    bad(`Course réelle sur /contact: leadId A=${rA.json.leadId} B=${rB.json.leadId}, lignes en base=${leadsForCrid.length}, created=[${createdFlags}] (attendu exactement [false,true])`);
+  }
 }
 
 console.log("\n--- 12. POST /api/dna/watch : erreur si le lead n'existe pas ---");
