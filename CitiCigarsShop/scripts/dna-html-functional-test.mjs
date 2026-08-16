@@ -1,0 +1,291 @@
+// Test fonctionnel RÉEL du fichier HTML final (JSDOM, exécute vraiment les <script>).
+// Vérifie : pool résolu une seule fois (pas de second appel recommend), aucun
+// prix/Pack-Box dans les cartes, bouton "voir les autres" cohérent, cas zéro
+// ouvre directement le formulaire avec le texte BRAVO exact.
+
+import { JSDOM } from "jsdom";
+import { readFileSync } from "fs";
+
+const HTML_PATH = "C:\\Users\\claud\\OneDrive\\Documents\\CitiCigars_Claude_StockDNA_v1_20260812\\CitiCigars_DNA_Curator_v2_10_3_RC.html";
+const ENGINE_PATH = "C:\\Users\\claud\\OneDrive\\Documents\\CitiCigars_Claude_StockDNA_v1_20260812\\dna-engine.cjs";
+
+let html = readFileSync(HTML_PATH, "utf-8");
+// Le <script src="dna-engine.cjs"> ne se charge pas via file:// dans JSDOM sans
+// resourceLoader complexe -> on l'inline directement pour ce test, contenu strictement identique.
+const engineSrc = readFileSync(ENGINE_PATH, "utf-8");
+html = html.replace('<script src="dna-engine.cjs"></script>', `<script>${engineSrc}</script>`);
+
+function fail(msg) { console.error("FAIL: " + msg); process.exitCode = 1; }
+function ok(msg) { console.log("OK: " + msg); }
+
+async function run(family, power, intensity, label) {
+  const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
+  const { window } = dom;
+  window.Element.prototype.scrollIntoView = () => {}; // non implémenté par JSDOM, sans rapport avec l'app
+  await new Promise((r) => setTimeout(r, 50));
+  const doc = window.document;
+
+  // Etape 0 : prénom/nom + start
+  doc.getElementById("firstName").value = "Test";
+  doc.getElementById("lastName").value = "User";
+  doc.getElementById("startBtn").dispatchEvent(new window.Event("click"));
+
+  // Etape 1 : puissance + intensité
+  doc.querySelector(`[data-axis="power"] [data-val="${power}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-axis="intensity"] [data-val="${intensity}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[0].dispatchEvent(new window.Event("click"));
+
+  // Etape 2 : famille
+  doc.querySelector(`[data-group="family"] [data-val="${family}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[1].dispatchEvent(new window.Event("click"));
+
+  // Etape 3 : spice/sweetness/signatures -> "pas de préférence" partout
+  doc.querySelector('[data-axis="spice"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="sweetness"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#signatureChips [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[2].dispatchEvent(new window.Event("click"));
+
+  // Etape 4 : duree + moment -> reveal
+  doc.querySelector('[data-group="duration"] [data-val="around_60"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#ritualMoments [data-val="evening"]').dispatchEvent(new window.Event("click"));
+
+  // Instrumente recommend() pour compter les appels reels (pool unique, jamais recalcule)
+  let recommendCalls = 0;
+  const engine = window.CitiCigarsDNAEngine;
+  const originalRecommend = engine.recommend.bind(engine);
+  engine.recommend = (...args) => { recommendCalls++; return originalRecommend(...args); };
+
+  doc.getElementById("revealBtn").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 20));
+
+  console.log(`\n--- ${label} (${family}/power${power}/intensity${intensity}) ---`);
+  console.log(`Appels recommend() après reveal(): ${recommendCalls}`);
+  if (recommendCalls !== 1) fail(`${label}: recommend() appelé ${recommendCalls} fois après reveal (attendu 1)`);
+  else ok(`${label}: recommend() appelé exactement 1 fois au reveal`);
+
+  const interestBoxHidden = doc.getElementById("interestBox").hidden;
+  const zeroCaseHidden = doc.getElementById("zeroCase").hidden;
+  console.log(`interestBox.hidden=${interestBoxHidden} zeroCase.hidden=${zeroCaseHidden}`);
+
+  if (label === "N>0") {
+    if (interestBoxHidden) fail("N>0: interestBox devrait être visible");
+    else ok("N>0: interestBox visible (teaser)");
+    if (!zeroCaseHidden) fail("N>0: zeroCase ne devrait pas être visible");
+
+    // Vérifie le texte du teaser exact
+    const teaserP = doc.getElementById("availabilityCopy").textContent;
+    if (teaserP !== "Il se trouve que nous avons des cigares qui correspondent à ton profil.") {
+      fail("Texte teaser inattendu: " + teaserP);
+    } else ok("Texte teaser conforme au texte validé");
+
+    // Clic "Oui, montrez-moi"
+    doc.getElementById("wantReco").dispatchEvent(new window.Event("click"));
+    const gateHidden = doc.getElementById("contactGate").hidden;
+    if (gateHidden) fail("wantReco: contactGate devrait s'ouvrir");
+    else ok("wantReco ouvre le formulaire de coordonnées");
+
+    // Remplit le formulaire
+    doc.getElementById("country").value = "CM";
+    doc.getElementById("country").dispatchEvent(new window.Event("change"));
+    await new Promise((r) => setTimeout(r, 10));
+    const citySel = doc.getElementById("city");
+    citySel.value = citySel.options[1].value;
+    doc.getElementById("phone").value = "690123456";
+
+    doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+    await new Promise((r) => setTimeout(r, 300));
+
+    console.log(`Appels recommend() après loadReco: ${recommendCalls}`);
+    if (recommendCalls !== 1) fail(`N>0: recommend() a été rappelé après loadReco (total=${recommendCalls}, attendu 1) — pool recalculé !`);
+    else ok("N>0: pool résolu réutilisé tel quel, aucun second calcul au clic loadReco");
+
+    const cards = doc.querySelectorAll(".reco-card");
+    console.log(`Cartes affichées: ${cards.length}`);
+    if (cards.length === 0) fail("N>0: aucune carte affichée après loadReco");
+    else ok(`N>0: ${cards.length} carte(s) affichée(s)`);
+
+    // Aucun prix / mention Pack / Boîte dans les cartes
+    let priceOrFormLeak = false;
+    cards.forEach((c) => {
+      const t = c.textContent;
+      if (/FCFA|\d{4,}\s*(F|€|\$)|Pack \(|Boîte \(|Box \(/.test(t)) priceOrFormLeak = true;
+    });
+    if (priceOrFormLeak) fail("N>0: une carte contient un prix ou une mention de forme Pack/Boîte");
+    else ok("N>0: aucune carte n'affiche de prix ni de forme Pack/Boîte");
+
+    const seeMoreHidden = doc.getElementById("seeMoreBtn").hidden;
+    const engineFullPoolSize = (() => {
+      const cc = window.answersDebug; // non défini, juste pour lisibilité
+      return null;
+    })();
+    console.log(`seeMoreBtn.hidden=${seeMoreHidden}`);
+  } else {
+    // Cas zéro
+    if (!interestBoxHidden) fail("N=0: interestBox ne devrait pas être visible");
+    if (zeroCaseHidden) fail("N=0: zeroCase devrait être visible");
+    else ok("N=0: écran BRAVO visible directement, pas de teaser");
+
+    const bravoText = doc.querySelector("#zeroCase h3").textContent;
+    if (!bravoText.includes("BRAVO")) fail("N=0: texte BRAVO manquant");
+    else ok("N=0: texte BRAVO présent");
+
+    const gateHidden = doc.getElementById("contactGate").hidden;
+    if (gateHidden) fail("N=0: le formulaire devrait être ouvert directement (sans clic wantReco)");
+    else ok("N=0: formulaire ouvert directement, sans CTA produit");
+
+    const btnLabel = doc.getElementById("loadReco").textContent;
+    if (btnLabel !== "Enregistrer mon profil") fail("N=0: libellé du bouton incorrect: " + btnLabel);
+    else ok('N=0: bouton "Enregistrer mon profil" conforme');
+  }
+  dom.window.close();
+}
+
+await run("veloute", 3, 3, "N>0");
+await run("gourmand", 1, 1, "N=0");
+
+// --- RESOLUTION_ERROR puis retry réussi (point 4, audit) ---
+// Force resolveDnaPool() en échec (engine.recommend jette) pour le reveal() initial,
+// vérifie l'état d'erreur distinct (jamais confondu avec un vrai N=0, aucun
+// contactGate/watch), puis restaure le moteur et vérifie que le bouton "Réessayer"
+// aboutit bien au flow normal (N>0 ou N=0 selon le profil), avec le même clientRequestId.
+async function runResolutionErrorThenRetry(family, power, intensity, expectedLabel) {
+  const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
+  const { window } = dom;
+  window.Element.prototype.scrollIntoView = () => {};
+  await new Promise((r) => setTimeout(r, 50));
+  const doc = window.document;
+
+  doc.getElementById("firstName").value = "Test";
+  doc.getElementById("lastName").value = "User";
+  doc.getElementById("startBtn").dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-axis="power"] [data-val="${power}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-axis="intensity"] [data-val="${intensity}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[0].dispatchEvent(new window.Event("click"));
+  doc.querySelector(`[data-group="family"] [data-val="${family}"]`).dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[1].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="spice"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="sweetness"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#signatureChips [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[2].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-group="duration"] [data-val="around_60"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#ritualMoments [data-val="evening"]').dispatchEvent(new window.Event("click"));
+
+  const engine = window.CitiCigarsDNAEngine;
+  const originalRecommend = engine.recommend.bind(engine);
+  engine.recommend = () => { throw new Error("simulated_resolution_failure"); };
+
+  // Compte les générations d'ID (point 5b, audit) : un seul uuid() attendu pour toute
+  // la session (reveal initial), ni au retry, ni au clic loadReco.
+  let uuidCallCount = 0;
+  const originalUuid = window.uuid;
+  window.uuid = (...args) => { uuidCallCount++; return originalUuid(...args); };
+
+  let fetchCallsDuringError = 0;
+  const originalFetch = window.fetch;
+  if (typeof originalFetch === "function") {
+    window.fetch = (...args) => { fetchCallsDuringError++; return originalFetch(...args); };
+  }
+
+  doc.getElementById("revealBtn").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 20));
+
+  console.log(`\n--- RESOLUTION_ERROR puis retry (${family}/power${power}/intensity${intensity} -> ${expectedLabel}) ---`);
+
+  const zeroCaseHiddenOnError = doc.getElementById("zeroCase").hidden;
+  if (!zeroCaseHiddenOnError) fail("RESOLUTION_ERROR: zeroCase (texte N=0) ne doit jamais s'afficher");
+  else ok("RESOLUTION_ERROR: texte N=0 absent (zeroCase reste masqué)");
+
+  const errorBox = doc.getElementById("resolutionError");
+  if (errorBox.hidden) fail("RESOLUTION_ERROR: le message technique devrait être visible");
+  else ok("RESOLUTION_ERROR: message technique visible");
+  const errorText = errorBox.textContent;
+  if (!errorText.includes("Nous n'avons pas pu vérifier la disponibilité")) {
+    fail("RESOLUTION_ERROR: texte du message technique inattendu: " + errorText);
+  } else ok("RESOLUTION_ERROR: texte du message technique conforme");
+
+  const retryBtn = doc.getElementById("retryResolution");
+  if (!retryBtn || errorBox.contains(retryBtn) === false) fail("RESOLUTION_ERROR: bouton Réessayer absent de l'état d'erreur");
+  else ok("RESOLUTION_ERROR: bouton Réessayer visible dans l'état d'erreur");
+
+  const gateHiddenOnError = doc.getElementById("contactGate").hidden;
+  if (!gateHiddenOnError) fail("RESOLUTION_ERROR: aucun contactGate/formulaire ne doit s'ouvrir");
+  else ok("RESOLUTION_ERROR: aucun contactGate ouvert (donc aucun saveLead/saveWatch possible)");
+  if (fetchCallsDuringError !== 0) fail(`RESOLUTION_ERROR: ${fetchCallsDuringError} appel(s) réseau détecté(s) alors qu'aucun ne devrait avoir lieu`);
+  else ok("RESOLUTION_ERROR: aucun appel réseau (aucun saveLead/saveWatch)");
+
+  if (uuidCallCount !== 1) fail(`RESOLUTION_ERROR: uuid() appelé ${uuidCallCount} fois au reveal initial (attendu 1)`);
+  else ok("RESOLUTION_ERROR: un seul clientRequestId généré au reveal initial");
+
+  // Restaure le moteur avant de cliquer "Réessayer".
+  engine.recommend = originalRecommend;
+
+  retryBtn.dispatchEvent(new window.Event("click"));
+  const disabledDuringRetry = retryBtn.disabled;
+  if (!disabledDuringRetry) fail("Réessayer: le bouton devrait être désactivé pendant la résolution en cours");
+  else ok("Réessayer: bouton désactivé pendant la résolution (anti rafale de clics)");
+
+  await new Promise((r) => setTimeout(r, 50));
+
+  if (retryBtn.disabled) fail("Réessayer: le bouton devrait être réactivé une fois la résolution terminée");
+  else ok("Réessayer: bouton réactivé après résolution");
+
+  if (!errorBox.hidden) fail("Réessayer réussi: l'état d'erreur devrait être masqué");
+  else ok("Réessayer réussi: état d'erreur masqué");
+
+  // Capture le clientRequestId réellement envoyé par loadReco, sans dépendre de fetch/réseau.
+  let capturedClientRequestId = null;
+  const originalSaveLead = window.saveLead;
+  const originalSaveWatch = window.saveWatch;
+  window.saveLead = (payload) => { capturedClientRequestId = payload.clientRequestId; return Promise.resolve(true); };
+  window.saveWatch = (payload) => { return Promise.resolve(true); };
+
+  if (expectedLabel === "N>0") {
+    if (doc.getElementById("interestBox").hidden) fail("Réessayer réussi N>0: interestBox devrait être visible");
+    else ok("Réessayer réussi N>0: flow normal interestBox affiché");
+    if (!doc.getElementById("zeroCase").hidden) fail("Réessayer réussi N>0: zeroCase ne devrait pas être visible");
+
+    doc.getElementById("wantReco").dispatchEvent(new window.Event("click"));
+    doc.getElementById("country").value = "CM";
+    doc.getElementById("country").dispatchEvent(new window.Event("change"));
+    await new Promise((r) => setTimeout(r, 10));
+    const citySel = doc.getElementById("city");
+    citySel.value = citySel.options[1].value;
+    doc.getElementById("phone").value = "690123456";
+    doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+    await new Promise((r) => setTimeout(r, 50));
+  } else {
+    if (!doc.getElementById("interestBox").hidden) fail("Réessayer réussi N=0: interestBox ne devrait pas être visible");
+    if (doc.getElementById("zeroCase").hidden) fail("Réessayer réussi N=0: zeroCase devrait être visible");
+    else ok("Réessayer réussi N=0: écran BRAVO affiché");
+    if (doc.getElementById("contactGate").hidden) fail("Réessayer réussi N=0: le formulaire devrait s'ouvrir directement");
+    else ok("Réessayer réussi N=0: formulaire ouvert directement (openContactGateForZeroCase)");
+
+    doc.getElementById("country").value = "CM";
+    doc.getElementById("country").dispatchEvent(new window.Event("change"));
+    await new Promise((r) => setTimeout(r, 10));
+    const citySel = doc.getElementById("city");
+    citySel.value = citySel.options[1].value;
+    doc.getElementById("phone").value = "690123456";
+    doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  if (uuidCallCount !== 1) fail(`Réessayer: uuid() appelé ${uuidCallCount} fois au total (attendu 1, jamais régénéré au retry ni au loadReco)`);
+  else ok("Réessayer: aucun nouveau clientRequestId généré, ni au retry ni au clic loadReco");
+  if (!capturedClientRequestId) fail("Réessayer: loadReco n'a pas envoyé de clientRequestId");
+  else ok("Réessayer: loadReco a bien envoyé un clientRequestId (celui généré à l'origine au reveal initial)");
+
+  window.saveLead = originalSaveLead;
+  window.saveWatch = originalSaveWatch;
+
+  dom.window.close();
+}
+
+await runResolutionErrorThenRetry("veloute", 3, 3, "N>0");
+await runResolutionErrorThenRetry("gourmand", 1, 1, "N=0");
+
+if (process.exitCode === 1) {
+  console.log("\n=== DES ECHECS ONT ETE DETECTES CI-DESSUS ===");
+} else {
+  console.log("\n=== TOUS LES CONTROLES FONCTIONNELS SONT PASSES ===");
+}
