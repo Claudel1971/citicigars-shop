@@ -78,6 +78,11 @@ export function registerDnaRoutes(app: Express): void {
         return;
       }
 
+      if (body.captureMode !== "normal" && body.captureMode !== "zero") {
+        res.status(400).json({ error: "invalid_capture_mode", message: "captureMode doit valoir normal ou zero." });
+        return;
+      }
+
       const { lead, created } = await stockStorage.upsertLeadIdempotent({
         clientRequestId,
         firstName: participant.firstName,
@@ -100,6 +105,7 @@ export function registerDnaRoutes(app: Express): void {
           ritualMoments: refinements.ritualMoments ?? [],
         },
         consentGiven: true,
+        captureMode: body.captureMode,
       });
 
       res.status(200).json({ ok: true, leadId: lead.id, created });
@@ -133,6 +139,10 @@ export function registerDnaRoutes(app: Express): void {
       });
 
       if ("error" in result) {
+        if (result.error === "zero_case_required") {
+          res.status(409).json({ error: "zero_case_required", message: "Un watch est réservé aux leads capturés dans le cas zéro." });
+          return;
+        }
         if (result.error === "consent_missing") {
           // Décision de consentement de Claudel : source de vérité unique = le lead
           // persisté (lead.consentGiven), jamais un flag répété dans la requête /watch.

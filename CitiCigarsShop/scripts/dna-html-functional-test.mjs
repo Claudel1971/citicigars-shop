@@ -6,17 +6,38 @@
 import { JSDOM } from "jsdom";
 import { readFileSync } from "fs";
 
-const HTML_PATH = "C:\\Users\\claud\\OneDrive\\Documents\\CitiCigars_Claude_StockDNA_v1_20260812\\CitiCigars_DNA_Curator_v2_10_3_RC.html";
-const ENGINE_PATH = "C:\\Users\\claud\\OneDrive\\Documents\\CitiCigars_Claude_StockDNA_v1_20260812\\dna-engine.cjs";
+const HTML_PATH = new URL("../client/public/CitiCigars_DNA_Curator_v2_10_3_RC.html", import.meta.url);
+const ENGINE_PATH = new URL("../shared/dna-engine.cjs", import.meta.url);
 
 let html = readFileSync(HTML_PATH, "utf-8");
+html = html.replace(
+  '<script src="dna-runtime-config.js"></script>',
+  '<script>window.CITICIGARS_RUNTIME_CONFIG={API_BASE:"https://dna-test-api.example/api"};</script>',
+);
 // Le <script src="dna-engine.cjs"> ne se charge pas via file:// dans JSDOM sans
 // resourceLoader complexe -> on l'inline directement pour ce test, contenu strictement identique.
 const engineSrc = readFileSync(ENGINE_PATH, "utf-8");
-html = html.replace('<script src="dna-engine.cjs"></script>', `<script>${engineSrc}</script>`);
+html = html.replace('<script src="dna-engine.js"></script>', `<script>${engineSrc}</script>`);
 
 function fail(msg) { console.error("FAIL: " + msg); process.exitCode = 1; }
 function ok(msg) { console.log("OK: " + msg); }
+
+function installLiveAvailabilityFetch(window) {
+  window.fetch = async (url, options = {}) => {
+    if (String(url).includes("/api/dna/availability")) {
+      const requested = JSON.parse(options.body).cigarIds;
+      const catalog = window.CitiCigarsDNAEngine.CATALOG;
+      const byId = new Map(catalog.map((item) => [item.cigarId, item]));
+      const availability = Object.fromEntries(requested.map((cigarId) => {
+        const item = byId.get(cigarId);
+        const available = Boolean(item?.stock?.available && Number(item?.stock?.heldUnits) > 0);
+        return [cigarId, { packAvailable: available, boxAvailable: false }];
+      }));
+      return { ok: true, status: 200, json: async () => ({ availability }) };
+    }
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+}
 
 async function run(family, power, intensity, label) {
   const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
@@ -24,6 +45,7 @@ async function run(family, power, intensity, label) {
   window.Element.prototype.scrollIntoView = () => {}; // non implémenté par JSDOM, sans rapport avec l'app
   await new Promise((r) => setTimeout(r, 50));
   const doc = window.document;
+  installLiveAvailabilityFetch(window);
 
   // Etape 0 : prénom/nom + start
   doc.getElementById("firstName").value = "Test";
@@ -156,6 +178,7 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
   window.Element.prototype.scrollIntoView = () => {};
   await new Promise((r) => setTimeout(r, 50));
   const doc = window.document;
+  installLiveAvailabilityFetch(window);
 
   doc.getElementById("firstName").value = "Test";
   doc.getElementById("lastName").value = "User";
@@ -212,8 +235,9 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
   const gateHiddenOnError = doc.getElementById("contactGate").hidden;
   if (!gateHiddenOnError) fail("RESOLUTION_ERROR: aucun contactGate/formulaire ne doit s'ouvrir");
   else ok("RESOLUTION_ERROR: aucun contactGate ouvert (donc aucun saveLead/saveWatch possible)");
-  if (fetchCallsDuringError !== 0) fail(`RESOLUTION_ERROR: ${fetchCallsDuringError} appel(s) réseau détecté(s) alors qu'aucun ne devrait avoir lieu`);
-  else ok("RESOLUTION_ERROR: aucun appel réseau (aucun saveLead/saveWatch)");
+  const expectedAvailabilityCalls = expectedLabel === "N=0" ? 0 : 1;
+  if (fetchCallsDuringError !== expectedAvailabilityCalls) fail(`RESOLUTION_ERROR: ${fetchCallsDuringError} appel(s) réseau détecté(s), attendu=${expectedAvailabilityCalls}`);
+  else ok("RESOLUTION_ERROR: aucun appel contact/watch n'a été effectué");
 
   if (uuidCallCount !== 1) fail(`RESOLUTION_ERROR: uuid() appelé ${uuidCallCount} fois au reveal initial (attendu 1)`);
   else ok("RESOLUTION_ERROR: un seul clientRequestId généré au reveal initial");
@@ -305,6 +329,7 @@ async function runConsentModal(family, power, intensity, expectedLabel) {
   window.Element.prototype.scrollIntoView = () => {};
   await new Promise((r) => setTimeout(r, 50));
   const doc = window.document;
+  installLiveAvailabilityFetch(window);
 
   doc.getElementById("firstName").value = "Test";
   doc.getElementById("lastName").value = "User";
@@ -404,6 +429,12 @@ async function runConsentModal(family, power, intensity, expectedLabel) {
     fail(`${expectedLabel}: le frontend ne devrait envoyer aucun timestamp de consentement`);
   } else {
     ok(`${expectedLabel}: aucun consentTimestamp envoyé par le frontend (généré côté serveur)`);
+  }
+  const expectedCaptureMode = expectedLabel === "N=0" ? "zero" : "normal";
+  if (!capturedPayload || capturedPayload.captureMode !== expectedCaptureMode) {
+    fail(`${expectedLabel}: captureMode attendu=${expectedCaptureMode}, obtenu=${JSON.stringify(capturedPayload && capturedPayload.captureMode)}`);
+  } else {
+    ok(`${expectedLabel}: captureMode=${expectedCaptureMode} envoyé directement à /contact`);
   }
 
   if (expectedLabel === "N=0") {

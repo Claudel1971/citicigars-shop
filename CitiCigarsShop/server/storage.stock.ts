@@ -56,6 +56,7 @@ import {
   assertPackSizeSentinel,
   assertLooseNeverInTransit,
 } from "./services/stock-movement-processor";
+import { capturedAtStepForMode, isCommerciallyAvailable } from "./services/dna-availability";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -424,10 +425,9 @@ export class StockStorage {
         continue;
       }
       const rows = balanceRows.filter((r) => r.sku === sku);
-      const availableNow = (r: (typeof rows)[number]) => Math.max(0, r.onHandQty - r.reservedClientQty - r.reservedEventQty);
       resolved[id] = {
-        packAvailable: rows.some((r) => r.type === "Pack" && availableNow(r) > 0),
-        boxAvailable: rows.some((r) => r.type === "Box" && availableNow(r) > 0),
+        packAvailable: rows.some((r) => r.type === "Pack" && isCommerciallyAvailable(r)),
+        boxAvailable: rows.some((r) => r.type === "Box" && isCommerciallyAvailable(r)),
       };
     }
     return { resolved, unresolved };
@@ -454,6 +454,7 @@ export class StockStorage {
     answersSnapshot: unknown;
     refinementsSnapshot: unknown;
     consentGiven: boolean;
+    captureMode: "normal" | "zero";
   }): Promise<{ lead: DnaLead; created: boolean }> {
     const [existing] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     if (existing) return { lead: existing, created: false };
@@ -476,9 +477,9 @@ export class StockStorage {
         refinementsSnapshot: input.refinementsSnapshot,
         consentGiven: input.consentGiven,
         consentTimestamp: new Date(),
-        // capturedAtStep démarre à STEP4_WITH_RESULTS ; upsertWatchIdempotent le
-        // fait basculer à STEP6_ZERO_CASE, seul cas où un watch est jamais créé.
-        capturedAtStep: "STEP4_WITH_RESULTS",
+        // Le mode de capture est connu au moment du contact : /watch ne l'infère
+        // et ne le corrige jamais après coup.
+        capturedAtStep: capturedAtStepForMode(input.captureMode),
       });
     } catch (e: any) {
       if (e?.code !== "ER_DUP_ENTRY") throw e;
@@ -502,10 +503,11 @@ export class StockStorage {
     dnaProfileId: string;
     answersSnapshot: unknown;
     refinementsSnapshot: unknown;
-  }): Promise<{ watch: DnaAvailabilityWatch; created: boolean } | { error: "lead_not_found" } | { error: "consent_missing" }> {
+  }): Promise<{ watch: DnaAvailabilityWatch; created: boolean } | { error: "lead_not_found" } | { error: "consent_missing" } | { error: "zero_case_required" }> {
     const [lead] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     if (!lead) return { error: "lead_not_found" };
     if (lead.consentGiven !== true) return { error: "consent_missing" };
+    if (lead.capturedAtStep !== "STEP6_ZERO_CASE") return { error: "zero_case_required" };
 
     const [existing] = await db.select().from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, lead.id));
     if (existing) return { watch: existing, created: false };
@@ -525,10 +527,6 @@ export class StockStorage {
       if (e?.code !== "ER_DUP_ENTRY") throw e;
       created = false;
     }
-
-    // Un watch n'existe QUE pour le cas zéro (mission §2 étape 6) : marque le
-    // lead en conséquence, une fois qu'on sait qu'un watch a bien été demandé.
-    await db.update(dnaLeads).set({ capturedAtStep: "STEP6_ZERO_CASE" }).where(eq(dnaLeads.id, lead.id));
 
     const [row] = await db.select().from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, lead.id));
     return { watch: row!, created };

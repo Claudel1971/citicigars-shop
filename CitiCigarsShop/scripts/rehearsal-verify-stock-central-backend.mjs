@@ -290,6 +290,7 @@ console.log("\n--- 10d. POST /api/dna/contact avec consentGiven:true : lead cré
   const payload = {
     clientRequestId,
     consentGiven: true,
+    captureMode: "normal",
     consentTimestamp: bogusClientTimestamp, // le frontend réel n'envoie plus ce champ ; on vérifie ici qu'un backend qui le recevrait quand même l'ignore
     participant: { firstName: "RealConsent", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
@@ -318,6 +319,7 @@ console.log("\n--- 11. POST /api/dna/contact rejoué avec le même clientRequest
   const payload = {
     clientRequestId,
     consentGiven: true,
+    captureMode: "normal",
     participant: { firstName: "Jean", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "Le Velouté Délicat", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 2, sweetness: 3, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: ["evening"] },
@@ -337,6 +339,7 @@ console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId,
   const payload = {
     clientRequestId,
     consentGiven: true,
+    captureMode: "normal",
     participant: { firstName: "Concurrent", lastName: "Test" },
     customerDNA: { id: "BOI-1-1", label: "Le Boisé Délicat", family: "boise", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
@@ -377,6 +380,7 @@ console.log("\n--- 12b. POST /api/dna/watch avec un lead existant NON consentant
     answersSnapshot: {},
     refinementsSnapshot: {},
     consentGiven: false,
+    captureMode: "normal",
   });
   const r = await post("/api/dna/watch", { clientRequestId, dnaProfileId: "VEL-1-1", answersSnapshot: {}, refinementsSnapshot: {} });
   if (r.status === 403 && r.json.error === "consent_missing") {
@@ -386,18 +390,45 @@ console.log("\n--- 12b. POST /api/dna/watch avec un lead existant NON consentant
   }
 }
 
+console.log("\n--- 12c. POST /api/dna/watch avec un lead normal : rejeté, aucun watch créé ---");
+{
+  const clientRequestId = "watch-normal-" + Date.now();
+  const contactRes = await post("/api/dna/contact", {
+    clientRequestId,
+    consentGiven: true,
+    captureMode: "normal",
+    participant: { firstName: "Normal", lastName: "Watch" },
+    customerDNA: { id: "VEL-2-2", family: "veloute", power: 3, intensity: 3 },
+    refinements: {},
+    contact: { country: "CM", city: "Douala", phone: "690000005" },
+  });
+  const watchRes = await post("/api/dna/watch", { clientRequestId, dnaProfileId: "VEL-2-2", answersSnapshot: {}, refinementsSnapshot: {} });
+  const watches = contactRes.status === 200
+    ? await db.select({ id: dnaAvailabilityWatch.id }).from(dnaAvailabilityWatch).where(eq(dnaAvailabilityWatch.leadId, contactRes.json.leadId))
+    : [];
+  if (watchRes.status === 409 && watchRes.json.error === "zero_case_required" && watches.length === 0) {
+    ok("Lead normal + /watch : 409 zero_case_required, aucun watch créé");
+  } else {
+    bad(`Lead normal + /watch inattendu: contact=${JSON.stringify(contactRes)} watch=${JSON.stringify(watchRes)} watches=${watches.length}`);
+  }
+}
+
 console.log("\n--- 13. POST /api/dna/watch rejoué = un seul watch (idempotent sur leadId) ---");
 {
   const clientRequestId = "test-crid-watch-" + Date.now();
   const contactPayload = {
     clientRequestId,
     consentGiven: true,
+    captureMode: "zero",
     participant: { firstName: "Awa", lastName: "Test" },
     customerDNA: { id: "GOU-1-1", label: "Le Gourmand Délicat", family: "gourmand", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
     contact: { country: "CM", city: "Douala", phone: "690987654" },
   };
   const contactRes = await post("/api/dna/contact", contactPayload);
+  const [leadBeforeWatch] = await db.select({ capturedAtStep: dnaLeads.capturedAtStep }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
+  if (leadBeforeWatch.capturedAtStep === "STEP6_ZERO_CASE") ok("/contact écrit immédiatement capturedAtStep=STEP6_ZERO_CASE pour captureMode=zero");
+  else bad(`capturedAtStep avant /watch attendu=STEP6_ZERO_CASE, obtenu=${leadBeforeWatch.capturedAtStep}`);
   // consentGiven/consentTimestamp volontairement absents : décision Claudel, /watch
   // ne dépend d'aucun consentGiven envoyé dans sa propre requête (source de vérité
   // = lead.consentGiven déjà persisté), et le frontend n'envoie plus de timestamp.
@@ -410,7 +441,7 @@ console.log("\n--- 13. POST /api/dna/watch rejoué = un seul watch (idempotent s
   } else bad(`POST /api/dna/watch rejoué: w1=${JSON.stringify(w1)} w2=${JSON.stringify(w2)} lignes en base=${watchesForLead.length}`);
 
   const [leadRow] = await db.select({ capturedAtStep: dnaLeads.capturedAtStep }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
-  if (leadRow.capturedAtStep === "STEP6_ZERO_CASE") ok("Le lead bascule bien en capturedAtStep=STEP6_ZERO_CASE une fois un watch créé");
+  if (leadRow.capturedAtStep === "STEP6_ZERO_CASE") ok("/watch laisse capturedAtStep inchangé à STEP6_ZERO_CASE");
   else bad(`capturedAtStep attendu=STEP6_ZERO_CASE, obtenu=${leadRow.capturedAtStep}`);
 }
 
