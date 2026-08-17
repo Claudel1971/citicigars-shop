@@ -240,6 +240,7 @@ const FAMILY_LABEL={veloute:'Velouté',boise:'Boisé',gourmand:'Gourmand',fauve:
 const SIG_LABEL={toaste:'toasté / grillé',caramelise:'caramélisé',malte:'malté',fruite:'fruité',agrume:'agrumé'};
 const DURATION_LABEL={under_60:'moins d’1 heure',around_60:'environ 1 heure','60_90':'entre 1 h et 1 h 30','90_plus':'plus d’1 h 30'};
 const API_BASE=String(window.CITICIGARS_RUNTIME_CONFIG&&window.CITICIGARS_RUNTIME_CONFIG.API_BASE||'').replace(/\/+$/,'');
+const DNA_PILOT_MODE=window.CITICIGARS_RUNTIME_CONFIG&&window.CITICIGARS_RUNTIME_CONFIG.DNA_PILOT_MODE===true;
 const apiEndpoint=path=>API_BASE?`${API_BASE}/${String(path).replace(/^\/+/, '')}`:null;
 const RECO_ENDPOINT=apiEndpoint('dna/recommendations');
 const CONTACT_ENDPOINT=apiEndpoint('dna/contact');
@@ -520,14 +521,17 @@ function renderRecommendations(items,{append=false}={}){
     if(!append) wrap.innerHTML='<div class="system-note">Nous n’avons pas actuellement de référence en stock qui corresponde suffisamment à votre profil. Votre Cigar DNA reste enregistré et nous pourrons vous proposer une alternative lorsque la sélection évoluera.</div>';
     return;
   }
+  const productBase=(window.CITICIGARS_PRODUCT_BASE||window.location.origin||'https://citicigars.com').replace(/\/$/,'');
   const titleHtml=(!append&&!wrap.querySelector('.reco-title'))?'<div class="reco-title">Les cigares de votre DNA</div>':'';
   const cardsHtml=items.map((r,i)=>{
-    // Pilote externe staging : la carte reste strictement informative et ne
-    // propose aucune navigation vers le catalogue ou une fiche produit.
+    // Aucun prix, aucun détail Pack/Box dans le DNA : seuls le nom, le format,
+    // la raison et, hors pilote, le lien vers la fiche produit sont utilisés.
     const media=r.imageUrl?`<img src="${r.imageUrl}" alt="${escapeHtml(r.name||'Cigare CitiCigars')}" loading="lazy">`:'CC';
     const formattedDimensions=window.CitiCigarsDimensionFormatter.formatCigarDimensions(r.format);
     const meta=[formattedDimensions,r.durationLabel].filter(Boolean).join(' · ');
-    return `<div class="reco-card" data-sku="${escapeHtml(r.sku||'')}"><div class="reco-media" id="reco-media-${escapeHtml(r.sku||i)}">${media}</div><div><div class="reco-name">${escapeHtml(r.name||`Sélection ${i+1}`)}</div><div class="reco-meta">${escapeHtml(meta)}</div><div class="reco-reason">${escapeHtml(r.reason||'Cette référence correspond aux principaux marqueurs de votre Cigar DNA.')}</div></div></div>`;
+    const productUrl=(productBase&&r.productSkuPath?productBase+r.productSkuPath:(r.productUrl||null));
+    const discover=(!DNA_PILOT_MODE&&productUrl)?`<a class="primary" href="${productUrl}" target="_blank" rel="noopener">Découvrir ce cigare</a>`:'';
+    return `<div class="reco-card" data-sku="${escapeHtml(r.sku||'')}"><div class="reco-media" id="reco-media-${escapeHtml(r.sku||i)}">${media}</div><div><div class="reco-name">${escapeHtml(r.name||`Sélection ${i+1}`)}</div><div class="reco-meta">${escapeHtml(meta)}</div><div class="reco-reason">${escapeHtml(r.reason||'Cette référence correspond aux principaux marqueurs de votre Cigar DNA.')}</div><div class="reco-links">${discover}</div></div></div>`;
   }).join('');
   wrap.insertAdjacentHTML('beforeend',titleHtml+cardsHtml);
 }

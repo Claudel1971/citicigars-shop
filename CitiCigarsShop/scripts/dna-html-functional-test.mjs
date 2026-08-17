@@ -13,7 +13,7 @@ const DIMENSION_FORMATTER_PATH = new URL("../client/public/dimension-formatter.j
 let html = readFileSync(HTML_PATH, "utf-8");
 html = html.replace(
   '<script src="dna-runtime-config.js"></script>',
-  '<script>window.CITICIGARS_RUNTIME_CONFIG={API_BASE:"https://dna-test-api.example/api"};</script>',
+  '<script>window.CITICIGARS_RUNTIME_CONFIG={API_BASE:"https://dna-test-api.example/api",DNA_PILOT_MODE:true};</script>',
 );
 const dimensionFormatterSrc = readFileSync(DIMENSION_FORMATTER_PATH, "utf-8");
 html = html.replace('<script src="dimension-formatter.js"></script>', `<script>${dimensionFormatterSrc}</script>`);
@@ -42,8 +42,8 @@ function installLiveAvailabilityFetch(window) {
   };
 }
 
-async function run(family, power, intensity, label) {
-  const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
+async function run(family, power, intensity, label, { htmlSource = html, pilotMode = true } = {}) {
+  const dom = new JSDOM(htmlSource, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
   const { window } = dom;
   window.Element.prototype.scrollIntoView = () => {}; // non implémenté par JSDOM, sans rapport avec l'app
   await new Promise((r) => setTimeout(r, 50));
@@ -172,10 +172,15 @@ async function run(family, power, intensity, label) {
       card.matches("a,button,[role='link'],[tabindex],[onclick]")
       || card.querySelector("a,button,[role='link'],[tabindex],[onclick]"),
     );
-    if (productExit || doc.querySelector('a[href*="/p/"]') || doc.body.textContent.includes("Découvrir ce cigare")) {
+    const productLinks = [...doc.querySelectorAll('a[href*="/p/"]')];
+    if (pilotMode && (productExit || productLinks.length || doc.getElementById("recoWrap").textContent.includes("Découvrir ce cigare"))) {
       fail("Pilote DNA: une carte permet encore de quitter le Curator vers une fiche produit");
-    } else {
+    } else if (pilotMode) {
       ok("Pilote DNA: image, nom et carte sont non interactifs; aucun lien /p/:sku ni CTA produit");
+    } else if (productLinks.length !== cards.length || productLinks.some((link) => link.textContent !== "Découvrir ce cigare")) {
+      fail("Mode normal DNA: le CTA historique vers /p/:sku n'est pas disponible sur chaque carte");
+    } else {
+      ok("Mode normal DNA: le CTA historique vers /p/:sku est disponible sur chaque carte");
     }
 
     const resultScreen = doc.querySelector('.screen[data-step="5"]');
@@ -246,6 +251,10 @@ async function run(family, power, intensity, label) {
 
 await run("veloute", 3, 3, "N>0");
 await run("gourmand", 1, 1, "N=0");
+await run("veloute", 3, 3, "N>0", {
+  htmlSource: html.replace("DNA_PILOT_MODE:true", "DNA_PILOT_MODE:false"),
+  pilotMode: false,
+});
 
 // --- RESOLUTION_ERROR puis retry réussi (point 4, audit) ---
 // Force resolveDnaPool() en échec (engine.recommend jette) pour le reveal() initial,

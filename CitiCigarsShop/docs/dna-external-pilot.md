@@ -7,6 +7,11 @@ recommandations. Le parcours reste entièrement contenu dans `/dna` : les cartes
 de recommandation sont informatives et ne donnent accès ni au catalogue ni aux
 fiches produit.
 
+Le déploiement staging injecte `DNA_PILOT_MODE: true` dans
+`CITICIGARS_RUNTIME_CONFIG`. Hors pilote, l'absence du flag (ou sa valeur
+`false`) réactive le CTA historique vers les fiches produit sans modifier le
+HTML du Curator.
+
 Questions aux testeurs :
 
 1. Est-ce que le profil obtenu te ressemble ?

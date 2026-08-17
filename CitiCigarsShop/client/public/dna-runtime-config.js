@@ -1,7 +1,10 @@
 (function configureCitiCigarsDnaRuntime(window) {
   const current = window.CITICIGARS_RUNTIME_CONFIG || {};
   if (current.API_BASE) {
-    window.CITICIGARS_RUNTIME_CONFIG = current;
+    window.CITICIGARS_RUNTIME_CONFIG = {
+      ...current,
+      DNA_PILOT_MODE: current.DNA_PILOT_MODE === true,
+    };
     return;
   }
 
@@ -10,6 +13,7 @@
     window.CITICIGARS_RUNTIME_CONFIG = {
       ...current,
       API_BASE: `http://${window.location.hostname}:5000/api`,
+      DNA_PILOT_MODE: current.DNA_PILOT_MODE === true,
     };
     return;
   }
@@ -17,5 +21,8 @@
   // Fail closed outside local development. The WHC staging and production
   // deployments replace this public runtime file with the matching Render
   // API_BASE before publishing the HTML. No production URL is a fallback.
-  window.CITICIGARS_RUNTIME_CONFIG = current;
+  window.CITICIGARS_RUNTIME_CONFIG = {
+    ...current,
+    DNA_PILOT_MODE: current.DNA_PILOT_MODE === true,
+  };
 })(window);

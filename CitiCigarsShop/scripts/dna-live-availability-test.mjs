@@ -8,7 +8,7 @@ const runtimeConfigSource = readFileSync(runtimeConfigPath, "utf8");
 let html = readFileSync(htmlPath, "utf8");
 html = html.replace(
   '<script src="dna-runtime-config.js"></script>',
-  '<script>window.CITICIGARS_RUNTIME_CONFIG={API_BASE:"https://dna-test-api.example/api"};</script>',
+  '<script>window.CITICIGARS_RUNTIME_CONFIG={API_BASE:"https://dna-test-api.example/api",DNA_PILOT_MODE:true};</script>',
 );
 html = html.replace('<script src="dna-engine.js"></script>', `<script>${readFileSync(enginePath, "utf8")}</script>`);
 
@@ -27,19 +27,26 @@ function assert(condition, message) {
   console.log(`OK: ${message}`);
 }
 
-function configuredApiBase(origin, injectedApiBase) {
+function configuredRuntime(origin, injectedConfig) {
   const dom = new JSDOM("", { runScripts: "outside-only", url: origin });
-  if (injectedApiBase) dom.window.CITICIGARS_RUNTIME_CONFIG = { API_BASE: injectedApiBase };
+  if (injectedConfig) dom.window.CITICIGARS_RUNTIME_CONFIG = injectedConfig;
   dom.window.eval(runtimeConfigSource);
-  const apiBase = dom.window.CITICIGARS_RUNTIME_CONFIG?.API_BASE;
+  const runtime = { ...dom.window.CITICIGARS_RUNTIME_CONFIG };
   dom.window.close();
-  return apiBase;
+  return runtime;
 }
 
-assert(configuredApiBase("http://localhost:5173") === "http://localhost:5000/api", "runtime local cible le backend local non-production");
-assert(configuredApiBase("https://staging.citicigars.com", "https://citicigars-api-staging.onrender.com/api") === "https://citicigars-api-staging.onrender.com/api", "runtime staging conserve uniquement l'API Render staging injectée");
-assert(configuredApiBase("https://citicigars.com", "https://citicigars-api.onrender.com/api") === "https://citicigars-api.onrender.com/api", "runtime production conserve l'API Render production injectée");
-assert(configuredApiBase("https://staging.citicigars.com") == null, "staging sans configuration échoue fermé sans fallback production");
+const localRuntime = configuredRuntime("http://localhost:5173");
+const stagingRuntime = configuredRuntime("https://staging.citicigars.com", { API_BASE: "https://citicigars-api-staging.onrender.com/api", DNA_PILOT_MODE: true });
+const productionRuntime = configuredRuntime("https://citicigars.com", { API_BASE: "https://citicigars-api.onrender.com/api", DNA_PILOT_MODE: false });
+const unconfiguredStagingRuntime = configuredRuntime("https://staging.citicigars.com");
+assert(localRuntime.API_BASE === "http://localhost:5000/api", "runtime local cible le backend local non-production");
+assert(localRuntime.DNA_PILOT_MODE === false, "runtime local reste en mode normal par défaut");
+assert(stagingRuntime.API_BASE === "https://citicigars-api-staging.onrender.com/api", "runtime staging conserve uniquement l'API Render staging injectée");
+assert(stagingRuntime.DNA_PILOT_MODE === true, "runtime staging active explicitement le mode pilote");
+assert(productionRuntime.API_BASE === "https://citicigars-api.onrender.com/api", "runtime production conserve l'API Render production injectée");
+assert(productionRuntime.DNA_PILOT_MODE === false, "runtime production garde la navigation produit en mode normal");
+assert(unconfiguredStagingRuntime.API_BASE == null, "staging sans configuration échoue fermé sans fallback production");
 
 async function withPage(run) {
   const dom = new JSDOM(html, { runScripts: "dangerously", url: "https://example.test/dna.html" });
