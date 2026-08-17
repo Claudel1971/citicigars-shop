@@ -8,10 +8,16 @@ on:
         required: false
         default: false
         type: boolean
+      import_rehearsal:
+        description: Import the validated rehearsal without DNA leads or watches
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test-whc-connection:
     runs-on: ubuntu-latest
+    environment: staging
 
     steps:
       - name: Configure SSH
@@ -73,6 +79,48 @@ jobs:
             -o StrictHostKeyChecking=yes \
             "$WHC_USER@$WHC_HOST" \
             "uapi --output=json Mysql create_database name='$DB_NAME'; uapi --output=json Mysql create_user name='$DB_USER' password=$ESCAPED_PASSWORD; uapi --output=json Mysql set_privileges_on_database user='$DB_USER' database='$DB_NAME' privileges='ALL PRIVILEGES'; uapi --output=json Mysql list_databases; uapi --output=json Mysql list_users"
+
+      - name: Import validated rehearsal into isolated staging database
+        if: ${{ inputs.import_rehearsal }}
+        shell: bash
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
+          WHC_STAGING_DB_PASSWORD: ${{ secrets.WHC_STAGING_DB_PASSWORD }}
+          WHC_STAGING_DUMP_GZIP_BASE64: ${{ secrets.WHC_STAGING_DUMP_GZIP_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          LOCAL_GZIP="$RUNNER_TEMP/citicigars-staging-rehearsal.sql.gz"
+          LOCAL_SQL="$RUNNER_TEMP/citicigars-staging-rehearsal.sql"
+          REMOTE_SQL="$WHC_STAGING_PATH/.citicigars-staging-rehearsal-$GITHUB_RUN_ID.sql"
+          DB_NAME="bwljrj22_citicigars_staging"
+          DB_USER="bwljrj22_citicigars_stg"
+          ESCAPED_PASSWORD=$(printf '%q' "$WHC_STAGING_DB_PASSWORD")
+
+          printf '%s' "$WHC_STAGING_DUMP_GZIP_BASE64" | base64 --decode > "$LOCAL_GZIP"
+          gzip --test "$LOCAL_GZIP"
+          gzip --decompress "$LOCAL_GZIP"
+
+          scp \
+            -P "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$LOCAL_SQL" \
+            "$WHC_USER@$WHC_HOST:$REMOTE_SQL"
+
+          ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "set -e; MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --default-character-set=utf8mb4 --execute=\"source $REMOTE_SQL\"; rm -f '$REMOTE_SQL'; MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --batch --skip-column-names --execute=\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE(); SELECT COUNT(*) FROM products; SELECT COUNT(*) FROM product_images; SELECT COUNT(*) FROM stock_balances; SELECT COUNT(*) FROM stock_movements; SELECT COUNT(*) FROM dna_leads; SELECT COUNT(*) FROM dna_availability_watch;\""
+
+          rm -f "$LOCAL_SQL"
 
       - name: Cleanup SSH key
         if: always()
