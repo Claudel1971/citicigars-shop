@@ -6,6 +6,7 @@ on:
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
+    environment: staging
 
     defaults:
       run:
@@ -31,12 +32,40 @@ jobs:
           NODE_ENV: production
         run: npx vite build
 
+      - name: Configure DNA runtime for staging only
+        shell: bash
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: |
+          set -euo pipefail
+
+          EXPECTED_STAGING_API="https://citicigars-api-staging.onrender.com"
+          if [ "$VITE_API_URL" != "$EXPECTED_STAGING_API" ]; then
+            echo "SECURITY ERROR: VITE_API_URL is not the Render staging backend"
+            exit 1
+          fi
+
+          cat > dist/public/dna-runtime-config.js <<EOF
+          (function configureCitiCigarsDnaRuntime(window) {
+            window.CITICIGARS_RUNTIME_CONFIG = {
+              ...(window.CITICIGARS_RUNTIME_CONFIG || {}),
+              API_BASE: "${VITE_API_URL}/api",
+            };
+          })(window);
+          EOF
+
       - name: Verify frontend build
         run: |
           set -euo pipefail
 
           test -f dist/public/index.html
           test -d dist/public/assets
+          test -f dist/public/CitiCigars_DNA_Curator_v2_10_3_RC.html
+          grep -Fq 'https://citicigars-api-staging.onrender.com/api' dist/public/dna-runtime-config.js
+          if grep -Fq 'https://citicigars-api.onrender.com' dist/public/dna-runtime-config.js; then
+            echo "SECURITY ERROR: production API found in DNA staging runtime"
+            exit 1
+          fi
 
           echo "FRONTEND BUILD: OK"
           echo "OUTPUT: dist/public"
