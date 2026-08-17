@@ -50,18 +50,18 @@ WHERE CONCAT_WS('|', nom, marque, description) LIKE '%??%'
 
 SELECT 'product_technical_sheets' AS scope, COUNT(*) AS affected_rows
 FROM product_technical_sheets
-WHERE CONCAT_WS('|', smoke_type, evolution, origin_country, wrapper, binder, filler,
+WHERE CONVERT(CONCAT_WS('|', smoke_type, evolution, origin_country, wrapper, binder, filler,
   wrapper_appearance, construction, cutting, lighting, draw, burn, ash,
   smoke_quality, dominant_notes, secondary_notes, flavor_evolution,
-  local_positioning, rating_source, rating_date, tasting_notes) LIKE '%??%'
-   OR CONCAT_WS('|', smoke_type, evolution, origin_country, wrapper, binder, filler,
+  local_positioning, rating_source, rating_date, tasting_notes) USING utf8mb4) LIKE '%??%'
+   OR CONVERT(CONCAT_WS('|', smoke_type, evolution, origin_country, wrapper, binder, filler,
   wrapper_appearance, construction, cutting, lighting, draw, burn, ash,
   smoke_quality, dominant_notes, secondary_notes, flavor_evolution,
-  local_positioning, rating_source, rating_date, tasting_notes) LIKE '%�%'
-   OR CONCAT_WS('|', smoke_type, evolution, origin_country, wrapper, binder, filler,
+  local_positioning, rating_source, rating_date, tasting_notes) USING utf8mb4) LIKE '%�%'
+   OR CONVERT(CONCAT_WS('|', smoke_type, evolution, origin_country, wrapper, binder, filler,
   wrapper_appearance, construction, cutting, lighting, draw, burn, ash,
   smoke_quality, dominant_notes, secondary_notes, flavor_evolution,
-  local_positioning, rating_source, rating_date, tasting_notes) REGEXP 'Ã|Â';
+  local_positioning, rating_source, rating_date, tasting_notes) USING utf8mb4) REGEXP 'Ã|Â';
 
 SELECT sku,
   CONCAT_WS(',',
