@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 import apiService from "@/services/apiService";
 import i18n from "@/i18n";
+import { getProductDisplayDimensions } from "@/utils/cigarDimensions";
 
 function getPuissanceLabel(puissance, t) {
   const labels = {
@@ -75,6 +76,7 @@ const ProductDetail = ({ product: rawProduct, isOpen, onClose }) => {
     ...rawProduct,
     ficheTechnique: parseFicheTechnique(rawProduct.ficheTechnique)
   } : rawProduct;
+  const displayDimensions = getProductDisplayDimensions(product);
   
   const { addToCart } = useCart();
   const isBundle = product?.type === "bundle";
@@ -541,12 +543,12 @@ const ProductDetail = ({ product: rawProduct, isOpen, onClose }) => {
                     )}
                   </h3>
 
-                  {!isBundle && (product.vitole || product.format || product.dimensions) && (
+                  {!isBundle && (product.vitole || product.format || displayDimensions) && (
                     <p className="text-sm text-muted-foreground mb-2">
                       {product.vitole && product.vitole !== product.format
                         ? `${product.vitole}, ${product.format}`
                         : product.format}
-                      {product.dimensions && ` - ${product.dimensions}`}
+                      {displayDimensions && ` - ${displayDimensions}`}
                     </p>
                   )}
 

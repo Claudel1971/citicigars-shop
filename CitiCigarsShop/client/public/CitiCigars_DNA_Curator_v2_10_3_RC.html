@@ -61,6 +61,7 @@ button,input,select{font:inherit} button{cursor:pointer} [hidden]{display:none!i
 @media(max-width:430px){.scale{gap:5px}.scale button{font-size:9px;padding:9px 2px}.scale button b{font-size:13px}.back,.next{width:145px;min-width:145px}.ritual-grid{grid-template-columns:1fr}.reco-card{grid-template-columns:76px 1fr}.reco-media{width:76px;height:96px}}
 </style>
 <script src="dna-runtime-config.js"></script>
+<script src="dimension-formatter.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -525,7 +526,8 @@ function renderRecommendations(items,{append=false}={}){
     // Aucun prix, aucun détail Pack/Box dans le DNA (mission §2/§14) : seuls
     // name/format/reason/lien fiche produit sont utilisés, jamais r.price/r.stock.
     const media=r.imageUrl?`<img src="${r.imageUrl}" alt="${escapeHtml(r.name||'Cigare CitiCigars')}" loading="lazy">`:'CC';
-    const meta=[r.format,r.durationLabel].filter(Boolean).join(' · ');
+    const formattedDimensions=window.CitiCigarsDimensionFormatter.formatCigarDimensions(r.format);
+    const meta=[formattedDimensions,r.durationLabel].filter(Boolean).join(' · ');
     const productUrl=(productBase&&r.productSkuPath?productBase+r.productSkuPath:(r.productUrl||null));
     const discover=productUrl?`<a class="primary" href="${productUrl}" target="_blank" rel="noopener">Découvrir ce cigare</a>`:'';
     return `<div class="reco-card" data-sku="${escapeHtml(r.sku||'')}"><div class="reco-media" id="reco-media-${escapeHtml(r.sku||i)}">${media}</div><div><div class="reco-name">${escapeHtml(r.name||`Sélection ${i+1}`)}</div><div class="reco-meta">${escapeHtml(meta)}</div><div class="reco-reason">${escapeHtml(r.reason||'Cette référence correspond aux principaux marqueurs de votre Cigar DNA.')}</div><div class="reco-links">${discover}</div></div></div>`;

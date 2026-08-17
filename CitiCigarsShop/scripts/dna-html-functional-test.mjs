@@ -8,12 +8,15 @@ import { readFileSync } from "fs";
 
 const HTML_PATH = new URL("../client/public/CitiCigars_DNA_Curator_v2_10_3_RC.html", import.meta.url);
 const ENGINE_PATH = new URL("../shared/dna-engine.cjs", import.meta.url);
+const DIMENSION_FORMATTER_PATH = new URL("../client/public/dimension-formatter.js", import.meta.url);
 
 let html = readFileSync(HTML_PATH, "utf-8");
 html = html.replace(
   '<script src="dna-runtime-config.js"></script>',
   '<script>window.CITICIGARS_RUNTIME_CONFIG={API_BASE:"https://dna-test-api.example/api"};</script>',
 );
+const dimensionFormatterSrc = readFileSync(DIMENSION_FORMATTER_PATH, "utf-8");
+html = html.replace('<script src="dimension-formatter.js"></script>', `<script>${dimensionFormatterSrc}</script>`);
 // Le <script src="dna-engine.cjs"> ne se charge pas via file:// dans JSDOM sans
 // resourceLoader complexe -> on l'inline directement pour ce test, contenu strictement identique.
 const engineSrc = readFileSync(ENGINE_PATH, "utf-8");
@@ -127,6 +130,34 @@ async function run(family, power, intensity, label) {
     console.log(`Cartes affichées: ${cards.length}`);
     if (cards.length === 0) fail("N>0: aucune carte affichée après loadReco");
     else ok(`N>0: ${cards.length} carte(s) affichée(s)`);
+
+    const metaValues = [...doc.querySelectorAll(".reco-meta")].map((node) => node.textContent);
+    if (metaValues.some((value) => /\d\s+x\s+\d/i.test(value))) {
+      fail("N>0: une dimension utilise encore le caractère ASCII x");
+    } else if (!metaValues.every((value) => value.includes("×"))) {
+      fail("N>0: le signe typographique × est absent d'une carte");
+    } else {
+      ok("N>0: toutes les dimensions utilisent le signe typographique ×");
+    }
+
+    const formatter = window.CitiCigarsDimensionFormatter.formatCigarDimensions;
+    const fractionCases = {
+      "6 1/2 x 54": "6½ × 54",
+      "6 1/4 x 54": "6¼ × 54",
+      "5 3/4 x 60": "5¾ × 60",
+      "5 1/8 x 55": "5⅛ × 55",
+      "5 3/8 x 52": "5⅜ × 52",
+      "6 5/8 x 54": "6⅝ × 54",
+      "6 7/8 x 54": "6⅞ × 54",
+    };
+    const invalidFraction = Object.entries(fractionCases).find(
+      ([source, expected]) => formatter(source) !== expected,
+    );
+    if (invalidFraction) {
+      fail(`Formatter dimensions: ${invalidFraction[0]} n'a pas produit ${invalidFraction[1]}`);
+    } else {
+      ok("Formatter dimensions: × et les sept fractions usuelles sont normalisés");
+    }
 
     // Aucun prix / mention Pack / Boîte dans les cartes
     let priceOrFormLeak = false;

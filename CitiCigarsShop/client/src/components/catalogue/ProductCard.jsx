@@ -9,6 +9,7 @@ import generatedImage from "@assets/generated_images/single_premium_cigar.webp";
 import Button from "../shared/Button";
 import LazyProductImage from "./LazyProductImage";
 import i18n from "@/i18n";
+import { getProductDisplayDimensions } from "@/utils/cigarDimensions";
 
 function getPuissanceLabel(puissance, t) {
   const labels = {
@@ -96,11 +97,7 @@ function getProductDesignationLine2(product) {
   const vitole = normalizeProductText(product.vitole);
   const format = normalizeProductText(product.format);
 
-  const dimensions =
-    normalizeProductText(product.dimensions) ||
-    (product.longueur && product.diametre
-      ? `${product.longueur} × ${product.diametre}`
-      : "");
+  const dimensions = getProductDisplayDimensions(product);
 
   let designation = "";
 
