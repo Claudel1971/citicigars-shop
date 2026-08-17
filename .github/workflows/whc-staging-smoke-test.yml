@@ -120,6 +120,20 @@ jobs:
             "$WHC_USER@$WHC_HOST" \
             "set -e; MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --default-character-set=utf8mb4 --execute=\"source $REMOTE_SQL\"; rm -f '$REMOTE_SQL'; MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --batch --skip-column-names --execute=\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE(); SELECT COUNT(*) FROM products; SELECT COUNT(*) FROM product_images; SELECT COUNT(*) FROM stock_balances; SELECT COUNT(*) FROM stock_movements; SELECT COUNT(*) FROM dna_leads; SELECT COUNT(*) FROM dna_availability_watch;\""
 
+          TRIGGER_COUNT=$(ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --batch --skip-column-names --execute=\"SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema=DATABASE();\"")
+
+          if [ "$TRIGGER_COUNT" != "7" ]; then
+            echo "SECURITY ERROR: expected 7 Stock Central triggers, got $TRIGGER_COUNT"
+            exit 1
+          fi
+          echo "STOCK CENTRAL TRIGGERS: 7"
+
           rm -f "$LOCAL_SQL"
 
       - name: Cleanup SSH key
