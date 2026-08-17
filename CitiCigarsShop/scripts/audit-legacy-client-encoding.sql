@@ -72,10 +72,12 @@ SELECT sku,
     IF(dimensions LIKE '%??%', 'dimensions', NULL),
     IF(dimensions_mm LIKE '%??%', 'dimensions_mm', NULL),
     IF(longueur LIKE '%??%', 'longueur', NULL),
-    IF(CAST(composition AS CHAR) LIKE '%??%', 'composition', NULL),
-    IF(CAST(fiche_technique AS CHAR) LIKE '%??%', 'fiche_technique', NULL)
+    IF(CONVERT(CAST(composition AS CHAR) USING utf8mb4) COLLATE utf8mb4_general_ci LIKE '%??%', 'composition', NULL),
+    IF(CONVERT(CAST(fiche_technique AS CHAR) USING utf8mb4) COLLATE utf8mb4_general_ci LIKE '%??%', 'fiche_technique', NULL)
   ) AS affected_fields
 FROM products
-WHERE CONCAT_WS('|', marque, ligne, pays, vitole, dimensions, dimensions_mm, longueur,
-  CAST(composition AS CHAR), CAST(fiche_technique AS CHAR)) LIKE '%??%'
+WHERE CONVERT(CONCAT_WS('|', marque, ligne, pays, vitole, dimensions, dimensions_mm, longueur,
+  CONVERT(CAST(composition AS CHAR) USING utf8mb4),
+  CONVERT(CAST(fiche_technique AS CHAR) USING utf8mb4)) USING utf8mb4)
+  COLLATE utf8mb4_general_ci LIKE '%??%'
 ORDER BY sku;

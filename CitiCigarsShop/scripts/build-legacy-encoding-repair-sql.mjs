@@ -75,7 +75,7 @@ for (const sku of ["CTGBDL001", "CTGBDL002"]) {
 const clean660Bundle = bundlesData.find((bundle) => bundle.sku === "CTGBDL004");
 if (clean660Bundle?.composition) {
   statements.push(
-    `UPDATE products SET composition=${sqlString(JSON.stringify(clean660Bundle.composition))} WHERE sku='CTGBDL004' AND ${suspicious("CAST(composition AS CHAR)")} /* preuve: bundlesData.CTGBDL004.composition */`,
+    `UPDATE products SET composition=${sqlString(JSON.stringify(clean660Bundle.composition))} WHERE sku='CTGBDL004' AND ${suspicious("CONVERT(CAST(composition AS CHAR) USING utf8mb4) COLLATE utf8mb4_general_ci")} /* preuve: bundlesData.CTGBDL004.composition */`,
   );
 }
 
