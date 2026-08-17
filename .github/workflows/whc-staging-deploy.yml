@@ -131,13 +131,30 @@ jobs:
             "$WHC_USER@$WHC_HOST:$WHC_STAGING_PATH/"
 
           LEGACY_DNA_PATH="$WHC_STAGING_PATH/CitiCigars_DNA_Curator_v2_10_3_RC.html"
+          HTACCESS_PATH="$WHC_STAGING_PATH/.htaccess"
+          HTACCESS_TEMP_PATH="$WHC_STAGING_PATH/.htaccess.dna-staging.tmp"
           ssh \
             -p "$WHC_PORT" \
             -i ~/.ssh/whc_key \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "$WHC_USER@$WHC_HOST" \
-            "rm -f -- '$LEGACY_DNA_PATH' && test ! -e '$LEGACY_DNA_PATH'"
+            "set -e
+             rm -f -- '$LEGACY_DNA_PATH'
+             test ! -e '$LEGACY_DNA_PATH'
+             if ! grep -Fq 'RewriteRule ^CitiCigars_DNA_Curator_v2_10_3_RC\.html$ - [G,L]' '$HTACCESS_PATH' 2>/dev/null; then
+               {
+                 printf '%s\n' \
+                   '# BEGIN CITICIGARS DNA LEGACY' \
+                   'RewriteEngine On' \
+                   'RewriteRule ^CitiCigars_DNA_Curator_v2_10_3_RC\.html$ - [G,L]' \
+                   '# END CITICIGARS DNA LEGACY' \
+                   ''
+                 test ! -f '$HTACCESS_PATH' || cat '$HTACCESS_PATH'
+               } > '$HTACCESS_TEMP_PATH'
+               mv -f -- '$HTACCESS_TEMP_PATH' '$HTACCESS_PATH'
+             fi
+             grep -Fq 'RewriteRule ^CitiCigars_DNA_Curator_v2_10_3_RC\.html$ - [G,L]' '$HTACCESS_PATH'"
 
           echo "STAGING DEPLOYMENT: OK"
           echo "LEGACY DNA URL REMOVED: OK"
