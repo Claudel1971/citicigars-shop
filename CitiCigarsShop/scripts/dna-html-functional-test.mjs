@@ -168,6 +168,55 @@ async function run(family, power, intensity, label) {
     if (priceOrFormLeak) fail("N>0: une carte contient un prix ou une mention de forme Pack/Boîte");
     else ok("N>0: aucune carte n'affiche de prix ni de forme Pack/Boîte");
 
+    const productExit = [...cards].find((card) =>
+      card.matches("a,button,[role='link'],[tabindex],[onclick]")
+      || card.querySelector("a,button,[role='link'],[tabindex],[onclick]"),
+    );
+    if (productExit || doc.querySelector('a[href*="/p/"]') || doc.body.textContent.includes("Découvrir ce cigare")) {
+      fail("Pilote DNA: une carte permet encore de quitter le Curator vers une fiche produit");
+    } else {
+      ok("Pilote DNA: image, nom et carte sont non interactifs; aucun lien /p/:sku ni CTA produit");
+    }
+
+    const resultScreen = doc.querySelector('.screen[data-step="5"]');
+    const visibleResultText = [...resultScreen.querySelectorAll("*")]
+      .filter((node) => !node.closest("[hidden]") && node.children.length === 0)
+      .map((node) => node.textContent)
+      .join(" ");
+    if (/\?\?|�|Ã|Â/.test(visibleResultText)) {
+      fail("Pilote DNA: corruption legacy visible dans le profil ou les recommandations");
+    } else {
+      ok("Pilote DNA: aucun marqueur de corruption legacy visible dans le résultat");
+    }
+
+    const resultBack = doc.getElementById("resultBack");
+    const seeMore = doc.getElementById("seeMoreBtn");
+    if (!resultBack || !seeMore) {
+      fail("Pilote DNA: les actions Modifier mes réponses / Voir les autres ont disparu");
+    } else {
+      ok("Pilote DNA: Modifier mes réponses et Voir les autres restent présents");
+
+      const initialCardCount = doc.querySelectorAll(".reco-card").length;
+      window.__pilotTestPool = { mode: "EXACT", fullPool: engine.CATALOG.slice(0, 5) };
+      window.eval("resolvedPool=window.__pilotTestPool");
+      seeMore.hidden = false;
+      seeMore.dispatchEvent(new window.Event("click"));
+      await new Promise((r) => setTimeout(r, 20));
+      if (doc.querySelectorAll(".reco-card").length <= initialCardCount || recommendCalls !== 1) {
+        fail("Pilote DNA: Voir les autres n'ajoute pas le même pool sans recalcul");
+      } else {
+        ok("Pilote DNA: Voir les autres ajoute le même pool sans recalcul");
+      }
+
+      resultBack.dispatchEvent(new window.Event("click"));
+      const step4 = doc.querySelector('.screen[data-step="4"]');
+      if (!step4?.classList.contains("active") || resultScreen.classList.contains("active")) {
+        fail("Pilote DNA: Modifier mes réponses ne revient pas au questionnaire");
+      } else {
+        ok("Pilote DNA: Modifier mes réponses revient au questionnaire");
+      }
+    }
+
     const seeMoreHidden = doc.getElementById("seeMoreBtn").hidden;
     const engineFullPoolSize = (() => {
       const cc = window.answersDebug; // non défini, juste pour lisibilité

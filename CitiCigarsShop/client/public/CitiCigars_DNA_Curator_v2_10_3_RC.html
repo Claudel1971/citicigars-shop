@@ -520,17 +520,14 @@ function renderRecommendations(items,{append=false}={}){
     if(!append) wrap.innerHTML='<div class="system-note">Nous n’avons pas actuellement de référence en stock qui corresponde suffisamment à votre profil. Votre Cigar DNA reste enregistré et nous pourrons vous proposer une alternative lorsque la sélection évoluera.</div>';
     return;
   }
-  const productBase=(window.CITICIGARS_PRODUCT_BASE||window.location.origin||'https://citicigars.com').replace(/\/$/,'');
   const titleHtml=(!append&&!wrap.querySelector('.reco-title'))?'<div class="reco-title">Les cigares de votre DNA</div>':'';
   const cardsHtml=items.map((r,i)=>{
-    // Aucun prix, aucun détail Pack/Box dans le DNA (mission §2/§14) : seuls
-    // name/format/reason/lien fiche produit sont utilisés, jamais r.price/r.stock.
+    // Pilote externe staging : la carte reste strictement informative et ne
+    // propose aucune navigation vers le catalogue ou une fiche produit.
     const media=r.imageUrl?`<img src="${r.imageUrl}" alt="${escapeHtml(r.name||'Cigare CitiCigars')}" loading="lazy">`:'CC';
     const formattedDimensions=window.CitiCigarsDimensionFormatter.formatCigarDimensions(r.format);
     const meta=[formattedDimensions,r.durationLabel].filter(Boolean).join(' · ');
-    const productUrl=(productBase&&r.productSkuPath?productBase+r.productSkuPath:(r.productUrl||null));
-    const discover=productUrl?`<a class="primary" href="${productUrl}" target="_blank" rel="noopener">Découvrir ce cigare</a>`:'';
-    return `<div class="reco-card" data-sku="${escapeHtml(r.sku||'')}"><div class="reco-media" id="reco-media-${escapeHtml(r.sku||i)}">${media}</div><div><div class="reco-name">${escapeHtml(r.name||`Sélection ${i+1}`)}</div><div class="reco-meta">${escapeHtml(meta)}</div><div class="reco-reason">${escapeHtml(r.reason||'Cette référence correspond aux principaux marqueurs de votre Cigar DNA.')}</div><div class="reco-links">${discover}</div></div></div>`;
+    return `<div class="reco-card" data-sku="${escapeHtml(r.sku||'')}"><div class="reco-media" id="reco-media-${escapeHtml(r.sku||i)}">${media}</div><div><div class="reco-name">${escapeHtml(r.name||`Sélection ${i+1}`)}</div><div class="reco-meta">${escapeHtml(meta)}</div><div class="reco-reason">${escapeHtml(r.reason||'Cette référence correspond aux principaux marqueurs de votre Cigar DNA.')}</div></div></div>`;
   }).join('');
   wrap.insertAdjacentHTML('beforeend',titleHtml+cardsHtml);
 }
