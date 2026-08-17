@@ -130,7 +130,17 @@ jobs:
             CitiCigarsShop/dist/public/ \
             "$WHC_USER@$WHC_HOST:$WHC_STAGING_PATH/"
 
+          LEGACY_DNA_PATH="$WHC_STAGING_PATH/CitiCigars_DNA_Curator_v2_10_3_RC.html"
+          ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "rm -f -- '$LEGACY_DNA_PATH' && test ! -e '$LEGACY_DNA_PATH'"
+
           echo "STAGING DEPLOYMENT: OK"
+          echo "LEGACY DNA URL REMOVED: OK"
           echo "PRODUCTION NOT TOUCHED"
 
       - name: Cleanup SSH key
