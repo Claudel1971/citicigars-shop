@@ -43,7 +43,7 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "$WHC_USER@$WHC_HOST" \
-            "test -d '$WHC_STAGING_PATH' && echo 'SSH CONNECTION: OK' && echo 'STAGING DIRECTORY: OK' && echo 'PRODUCTION NOT TOUCHED'"
+            "test -d '$WHC_STAGING_PATH' && echo 'SSH CONNECTION: OK' && echo 'STAGING DIRECTORY: OK' && echo 'PRODUCTION NOT TOUCHED' && uapi --output=json Mysql list_databases && uapi --output=json Mysql list_users"
 
       - name: Cleanup SSH key
         if: always()
