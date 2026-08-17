@@ -13,6 +13,16 @@ on:
         required: false
         default: false
         type: boolean
+      audit_legacy_encoding:
+        description: Audit client-visible legacy encoding in the isolated staging DB
+        required: false
+        default: false
+        type: boolean
+      repair_legacy_encoding:
+        description: Apply only source-proven legacy encoding repairs to staging
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test-whc-connection:
@@ -20,6 +30,10 @@ jobs:
     environment: staging
 
     steps:
+      - name: Checkout repository for legacy encoding audit
+        if: ${{ inputs.audit_legacy_encoding || inputs.repair_legacy_encoding }}
+        uses: actions/checkout@v4
+
       - name: Configure SSH
         shell: bash
         run: |
@@ -135,6 +149,64 @@ jobs:
           echo "STOCK CENTRAL TRIGGERS: 7"
 
           rm -f "$LOCAL_SQL"
+
+      - name: Audit and repair client-visible legacy encoding
+        if: ${{ inputs.audit_legacy_encoding || inputs.repair_legacy_encoding }}
+        shell: bash
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
+          WHC_STAGING_DB_PASSWORD: ${{ secrets.WHC_STAGING_DB_PASSWORD }}
+          APPLY_REPAIR: ${{ inputs.repair_legacy_encoding }}
+        run: |
+          set -euo pipefail
+
+          EXPECTED_PATH="/home/bwljrj22/citicigars_staging"
+          DB_NAME="bwljrj22_citicigars_staging"
+          DB_USER="bwljrj22_citicigars_stg"
+          ESCAPED_PASSWORD=$(printf '%q' "$WHC_STAGING_DB_PASSWORD")
+          LOCAL_AUDIT="$GITHUB_WORKSPACE/CitiCigarsShop/scripts/audit-legacy-client-encoding.sql"
+          LOCAL_REPAIR="$RUNNER_TEMP/repair-legacy-client-encoding.sql"
+
+          if [ "$WHC_STAGING_PATH" != "$EXPECTED_PATH" ]; then
+            echo "SECURITY ERROR: unexpected staging path"
+            exit 1
+          fi
+
+          node "$GITHUB_WORKSPACE/CitiCigarsShop/scripts/build-legacy-encoding-repair-sql.mjs" \
+            --expected-database="$DB_NAME" > "$LOCAL_REPAIR"
+
+          scp \
+            -P "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$LOCAL_AUDIT" "$LOCAL_REPAIR" \
+            "$WHC_USER@$WHC_HOST:$WHC_STAGING_PATH/"
+
+          ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "set -e
+             test \"\$(MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --batch --skip-column-names --execute='SELECT DATABASE()')\" = '$DB_NAME'
+             echo 'LEGACY ENCODING AUDIT: BEFORE'
+             MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --default-character-set=utf8mb4 --table < '$WHC_STAGING_PATH/audit-legacy-client-encoding.sql'
+             if [ '$APPLY_REPAIR' = 'true' ]; then
+               MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --default-character-set=utf8mb4 < '$WHC_STAGING_PATH/repair-legacy-client-encoding.sql'
+               echo 'LEGACY ENCODING REPAIR: APPLIED'
+               echo 'LEGACY ENCODING AUDIT: AFTER'
+               MYSQL_PWD=$ESCAPED_PASSWORD mariadb --host=localhost --user='$DB_USER' --database='$DB_NAME' --default-character-set=utf8mb4 --table < '$WHC_STAGING_PATH/audit-legacy-client-encoding.sql'
+             fi
+             rm -f -- '$WHC_STAGING_PATH/audit-legacy-client-encoding.sql' '$WHC_STAGING_PATH/repair-legacy-client-encoding.sql'"
+
+          rm -f "$LOCAL_REPAIR"
+          echo "STAGING LEGACY ENCODING AUDIT: COMPLETE"
+          echo "PRODUCTION NOT TOUCHED"
 
       - name: Cleanup SSH key
         if: always()
