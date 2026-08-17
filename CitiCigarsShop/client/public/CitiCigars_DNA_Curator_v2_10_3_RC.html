@@ -519,7 +519,7 @@ function renderRecommendations(items,{append=false}={}){
     if(!append) wrap.innerHTML='<div class="system-note">Nous n’avons pas actuellement de référence en stock qui corresponde suffisamment à votre profil. Votre Cigar DNA reste enregistré et nous pourrons vous proposer une alternative lorsque la sélection évoluera.</div>';
     return;
   }
-  const productBase=(window.CITICIGARS_PRODUCT_BASE||'https://citicigars.com').replace(/\/$/,'');
+  const productBase=(window.CITICIGARS_PRODUCT_BASE||window.location.origin||'https://citicigars.com').replace(/\/$/,'');
   const titleHtml=(!append&&!wrap.querySelector('.reco-title'))?'<div class="reco-title">Les cigares de votre DNA</div>':'';
   const cardsHtml=items.map((r,i)=>{
     // Aucun prix, aucun détail Pack/Box dans le DNA (mission §2/§14) : seuls
