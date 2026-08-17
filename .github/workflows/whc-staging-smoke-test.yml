@@ -2,6 +2,12 @@ name: WHC Staging - Smoke Test
 
 on:
   workflow_dispatch:
+    inputs:
+      provision_database:
+        description: Create the isolated WHC staging database and user
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test-whc-connection:
@@ -44,6 +50,29 @@ jobs:
             -o StrictHostKeyChecking=yes \
             "$WHC_USER@$WHC_HOST" \
             "test -d '$WHC_STAGING_PATH' && echo 'SSH CONNECTION: OK' && echo 'STAGING DIRECTORY: OK' && echo 'PRODUCTION NOT TOUCHED' && uapi --output=json Mysql list_databases && uapi --output=json Mysql list_users"
+
+      - name: Provision isolated staging database
+        if: ${{ inputs.provision_database }}
+        shell: bash
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_STAGING_DB_PASSWORD: ${{ secrets.WHC_STAGING_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          DB_NAME="bwljrj22_citicigars_staging"
+          DB_USER="bwljrj22_citicigars_stg"
+          ESCAPED_PASSWORD=$(printf '%q' "$WHC_STAGING_DB_PASSWORD")
+
+          ssh \
+            -p "$WHC_PORT" \
+            -i ~/.ssh/whc_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$WHC_USER@$WHC_HOST" \
+            "uapi --output=json Mysql create_database name='$DB_NAME'; uapi --output=json Mysql create_user name='$DB_USER' password=$ESCAPED_PASSWORD; uapi --output=json Mysql set_privileges_on_database user='$DB_USER' database='$DB_NAME' privileges='ALL PRIVILEGES'; uapi --output=json Mysql list_databases; uapi --output=json Mysql list_users"
 
       - name: Cleanup SSH key
         if: always()
