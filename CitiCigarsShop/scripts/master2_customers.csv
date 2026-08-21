@@ -1,0 +1,14 @@
+﻿customer_id,source_name,phone_whatsapp,city,country,is_internal
+CTCG-CUST-000000,CitiCigars,+237675784830,Douala,Cameroun,TRUE
+CTCG-CUST-000001,Nathalie Neim,+237674206719,Douala,Cameroun,FALSE
+CTCG-CUST-000002,Alain-Thierry Mouafo,+237699960959,Douala,Cameroun,FALSE
+CTCG-CUST-000003,Olivier Sohaing,+237699601286,Douala,Cameroun,FALSE
+CTCG-CUST-000004,Lise Kouam Mouafo,+237657503296,Douala,Cameroun,FALSE
+CTCG-CUST-000005,David Eto'o,+237680207627,Douala,Cameroun,FALSE
+CTCG-CUST-000006,Karelle Tekam (Cocher),+33758470023,,France,FALSE
+CTCG-CUST-000007,Christian Mataga,+237677704000,Yaoundé,Cameroun,FALSE
+CTCG-CUST-000008,Gérard Toghoua,+237670418948,Yaoundé,Cameroun,FALSE
+CTCG-CUST-000009,Rosine Nkom Assiene,+237670471496,Yaoundé,Cameroun,FALSE
+CTCG-CUST-000010,Éric Niat,+237696267123,Douala,Cameroun,FALSE
+CTCG-CUST-000011,Cyrille Choupo,+237694390965,Brazza / Pointe-Noire,Congo,FALSE
+CTCG-CUST-000012,Christiane Niat,+237691859685,Douala,Cameroun,FALSE

@@ -9,11 +9,15 @@ import * as fs from "fs";
 import * as path from "path";
 import multer from "multer";
 import { parseTechnicalSheetTXT } from "./services/technical-sheet-parser";
+import { registerCrmRoutes } from "./routes.crm";
 import { registerDnaRoutes } from "./routes.dna";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
-const ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD || "citicigars2024";
+import { getAdminPassword, isValidAdminToken, requireAdminAuth } from "./middleware/auth";
+// No hardcoded fallback: middleware/auth.ts throws at startup if
+// CMS_ADMIN_PASSWORD is not set. See brief correction #5/#7.
+const ADMIN_PASSWORD = getAdminPassword();
 const CMS_ASSETS_DIR = path.resolve(ROOT_DIR, "client/public/cms-assets");
 
 if (!fs.existsSync(CMS_ASSETS_DIR)) {
@@ -47,20 +51,18 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
   app.use('/cms-assets', express.static(CMS_ASSETS_DIR, {
     maxAge: '1d',
     etag: true,
     lastModified: true
   }));
 
-  registerDnaRoutes(app);
-
   app.get("/api/products", async (req, res) => {
     try {
       const includeImages = req.query.includeImages === 'true';
       const products = await storage.getAllProducts();
-      
+
       if (includeImages) {
         const productsWithImages = await Promise.all(
           products.map(async (product) => {
@@ -75,7 +77,7 @@ export async function registerRoutes(
           let badges = product.badges;
           let composition = product.composition;
           let ficheTechnique = product.ficheTechnique;
-          
+
           if (typeof promotions === 'string') {
             try { promotions = JSON.parse(promotions); } catch (e) { promotions = null; }
           }
@@ -88,7 +90,7 @@ export async function registerRoutes(
           if (typeof ficheTechnique === 'string') {
             try { ficheTechnique = JSON.parse(ficheTechnique); } catch (e) { ficheTechnique = null; }
           }
-          
+
           return { ...product, promotions, badges, composition, ficheTechnique };
         });
         res.json(parsedProducts);
@@ -146,7 +148,7 @@ export async function registerRoutes(
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
-      
+
       const images = await storage.getImagesBySku(product.sku);
       res.json(mapProductWithImages(product, images));
     } catch (error) {
@@ -161,12 +163,12 @@ export async function registerRoutes(
       if (!product.sku || !product.marque) {
         return res.status(400).json({ error: "SKU et marque sont requis" });
       }
-      
+
       const existing = await storage.getProduct(product.sku);
       if (existing) {
         return res.status(409).json({ error: "Un produit avec ce SKU existe déjà" });
       }
-      
+
       const created = await storage.createProduct(product);
       res.status(201).json(created);
     } catch (error) {
@@ -417,7 +419,7 @@ export async function registerRoutes(
     const authHeader = req.headers.authorization;
     const cmsToken = req.headers['x-cms-token'];
     const token = cmsToken || authHeader?.replace("Bearer ", "");
-    return token && Buffer.from(token, "base64").toString() === ADMIN_PASSWORD;
+    return isValidAdminToken(token);
   }
 
   app.get("/api/cms/assets", (req, res) => {
@@ -607,6 +609,9 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to calculate price" });
     }
   });
+
+  registerDnaRoutes(app);
+  registerCrmRoutes(app);
 
   return httpServer;
 }
