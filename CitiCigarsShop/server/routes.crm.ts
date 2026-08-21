@@ -330,7 +330,7 @@ export function registerCrmRoutes(app: Express) {
   app.post("/api/crm/transactions/export", requireAdminAuth, async (req, res) => {
     try {
       const rows = await queryTransactions(req.body || {});
-      const buffer = buildTransactionExportWorkbook(rows);
+      const buffer = buildTransactionExportWorkbook(rows, req.body?.viewMode === "orders" ? "orders" : "lines");
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="citicigars-transactions-${new Date().toISOString().slice(0, 10)}.xlsx"`);
       res.send(buffer);

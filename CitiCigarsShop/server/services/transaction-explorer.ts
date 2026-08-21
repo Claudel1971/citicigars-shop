@@ -203,7 +203,7 @@ export async function queryTransactions(filters: TransactionExplorerFilters): Pr
   }));
 }
 
-const EXPORT_COLUMNS: Array<{ key: keyof TransactionExplorerRow; header: string }> = [
+const LINE_EXPORT_COLUMNS: Array<{ key: string; header: string }> = [
   { key: "orderId", header: "SALE ID" },
   { key: "orderDate", header: "Date" },
   { key: "customerId", header: "Customer ID" },
@@ -224,36 +224,145 @@ const EXPORT_COLUMNS: Array<{ key: keyof TransactionExplorerRow; header: string 
   { key: "standardLineCostXaf", header: "Coût standard ligne" },
   { key: "actualLineCostXaf", header: "Coût réel ligne" },
   { key: "costVarianceVsStandardXaf", header: "Variance coût réel vs standard" },
-  { key: "subtotalRegularTotalXaf", header: "Prix catalogue commande" },
-  { key: "extraCustomerDiscountXaf", header: "Remise" },
-  { key: "finalSaleTotalXaf", header: "Prix net commande" },
-  { key: "amountPaid", header: "Encaissé" },
-  { key: "balanceDue", header: "Balance" },
-  { key: "paymentDate", header: "Date encaissement" },
-  { key: "paymentStatus", header: "Statut paiement" },
+  { key: "lineMarginXaf", header: "Marge ligne XAF" },
+  { key: "lineMarginRate", header: "Marge ligne %" },
 ];
 
-/**
- * Builds the .xlsx buffer for the given (already-filtered) rows, one row
- * per order_item, order/customer data repeated on every line so the person
- * can freely build pivot tables in Excel.
- *
- * Brand/série-ligne/vitole are historical snapshots on order_items itself
- * (see schema.sales.ts) — plain columns populated from the source data at
- * import time, not resolved via a live catalogue join. No FK to a product
- * catalogue was needed or added for this.
- */
-export function buildTransactionExportWorkbook(rows: TransactionExplorerRow[]): Buffer {
-  const data = rows.map((r) => {
+function asNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function buildLineExport(rows: TransactionExplorerRow[]): Record<string, unknown>[] {
+  return rows.map((r) => {
+    const actualCost = asNumberOrNull(r.actualLineCostXaf);
+    const lineMarginXaf = actualCost == null ? null : r.actualLineRevenueXaf - actualCost;
+    const lineMarginRate =
+      lineMarginXaf == null || r.actualLineRevenueXaf === 0
+        ? null
+        : lineMarginXaf / r.actualLineRevenueXaf;
+
+    const source: Record<string, unknown> = {
+      ...r,
+      lineMarginXaf,
+      lineMarginRate,
+    };
+
     const out: Record<string, unknown> = {};
-    for (const col of EXPORT_COLUMNS) {
-      const v = r[col.key];
+    for (const col of LINE_EXPORT_COLUMNS) {
+      const v = source[col.key];
       out[col.header] = v instanceof Date ? v.toISOString().slice(0, 10) : v;
     }
     return out;
   });
-  const worksheet = XLSX.utils.json_to_sheet(data, { header: EXPORT_COLUMNS.map((c) => c.header) });
+}
+
+function buildOrderExport(rows: TransactionExplorerRow[]): Record<string, unknown>[] {
+  const grouped = new Map<string, {
+    orderId: string;
+    orderDate: Date;
+    customerId: string;
+    customerName: string;
+    customerPhone: string | null;
+    customerCity: string | null;
+    customerCountry: string | null;
+    orderNotes: string | null;
+    finalSaleTotalXaf: number;
+    amountPaid: number;
+    balanceDue: number;
+    paymentStatus: string;
+    lineCount: number;
+    itemQuantity: number;
+    visibleRevenue: number;
+    actualCostTotal: number;
+    costsComplete: boolean;
+  }>();
+
+  for (const r of rows) {
+    let order = grouped.get(r.orderId);
+    if (!order) {
+      order = {
+        orderId: r.orderId,
+        orderDate: r.orderDate,
+        customerId: r.customerId,
+        customerName: r.customerName,
+        customerPhone: r.customerPhone,
+        customerCity: r.customerCity,
+        customerCountry: r.customerCountry,
+        orderNotes: r.orderNotes,
+        finalSaleTotalXaf: r.finalSaleTotalXaf,
+        amountPaid: r.amountPaid,
+        balanceDue: r.balanceDue,
+        paymentStatus: r.paymentStatus,
+        lineCount: 0,
+        itemQuantity: 0,
+        visibleRevenue: 0,
+        actualCostTotal: 0,
+        costsComplete: true,
+      };
+      grouped.set(r.orderId, order);
+    }
+
+    order.lineCount += 1;
+    order.itemQuantity += r.quantity;
+    order.visibleRevenue += r.actualLineRevenueXaf;
+
+    const actualCost = asNumberOrNull(r.actualLineCostXaf);
+    if (actualCost == null) order.costsComplete = false;
+    else order.actualCostTotal += actualCost;
+  }
+
+  return Array.from(grouped.values()).map((order) => {
+    // If a line-level filter is active, queryTransactions can return only a
+    // subset of an order's lines. Never manufacture an order margin from
+    // partial costs: only calculate when visible line revenue reconciles to
+    // the order's net sale total and every visible line has a sourced cost.
+    const revenueComplete = order.visibleRevenue === order.finalSaleTotalXaf;
+    const orderCostXaf =
+      order.costsComplete && revenueComplete ? order.actualCostTotal : null;
+    const marginXaf =
+      orderCostXaf == null ? null : order.finalSaleTotalXaf - orderCostXaf;
+    const marginRate =
+      marginXaf == null || order.finalSaleTotalXaf === 0
+        ? null
+        : marginXaf / order.finalSaleTotalXaf;
+
+    return {
+      "SALE ID": order.orderId,
+      "Date": order.orderDate.toISOString().slice(0, 10),
+      "Customer ID": order.customerId,
+      "Client": order.customerName,
+      "WhatsApp": order.customerPhone,
+      "Ville": order.customerCity,
+      "Pays": order.customerCountry,
+      "Relation commerciale / Type commande": order.orderNotes,
+      "Nb lignes": order.lineCount,
+      "Qté items": order.itemQuantity,
+      "Prix net commande": order.finalSaleTotalXaf,
+      "Encaissé": order.amountPaid,
+      "Balance": order.balanceDue,
+      "Statut paiement": order.paymentStatus,
+      "Coût réel commande": orderCostXaf,
+      "Marge XAF": marginXaf,
+      "Marge %": marginRate,
+    };
+  });
+}
+
+/**
+ * Builds the .xlsx buffer at the grain selected in the CRM:
+ * - orders: one row per SALE ID, no double-counted parent amounts.
+ * - lines: one row per order_item, with only line-level monetary fields.
+ */
+export function buildTransactionExportWorkbook(
+  rows: TransactionExplorerRow[],
+  viewMode: "orders" | "lines" = "lines"
+): Buffer {
+  const data = viewMode === "orders" ? buildOrderExport(rows) : buildLineExport(rows);
+  const sheetName = viewMode === "orders" ? "Commandes" : "Lignes";
+  const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
