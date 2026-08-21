@@ -100,23 +100,40 @@ export interface CustomerListFilters {
 }
 
 export async function listCustomers(filters: CustomerListFilters = {}) {
-  // Kept simple and explicit for Phase 1: a small conditional WHERE builder
-  // rather than a generic query-builder abstraction, since the CRM's filter
-  // set is short (statut, recherche, prochaine action) and unlikely to grow
-  // quickly — see brief section 9: "évite les champs CRM décoratifs".
-  const rows = await db.select().from(customers).orderBy(desc(customers.updatedAt));
+  // Default order is the stable business identifier. The UI can then apply
+  // interactive sorting without the list jumping around because updatedAt
+  // changed after a note/edit.
+  const [rows, balanceRows] = await Promise.all([
+    db.select().from(customers).orderBy(asc(customers.customerId)),
+    db
+      .select({
+        customerId: orders.customerId,
+        balanceDueXaf: sqlOp<number>`COALESCE(SUM(${orders.balanceDue}), 0)`,
+      })
+      .from(orders)
+      .groupBy(orders.customerId),
+  ]);
 
-  return rows.filter((c) => {
-    if (filters.status && c.status !== filters.status) return false;
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      const haystack = `${c.firstName ?? ""} ${c.lastName ?? ""} ${c.phoneWhatsapp ?? ""} ${
-        c.companyName ?? ""
-      }`.toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
-  });
+  const balanceByCustomer = new Map(
+    balanceRows.map((r) => [r.customerId, Number(r.balanceDueXaf ?? 0)])
+  );
+
+  return rows
+    .filter((c) => {
+      if (filters.status && c.status !== filters.status) return false;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        const haystack = `${c.customerId ?? ""} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.phoneWhatsapp ?? ""} ${
+          c.companyName ?? ""
+        }`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    })
+    .map((c) => ({
+      ...c,
+      balanceDueXaf: balanceByCustomer.get(c.customerId) ?? 0,
+    }));
 }
 
 /**
