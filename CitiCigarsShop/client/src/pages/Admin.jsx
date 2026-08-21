@@ -17,6 +17,7 @@ import CustomerDetail from '@/components/admin/crm/CustomerDetail';
 import ConversationAnalyzer from '@/components/admin/crm/ConversationAnalyzer';
 import Followups from '@/components/admin/crm/Followups';
 import TransactionExplorer from '@/components/admin/crm/TransactionExplorer';
+import NewSale from '@/components/admin/crm/NewSale';
 import { Menu } from 'lucide-react';
 import { API_URL } from '@/config';
 
@@ -185,6 +186,7 @@ const Admin = () => {
               <Route path="/admin/crm-whatsapp" component={ConversationAnalyzer} />
               <Route path="/admin/crm-followups" component={Followups} />
               <Route path="/admin/crm-transactions" component={TransactionExplorer} />
+              <Route path="/admin/crm-sale-new" component={NewSale} />
               <Route path="/admin/crm/:id" component={CustomerDetail} />
               
               {/* If we are here, it means we matched /admin/* in App.tsx but nothing specific above */}

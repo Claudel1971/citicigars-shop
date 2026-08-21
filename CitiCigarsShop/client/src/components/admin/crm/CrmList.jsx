@@ -101,8 +101,10 @@ const CrmList = () => {
     const rows = [...customers];
     const valueFor = (c) => {
       switch (sortKey) {
-        case 'name':
-          return `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim().toLocaleLowerCase('fr');
+        case 'lastName':
+          return (c.lastName ?? '').toLocaleLowerCase('fr');
+        case 'firstName':
+          return (c.firstName ?? '').toLocaleLowerCase('fr');
         case 'phoneWhatsapp':
           return (c.phoneWhatsapp ?? '').toLocaleLowerCase('fr');
         case 'customerType':
@@ -232,7 +234,8 @@ const CrmList = () => {
             <thead className="bg-gray-50 text-left">
               <tr>
                 <SortHeader label="ID Client" sortKey="customerId" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
-                <SortHeader label="Nom" sortKey="name" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
+                <SortHeader label="Nom" sortKey="lastName" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
+                <SortHeader label="Prénom" sortKey="firstName" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
                 <SortHeader label="Téléphone" sortKey="phoneWhatsapp" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
                 <SortHeader label="Type" sortKey="customerType" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
                 <SortHeader label="Statut" sortKey="status" activeKey={sortKey} direction={sortDirection} onSort={onSort} />
@@ -246,9 +249,10 @@ const CrmList = () => {
                 <tr key={c.customerId} className="border-t hover:bg-gray-50">
                   <td className="p-3 font-mono text-xs whitespace-nowrap">{c.customerId}</td>
                   <td className="p-3 font-medium">
-                    {`${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.companyName || '—'}
+                    {c.lastName || (!c.firstName ? c.companyName : null) || '—'}
                     {c.companyName && (c.firstName || c.lastName) ? <div className="text-xs text-gray-500">{c.companyName}</div> : null}
                   </td>
+                  <td className="p-3">{c.firstName || '—'}</td>
                   <td className="p-3 whitespace-nowrap">{c.phoneWhatsapp || '—'}</td>
                   <td className="p-3">{TYPE_LABELS[c.customerType] || c.customerType}</td>
                   <td className="p-3">
@@ -269,7 +273,7 @@ const CrmList = () => {
               ))}
               {sortedCustomers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-gray-500">
+                  <td colSpan={9} className="p-6 text-center text-gray-500">
                     Aucun client trouvé.
                   </td>
                 </tr>

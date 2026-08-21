@@ -8,6 +8,7 @@ import { ingestDnaResult } from "./services/dna-intake";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
 import { queryTransactions, buildTransactionExportWorkbook } from "./services/transaction-explorer";
+import { createManualSale } from "./services/manual-sale";
 import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
@@ -295,6 +296,20 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error("[POST /api/crm/import/run]", error);
       res.status(500).json({ error: "Erreur lors de l'import" });
+    }
+  });
+
+  // -------------------------------------------------------------------
+  // Manual sales — Phase 1 commercial capture.
+  // -------------------------------------------------------------------
+
+  app.post("/api/crm/sales", requireAdminAuth, async (req, res) => {
+    try {
+      const result = await createManualSale(req.body || {});
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("[POST /api/crm/sales]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Vente invalide" });
     }
   });
 

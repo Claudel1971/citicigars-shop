@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight, ShoppingCart } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
 
   const crmSubLinks = [
     { path: '/admin/crm', icon: Users, label: 'Clients' },
+    { path: '/admin/crm-sale-new', icon: ShoppingCart, label: 'Nouvelle vente' },
     { path: '/admin/crm-transactions', icon: Table, label: 'Explorateur de transactions' },
     { path: '/admin/crm-whatsapp', icon: MessageSquare, label: 'Analyse WhatsApp' },
     { path: '/admin/crm-followups', icon: Bell, label: 'Relances' },
