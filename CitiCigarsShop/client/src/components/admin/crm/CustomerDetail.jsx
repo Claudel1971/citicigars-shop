@@ -93,7 +93,7 @@ const CustomerDetail = () => {
         body: JSON.stringify({ blacklisted, reason }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Mise ? jour impossible');
+      if (!res.ok) throw new Error(data.error || 'Mise à jour impossible');
       await load();
     } catch (err) {
       alert(err.message);
@@ -146,7 +146,7 @@ const CustomerDetail = () => {
   return (
     <div>
       <Link href="/admin/crm" className="text-sm text-primary hover:underline">
-        ? Retour ? la liste
+        ← Retour à la liste
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -157,7 +157,7 @@ const CustomerDetail = () => {
               customer.customerId}
           </h1>
           <p className="text-gray-500 mb-4">
-            {customer.phoneWhatsapp || 'Aucun téléphone'} ? {customer.customerType}
+            {customer.phoneWhatsapp || 'Aucun téléphone'} · {customer.customerType}
             {customer.companyName ? ` ? ${customer.companyName}` : ''}
             {customer.isInternal ? ' ? (interne)' : ''}
           </p>
@@ -238,7 +238,7 @@ const CustomerDetail = () => {
         <div className="bg-white border rounded-md p-4 mb-8">
           <h2 className="font-semibold mb-2">Profil DNA</h2>
           <p className="text-sm">
-            <span className="font-medium">{dna.profileName}</span> ({dna.profileCode}) ? {dna.family}
+            <span className="font-medium">{dna.profileName}</span> ({dna.profileCode}) — {dna.family}
           </p>
           {dna.profileTagline && (
             <p className="text-sm text-gray-500 italic">{dna.profileTagline}</p>
@@ -258,7 +258,7 @@ const CustomerDetail = () => {
                 <tr>
                   <th className="pb-2">Date</th>
                   <th className="pb-2">Total</th>
-                  <th className="pb-2">Pay?</th>
+                  <th className="pb-2">Payé</th>
                   <th className="pb-2">Solde</th>
                   <th className="pb-2"></th>
                 </tr>
@@ -322,7 +322,7 @@ const CustomerDetail = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-xs text-gray-500">
-                      {new Date(i.interactionDate).toLocaleString('fr-FR')} ? {i.channel} ? {i.direction}
+                      {new Date(i.interactionDate).toLocaleString('fr-FR')} · {i.channel} · {i.direction}
                     </div>
                     <div>{i.summary}</div>
                   </div>

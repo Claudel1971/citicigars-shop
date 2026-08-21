@@ -109,9 +109,9 @@ const ORDER_TABLE_COLUMNS = [
   { key: 'orderDate', label: 'Date', index: 3, width: 105 },
   { key: 'customerName', label: 'Client', index: 4, width: 180 },
   { key: 'lineCount', label: 'Lignes', index: 5, width: 80 },
-  { key: 'itemQuantity', label: 'Qt?', index: 6, width: 70 },
+  { key: 'itemQuantity', label: 'Qté', index: 6, width: 70 },
   { key: 'finalSaleTotalXaf', label: 'Net commande', index: 7, width: 130 },
-  { key: 'amountPaid', label: 'Pay?', index: 8, width: 115 },
+  { key: 'amountPaid', label: 'Payé', index: 8, width: 115 },
   { key: 'balanceDue', label: 'Balance', index: 9, width: 115 },
   { key: 'paymentStatus', label: 'Statut', index: 10, width: 100 },
   { key: 'orderCostXaf', label: 'Coût commande', index: 11, width: 130 },
@@ -128,7 +128,7 @@ const LINE_TABLE_COLUMNS = [
   { key: 'series', label: 'Série', index: 6, width: 145 },
   { key: 'vitole', label: 'Vitole', index: 7, width: 120 },
   { key: 'itemType', label: 'Type', index: 8, width: 105 },
-  { key: 'quantity', label: 'Qt?', index: 9, width: 70 },
+  { key: 'quantity', label: 'Qté', index: 9, width: 70 },
   { key: 'actualLineRevenueXaf', label: 'CA ligne', index: 10, width: 115 },
   { key: 'actualLineCostXaf', label: 'Coût réel', index: 11, width: 115 },
   { key: 'lineMarginXaf', label: 'Marge ligne', index: 12, width: 115 },
@@ -631,7 +631,7 @@ const TransactionExplorer = () => {
 
           <div className="mt-4 border-t pt-4">
             <div className="mb-2 text-sm font-medium">
-              Colonnes visibles ? {viewMode === 'orders' ? 'Commandes' : 'Lignes'}
+              Colonnes visibles — {viewMode === 'orders' ? 'Commandes' : 'Lignes'}
             </div>
 
             <div className="flex flex-wrap gap-3">
