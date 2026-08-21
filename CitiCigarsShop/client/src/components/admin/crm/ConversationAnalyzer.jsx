@@ -30,7 +30,7 @@ const AiField = ({ label, field, value, onChange }) => (
       className="border rounded-md px-2 py-1 w-full text-sm"
     />
     {field?.sourceExcerpt && (
-      <p className="text-xs text-gray-400 italic mt-1">? {field.sourceExcerpt} ?</p>
+      <p className="text-xs text-gray-400 italic mt-1">« {field.sourceExcerpt} »</p>
     )}
   </div>
 );
@@ -91,7 +91,7 @@ const ConversationAnalyzer = () => {
 
   const validate = async () => {
     if (!proposal.matchedCustomerId && !edited.phone.trim()) {
-      setError("Le num?ro WhatsApp / t?l?phone est requis pour identifier un nouveau prospect.");
+      setError("Le numéro WhatsApp / téléphone est requis pour identifier un nouveau prospect.");
       return;
     }
 
@@ -153,7 +153,7 @@ const ConversationAnalyzer = () => {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "?chec de l'enregistrement");
+        throw new Error(data.error || "Échec de l'enregistrement");
       }
 
       setResult(await res.json());
@@ -174,7 +174,7 @@ const ConversationAnalyzer = () => {
       </h1>
 
       <p className="text-sm text-gray-500 mb-4">
-        L'IA propose une extraction. Rien n'est ?crit dans le CRM tant que tu n'as pas valid?.
+        L'IA propose une extraction. Rien n'est écrit dans le CRM tant que tu n'as pas validé.
       </p>
 
       <textarea
@@ -197,8 +197,8 @@ const ConversationAnalyzer = () => {
 
       {result && (
         <p className="text-green-700 mt-3">
-          ? Enregistr? ? client {result.customerId}
-          {result.followup ? ' + relance cr??e' : ''}.
+          ✓ Enregistré — client {result.customerId}
+          {result.followup ? ' + relance créée' : ''}.
         </p>
       )}
 
@@ -208,22 +208,22 @@ const ConversationAnalyzer = () => {
             <h2 className="font-semibold mb-1">Identifier le contact</h2>
 
             <p className="text-xs text-gray-500 mb-4">
-              Le t?l?phone est la cl? principale de rapprochement CRM.
+              Le téléphone est la clé principale de rapprochement CRM.
             </p>
 
             {proposal.matchedCustomerId ? (
               <div className="mb-4 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-800">
-                Client existant identifi? par correspondance t?l?phonique exacte : {proposal.matchedCustomerId}
+                Client existant identifié par correspondance téléphonique exacte : {proposal.matchedCustomerId}
               </div>
             ) : (
               <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
-                Aucun t?l?phone correspondant dans le CRM. Un nouveau prospect sera cr?? apr?s validation.
+                Aucun téléphone correspondant dans le CRM. Un nouveau prospect sera créé après validation.
               </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="text-sm">
-                <span className="block mb-1 font-medium">T?l?phone / WhatsApp *</span>
+                <span className="block mb-1 font-medium">Téléphone / WhatsApp *</span>
                 <input
                   type="text"
                   value={edited.phone || ''}
@@ -249,7 +249,7 @@ const ConversationAnalyzer = () => {
               </label>
 
               <label className="text-sm">
-                <span className="block mb-1 font-medium">Pr?nom</span>
+                <span className="block mb-1 font-medium">Prénom</span>
                 <input
                   type="text"
                   value={edited.firstName || ''}
@@ -295,14 +295,14 @@ const ConversationAnalyzer = () => {
             <h2 className="font-semibold mb-2">Analyse de la conversation</h2>
 
             <AiField
-              label="R?sum?"
+              label="Résumé"
               field={proposal.summary}
               value={edited.summary}
               onChange={(v) => setField('summary', v)}
             />
 
             <AiField
-              label="Int?r?t"
+              label="Intérêt"
               field={proposal.interest}
               value={edited.interest}
               onChange={(v) => setField('interest', v)}
@@ -316,7 +316,7 @@ const ConversationAnalyzer = () => {
             />
 
             <AiField
-              label="?ch?ance"
+              label="Échéance"
               field={proposal.nextActionAt}
               value={edited.nextActionAt}
               onChange={(v) => setField('nextActionAt', v)}

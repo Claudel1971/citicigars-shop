@@ -177,7 +177,7 @@ export function registerCrmRoutes(app: Express) {
       res.json(followups);
     } catch (error) {
       console.error("[GET /api/crm/followups]", error);
-      res.status(500).json({ error: "Erreur lors de la r?cup?ration des relances" });
+      res.status(500).json({ error: "Erreur lors de la récupération des relances" });
     }
   });
 
@@ -218,7 +218,7 @@ export function registerCrmRoutes(app: Express) {
       res.json({ success: true });
     } catch (error) {
       console.error("[PUT /api/crm/followups/:id/reopen]", error);
-      res.status(500).json({ error: "Erreur lors de la r?ouverture de la relance" });
+      res.status(500).json({ error: "Erreur lors de la réouverture de la relance" });
     }
   });
 

@@ -4,8 +4,8 @@ import { crmFetch } from './crmApi';
 
 const TABS = [
   { value: 'OPEN', label: 'Ouvertes' },
-  { value: 'DONE', label: 'Termin?es' },
-  { value: 'CANCELLED', label: 'Annul?es' },
+  { value: 'DONE', label: 'Terminées' },
+  { value: 'CANCELLED', label: 'Annulées' },
 ];
 
 const Followups = () => {
@@ -64,7 +64,7 @@ const Followups = () => {
     setBusyId(id);
     try {
       const res = await crmFetch(`/api/crm/followups/${id}/reopen`, { method: 'PUT' });
-      if (!res.ok) throw new Error('Impossible de r?ouvrir la relance');
+      if (!res.ok) throw new Error('Impossible de réouvrir la relance');
       await load();
     } catch (err) {
       alert(err.message);
@@ -102,7 +102,7 @@ const Followups = () => {
         <div className="bg-white border rounded-md divide-y">
           {followups.length === 0 && (
             <p className="p-6 text-center text-gray-500">
-              Aucune relance dans cette cat?gorie.
+              Aucune relance dans cette catégorie.
             </p>
           )}
 
@@ -110,7 +110,7 @@ const Followups = () => {
             <div key={f.followupId} className="p-4 flex items-start justify-between gap-4">
               <div>
                 <div className={`text-sm ${isOverdue(f.dueAt) ? 'text-red-600 font-medium' : ''}`}>
-                  ?ch?ance : {new Date(f.dueAt).toLocaleDateString('fr-FR')}
+                  Échéance : {new Date(f.dueAt).toLocaleDateString('fr-FR')}
                   {isOverdue(f.dueAt) ? ' (en retard)' : ''}
                 </div>
 
@@ -118,7 +118,7 @@ const Followups = () => {
 
                 {f.completedAt && status === 'DONE' && (
                   <div className="text-xs text-gray-500 mt-1">
-                    Termin?e le {new Date(f.completedAt).toLocaleString('fr-FR')}
+                    Terminée le {new Date(f.completedAt).toLocaleString('fr-FR')}
                   </div>
                 )}
 
@@ -154,7 +154,7 @@ const Followups = () => {
                     disabled={busyId === f.followupId}
                     className="text-xs bg-primary text-white px-3 py-1.5 rounded-md disabled:opacity-50"
                   >
-                    R?ouvrir
+                    Réouvrir
                   </button>
                 )}
               </div>

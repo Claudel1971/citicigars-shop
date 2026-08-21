@@ -114,7 +114,7 @@ const ORDER_TABLE_COLUMNS = [
   { key: 'amountPaid', label: 'Pay?', index: 8, width: 115 },
   { key: 'balanceDue', label: 'Balance', index: 9, width: 115 },
   { key: 'paymentStatus', label: 'Statut', index: 10, width: 100 },
-  { key: 'orderCostXaf', label: 'Co?t commande', index: 11, width: 130 },
+  { key: 'orderCostXaf', label: 'Coût commande', index: 11, width: 130 },
   { key: 'marginXaf', label: 'Marge XAF', index: 12, width: 120 },
   { key: 'marginRate', label: 'Marge %', index: 13, width: 100 },
 ];
@@ -125,12 +125,12 @@ const LINE_TABLE_COLUMNS = [
   { key: 'customerName', label: 'Client', index: 3, width: 180 },
   { key: 'itemSku', label: 'SKU', index: 4, width: 145 },
   { key: 'brand', label: 'Marque', index: 5, width: 120 },
-  { key: 'series', label: 'S?rie', index: 6, width: 145 },
+  { key: 'series', label: 'Série', index: 6, width: 145 },
   { key: 'vitole', label: 'Vitole', index: 7, width: 120 },
   { key: 'itemType', label: 'Type', index: 8, width: 105 },
   { key: 'quantity', label: 'Qt?', index: 9, width: 70 },
   { key: 'actualLineRevenueXaf', label: 'CA ligne', index: 10, width: 115 },
-  { key: 'actualLineCostXaf', label: 'Co?t r?el', index: 11, width: 115 },
+  { key: 'actualLineCostXaf', label: 'Coût réel', index: 11, width: 115 },
   { key: 'lineMarginXaf', label: 'Marge ligne', index: 12, width: 115 },
 ];
 
@@ -624,7 +624,7 @@ const TransactionExplorer = () => {
                 }
                 className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm"
               >
-                R?initialiser l'affichage
+                Réinitialiser l'affichage
               </button>
             </div>
           </div>
@@ -649,7 +649,7 @@ const TransactionExplorer = () => {
           </div>
 
           <p className="mt-3 text-xs text-gray-500">
-            Les pr?f?rences sont m?moris?es sur ce navigateur. La largeur se r?gle en glissant le bord droit des en-t?tes.
+            Les préférences sont mémorisées sur ce navigateur. La largeur se règle en glissant le bord droit des en-têtes.
           </p>
         </div>
       )}

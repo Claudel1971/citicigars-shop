@@ -48,7 +48,7 @@ const CustomerDetail = () => {
           createdBy: 'human',
         }),
       });
-      if (!res.ok) throw new Error("?chec de l'ajout de la note");
+      if (!res.ok) throw new Error("Échec de l'ajout de la note");
       setNoteText('');
       await load();
     } catch (err) {
@@ -59,7 +59,7 @@ const CustomerDetail = () => {
   };
 
   const deleteInteraction = async (interactionId) => {
-    if (!confirm('Supprimer d?finitivement cette note manuelle ?')) return;
+    if (!confirm('Supprimer définitivement cette note manuelle ?')) return;
     const res = await crmFetch(`/api/crm/interactions/${interactionId}`, {
       method: 'DELETE',
     });
@@ -69,7 +69,7 @@ const CustomerDetail = () => {
   };
 
   const deleteSale = async (orderId) => {
-    if (!confirm(`Supprimer d?finitivement la vente ${orderId} ?`)) return;
+    if (!confirm(`Supprimer définitivement la vente ${orderId} ?`)) return;
     const res = await crmFetch(`/api/crm/sales/${orderId}`, {
       method: 'DELETE',
     });
@@ -104,11 +104,11 @@ const CustomerDetail = () => {
 
   const deleteCustomer = async () => {
     if (!confirm(
-      "Supprimer ce client ? S'il poss?de d?j? un historique CRM, il sera conserv? et plac? en blacklist."
+      "Supprimer ce client ? S'il possède déjà un historique CRM, il sera conservé et placé en blacklist."
     )) return;
 
     const reason = prompt(
-      "Motif si le client doit ?tre plac? en blacklist (optionnel) :"
+      "Motif si le client doit être placé en blacklist (optionnel) :"
     );
     if (reason === null) return;
 
@@ -119,7 +119,7 @@ const CustomerDetail = () => {
         body: JSON.stringify({ reason }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Op?ration impossible');
+      if (!res.ok) throw new Error(data.error || 'Opération impossible');
 
       if (data.deleted) {
         window.location.href = '/admin/crm';
@@ -127,7 +127,7 @@ const CustomerDetail = () => {
       }
 
       if (data.blacklisted) {
-        alert("Le client poss?de un historique : il a ?t? conserv? et plac? en blacklist.");
+        alert("Le client possède un historique : il a été conservé et placé en blacklist.");
         await load();
       }
     } catch (err) {
@@ -157,7 +157,7 @@ const CustomerDetail = () => {
               customer.customerId}
           </h1>
           <p className="text-gray-500 mb-4">
-            {customer.phoneWhatsapp || 'Aucun t?l?phone'} ? {customer.customerType}
+            {customer.phoneWhatsapp || 'Aucun téléphone'} ? {customer.customerType}
             {customer.companyName ? ` ? ${customer.companyName}` : ''}
             {customer.isInternal ? ' ? (interne)' : ''}
           </p>
@@ -199,7 +199,7 @@ const CustomerDetail = () => {
 
       {customer.isBlacklisted && (
         <div className="mb-6 rounded-md border border-red-300 bg-red-50 p-4 text-red-800">
-          <div className="font-semibold">Client blacklist? ? nouvelles ventes bloqu?es</div>
+          <div className="font-semibold">Client blacklisté — nouvelles ventes bloquées</div>
           {customer.blacklistReason && (
             <div className="mt-1 text-sm">Motif : {customer.blacklistReason}</div>
           )}
@@ -225,7 +225,7 @@ const CustomerDetail = () => {
           <div className="text-xl font-bold">{fmtXaf(summary.averageBasketXaf)}</div>
         </div>
         <div className="bg-white border rounded-md p-4">
-          <div className="text-xs text-gray-500">Derni?re vente</div>
+          <div className="text-xs text-gray-500">Dernière vente</div>
           <div className="text-xl font-bold">
             {summary.lastOrderDate
               ? new Date(summary.lastOrderDate).toLocaleDateString('fr-FR')
