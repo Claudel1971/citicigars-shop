@@ -8,7 +8,7 @@ import { ingestDnaResult } from "./services/dna-intake";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
 import { queryTransactions, buildTransactionExportWorkbook } from "./services/transaction-explorer";
-import { createManualSale } from "./services/manual-sale";
+import { createManualSale, deleteManualSale } from "./services/manual-sale";
 import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
@@ -107,6 +107,34 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
+
+  app.delete("/api/crm/customers/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const result = await crmService.deleteOrBlacklistCustomer(
+        req.params.id,
+        typeof req.body?.reason === "string" ? req.body.reason : null
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("[DELETE /api/crm/customers/:id]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Suppression impossible" });
+    }
+  });
+
+  app.put("/api/crm/customers/:id/blacklist", requireAdminAuth, async (req, res) => {
+    try {
+      const updated = await crmService.setCustomerBlacklist(
+        req.params.id,
+        Boolean(req.body?.blacklisted),
+        typeof req.body?.reason === "string" ? req.body.reason : null
+      );
+      res.json(updated);
+    } catch (error) {
+      console.error("[PUT /api/crm/customers/:id/blacklist]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Mise ? jour impossible" });
+    }
+  });
+
   // -------------------------------------------------------------------
   // Interactions
   // -------------------------------------------------------------------
@@ -124,17 +152,32 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
+
+  app.delete("/api/crm/interactions/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const result = await crmService.deleteManualInteraction(req.params.id);
+      res.json(result);
+    } catch (error) {
+      console.error("[DELETE /api/crm/interactions/:id]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Suppression impossible" });
+    }
+  });
+
   // -------------------------------------------------------------------
   // Followups
   // -------------------------------------------------------------------
 
-  app.get("/api/crm/followups", requireAdminAuth, async (_req, res) => {
+  app.get("/api/crm/followups", requireAdminAuth, async (req, res) => {
     try {
-      const followups = await crmService.listOpenFollowups();
+      const rawStatus = typeof req.query.status === "string" ? req.query.status.toUpperCase() : "OPEN";
+      const status = ["OPEN", "DONE", "CANCELLED", "ALL"].includes(rawStatus)
+        ? rawStatus as "OPEN" | "DONE" | "CANCELLED" | "ALL"
+        : "OPEN";
+      const followups = await crmService.listFollowups(status);
       res.json(followups);
     } catch (error) {
       console.error("[GET /api/crm/followups]", error);
-      res.status(500).json({ error: "Erreur lors de la récupération des relances" });
+      res.status(500).json({ error: "Erreur lors de la r?cup?ration des relances" });
     }
   });
 
@@ -165,6 +208,17 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error("[PUT /api/crm/followups/:id/cancel]", error);
       res.status(500).json({ error: "Erreur lors de l'annulation de la relance" });
+    }
+  });
+
+
+  app.put("/api/crm/followups/:id/reopen", requireAdminAuth, async (req, res) => {
+    try {
+      await crmService.reopenFollowup(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[PUT /api/crm/followups/:id/reopen]", error);
+      res.status(500).json({ error: "Erreur lors de la r?ouverture de la relance" });
     }
   });
 
@@ -228,7 +282,7 @@ export function registerCrmRoutes(app: Express) {
    */
   app.post("/api/crm/analyze-conversation/validate", requireAdminAuth, async (req, res) => {
     try {
-      const { customerId, newCustomer, interaction, followup } = req.body;
+      const { customerId, newCustomer, customerUpdates, interaction, followup } = req.body;
 
       let resolvedCustomerId = customerId as string | undefined;
 
@@ -239,6 +293,10 @@ export function registerCrmRoutes(app: Express) {
 
       if (!resolvedCustomerId) {
         return res.status(400).json({ error: "customerId ou newCustomer requis" });
+      }
+
+      if (customerId && customerUpdates) {
+        await crmService.updateCustomer(resolvedCustomerId, customerUpdates);
       }
 
       const createdInteraction = await crmService.addInteraction({
@@ -310,6 +368,17 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error("[POST /api/crm/sales]", error);
       res.status(400).json({ error: error instanceof Error ? error.message : "Vente invalide" });
+    }
+  });
+
+
+  app.delete("/api/crm/sales/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const result = await deleteManualSale(req.params.id);
+      res.json(result);
+    } catch (error) {
+      console.error("[DELETE /api/crm/sales/:id]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Suppression impossible" });
     }
   });
 

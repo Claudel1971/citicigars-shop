@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { crmFetch } from './crmApi';
 
-const fmtXaf = (n) => `${Number(n || 0).toLocaleString('fr-FR')} XAF`;
+const fmtXaf = (n) => `${Math.round(Number(n || 0)).toLocaleString('fr-FR')} XAF`;
 const today = () => new Date().toISOString().slice(0, 10);
 
 const emptyLine = () => ({

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { crmFetch } from './crmApi';
 
-const fmtXaf = (n) => (n == null ? '—' : `${Number(n).toLocaleString('fr-FR')} XAF`);
+const fmtXaf = (n) =>
+  n == null ? '?' : `${Math.round(Number(n)).toLocaleString('fr-FR')} XAF`;
 
 const CustomerDetail = () => {
   const [, params] = useRoute('/admin/crm/:id');
@@ -11,6 +12,7 @@ const CustomerDetail = () => {
   const [error, setError] = useState(null);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -46,13 +48,92 @@ const CustomerDetail = () => {
           createdBy: 'human',
         }),
       });
-      if (!res.ok) throw new Error("Échec de l'ajout de la note");
+      if (!res.ok) throw new Error("?chec de l'ajout de la note");
       setNoteText('');
       await load();
     } catch (err) {
       alert(err.message);
     } finally {
       setSavingNote(false);
+    }
+  };
+
+  const deleteInteraction = async (interactionId) => {
+    if (!confirm('Supprimer d?finitivement cette note manuelle ?')) return;
+    const res = await crmFetch(`/api/crm/interactions/${interactionId}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data.error || 'Suppression impossible');
+    await load();
+  };
+
+  const deleteSale = async (orderId) => {
+    if (!confirm(`Supprimer d?finitivement la vente ${orderId} ?`)) return;
+    const res = await crmFetch(`/api/crm/sales/${orderId}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data.error || 'Suppression impossible');
+    await load();
+  };
+
+  const setBlacklist = async (blacklisted) => {
+    let reason = null;
+
+    if (blacklisted) {
+      reason = prompt('Motif de la blacklist (optionnel) :') ?? null;
+      if (reason === null) return;
+    }
+
+    setBusy(true);
+    try {
+      const res = await crmFetch(`/api/crm/customers/${params.id}/blacklist`, {
+        method: 'PUT',
+        body: JSON.stringify({ blacklisted, reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Mise ? jour impossible');
+      await load();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteCustomer = async () => {
+    if (!confirm(
+      "Supprimer ce client ? S'il poss?de d?j? un historique CRM, il sera conserv? et plac? en blacklist."
+    )) return;
+
+    const reason = prompt(
+      "Motif si le client doit ?tre plac? en blacklist (optionnel) :"
+    );
+    if (reason === null) return;
+
+    setBusy(true);
+    try {
+      const res = await crmFetch(`/api/crm/customers/${params.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Op?ration impossible');
+
+      if (data.deleted) {
+        window.location.href = '/admin/crm';
+        return;
+      }
+
+      if (data.blacklisted) {
+        alert("Le client poss?de un historique : il a ?t? conserv? et plac? en blacklist.");
+        await load();
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -64,16 +145,71 @@ const CustomerDetail = () => {
 
   return (
     <div>
-      <Link href="/admin/crm" className="text-sm text-primary hover:underline">← Retour à la liste</Link>
+      <Link href="/admin/crm" className="text-sm text-primary hover:underline">
+        ? Retour ? la liste
+      </Link>
 
-      <h1 className="text-2xl font-serif font-bold text-primary mt-2 mb-1">
-        {customer.firstName} {customer.lastName}
-      </h1>
-      <p className="text-gray-500 mb-6">
-        {customer.phoneWhatsapp || 'Aucun téléphone'} · {customer.customerType}
-        {customer.companyName ? ` · ${customer.companyName}` : ''}
-        {customer.isInternal ? ' · (interne)' : ''}
-      </p>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-primary mb-1">
+            {[customer.firstName, customer.lastName].filter(Boolean).join(' ') ||
+              customer.companyName ||
+              customer.customerId}
+          </h1>
+          <p className="text-gray-500 mb-4">
+            {customer.phoneWhatsapp || 'Aucun t?l?phone'} ? {customer.customerType}
+            {customer.companyName ? ` ? ${customer.companyName}` : ''}
+            {customer.isInternal ? ' ? (interne)' : ''}
+          </p>
+        </div>
+
+        {!customer.isInternal && (
+          <div className="flex flex-wrap gap-2">
+            {customer.isBlacklisted ? (
+              <button
+                type="button"
+                onClick={() => setBlacklist(false)}
+                disabled={busy}
+                className="rounded-md bg-green-700 px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                Retirer de la blacklist
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setBlacklist(true)}
+                disabled={busy}
+                className="rounded-md bg-amber-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                Blacklister
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={deleteCustomer}
+              disabled={busy}
+              className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              Supprimer
+            </button>
+          </div>
+        )}
+      </div>
+
+      {customer.isBlacklisted && (
+        <div className="mb-6 rounded-md border border-red-300 bg-red-50 p-4 text-red-800">
+          <div className="font-semibold">Client blacklist? ? nouvelles ventes bloqu?es</div>
+          {customer.blacklistReason && (
+            <div className="mt-1 text-sm">Motif : {customer.blacklistReason}</div>
+          )}
+          {customer.blacklistedAt && (
+            <div className="mt-1 text-xs">
+              Depuis le {new Date(customer.blacklistedAt).toLocaleString('fr-FR')}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border rounded-md p-4">
@@ -89,9 +225,11 @@ const CustomerDetail = () => {
           <div className="text-xl font-bold">{fmtXaf(summary.averageBasketXaf)}</div>
         </div>
         <div className="bg-white border rounded-md p-4">
-          <div className="text-xs text-gray-500">Dernière vente</div>
+          <div className="text-xs text-gray-500">Derni?re vente</div>
           <div className="text-xl font-bold">
-            {summary.lastOrderDate ? new Date(summary.lastOrderDate).toLocaleDateString('fr-FR') : '—'}
+            {summary.lastOrderDate
+              ? new Date(summary.lastOrderDate).toLocaleDateString('fr-FR')
+              : '?'}
           </div>
         </div>
       </div>
@@ -100,42 +238,64 @@ const CustomerDetail = () => {
         <div className="bg-white border rounded-md p-4 mb-8">
           <h2 className="font-semibold mb-2">Profil DNA</h2>
           <p className="text-sm">
-            <span className="font-medium">{dna.profileName}</span> ({dna.profileCode}) — {dna.family}
+            <span className="font-medium">{dna.profileName}</span> ({dna.profileCode}) ? {dna.family}
           </p>
-          {dna.profileTagline && <p className="text-sm text-gray-500 italic">{dna.profileTagline}</p>}
+          {dna.profileTagline && (
+            <p className="text-sm text-gray-500 italic">{dna.profileTagline}</p>
+          )}
         </div>
       )}
 
       <div className="bg-white border rounded-md p-4 mb-8">
         <h2 className="font-semibold mb-3">Commandes</h2>
+
         {orders.length === 0 ? (
           <p className="text-sm text-gray-500">Aucune commande.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-gray-500">
-              <tr>
-                <th className="pb-2">Date</th>
-                <th className="pb-2">Total</th>
-                <th className="pb-2">Payé</th>
-                <th className="pb-2">Solde</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((o) => (
-                <tr key={o.orderId} className="border-t">
-                  <td className="py-2">{new Date(o.orderDate).toLocaleDateString('fr-FR')}</td>
-                  <td className="py-2">{fmtXaf(o.finalSaleTotalXaf)}</td>
-                  <td className="py-2">{fmtXaf(o.amountPaid)}</td>
-                  <td className="py-2">{o.balanceDue > 0 ? <span className="text-red-600">{fmtXaf(o.balanceDue)}</span> : '—'}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-gray-500">
+                <tr>
+                  <th className="pb-2">Date</th>
+                  <th className="pb-2">Total</th>
+                  <th className="pb-2">Pay?</th>
+                  <th className="pb-2">Solde</th>
+                  <th className="pb-2"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {orders.map((o) => (
+                  <tr key={o.orderId} className="border-t">
+                    <td className="py-2">{new Date(o.orderDate).toLocaleDateString('fr-FR')}</td>
+                    <td className="py-2">{fmtXaf(o.finalSaleTotalXaf)}</td>
+                    <td className="py-2">{fmtXaf(o.amountPaid)}</td>
+                    <td className="py-2">
+                      {o.balanceDue > 0
+                        ? <span className="text-red-600">{fmtXaf(o.balanceDue)}</span>
+                        : '?'}
+                    </td>
+                    <td className="py-2 text-right">
+                      {o.source === 'manual' && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSale(o.orderId)}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Supprimer
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       <div className="bg-white border rounded-md p-4">
         <h2 className="font-semibold mb-3">Interactions</h2>
+
         <div className="flex gap-2 mb-4">
           <input
             type="text"
@@ -152,16 +312,31 @@ const CustomerDetail = () => {
             Ajouter
           </button>
         </div>
+
         {interactions.length === 0 ? (
           <p className="text-sm text-gray-500">Aucune interaction.</p>
         ) : (
           <ul className="space-y-3">
             {interactions.map((i) => (
               <li key={i.interactionId} className="border-t pt-3 text-sm">
-                <div className="text-xs text-gray-500">
-                  {new Date(i.interactionDate).toLocaleString('fr-FR')} · {i.channel} · {i.direction}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(i.interactionDate).toLocaleString('fr-FR')} ? {i.channel} ? {i.direction}
+                    </div>
+                    <div>{i.summary}</div>
+                  </div>
+
+                  {i.sourceType === 'manual' && i.createdBy === 'human' && (
+                    <button
+                      type="button"
+                      onClick={() => deleteInteraction(i.interactionId)}
+                      className="shrink-0 text-xs text-red-600 hover:underline"
+                    >
+                      Supprimer
+                    </button>
+                  )}
                 </div>
-                <div>{i.summary}</div>
               </li>
             ))}
           </ul>

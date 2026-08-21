@@ -191,6 +191,25 @@ export async function addInteraction(input: InsertCustomerInteraction) {
   return created;
 }
 
+export async function deleteManualInteraction(interactionId: string) {
+  const [interaction] = await db
+    .select()
+    .from(customerInteractions)
+    .where(eq(customerInteractions.interactionId, interactionId));
+
+  if (!interaction) throw new Error("Interaction introuvable");
+
+  if (interaction.sourceType !== "manual" || interaction.createdBy !== "human") {
+    throw new Error("Seules les notes manuelles peuvent être supprimées");
+  }
+
+  await db
+    .delete(customerInteractions)
+    .where(eq(customerInteractions.interactionId, interactionId));
+
+  return { deleted: true };
+}
+
 // ---------------------------------------------------------------------------
 // DNA — this table only stores results produced by the existing, external
 // DNA/Curator engine. Nothing here recomputes or redefines any DNA profile.
@@ -225,17 +244,104 @@ export async function completeFollowup(followupId: string) {
 }
 
 export async function cancelFollowup(followupId: string) {
-  await db.update(crmFollowups).set({ status: "CANCELLED" }).where(eq(crmFollowups.followupId, followupId));
+  await db
+    .update(crmFollowups)
+    .set({ status: "CANCELLED", completedAt: null })
+    .where(eq(crmFollowups.followupId, followupId));
 }
 
-/**
- * Prioritized followup list backing the "relances" screen (brief 8.D):
- * open followups only, soonest due date first.
- */
+export async function reopenFollowup(followupId: string) {
+  await db
+    .update(crmFollowups)
+    .set({ status: "OPEN", completedAt: null })
+    .where(eq(crmFollowups.followupId, followupId));
+}
+
+export async function listFollowups(status?: "OPEN" | "DONE" | "CANCELLED" | "ALL") {
+  const query = db.select().from(crmFollowups);
+
+  if (status && status !== "ALL") {
+    return query
+      .where(eq(crmFollowups.status, status))
+      .orderBy(asc(crmFollowups.dueAt));
+  }
+
+  return query.orderBy(asc(crmFollowups.dueAt));
+}
+
 export async function listOpenFollowups() {
-  return db
+  return listFollowups("OPEN");
+}
+
+export async function setCustomerBlacklist(
+  customerId: string,
+  blacklisted: boolean,
+  reason?: string | null
+) {
+  const [customer] = await db
     .select()
-    .from(crmFollowups)
-    .where(eq(crmFollowups.status, "OPEN"))
-    .orderBy(asc(crmFollowups.dueAt));
+    .from(customers)
+    .where(eq(customers.customerId, customerId));
+
+  if (!customer) throw new Error("Client introuvable");
+  if (customer.isInternal) throw new Error("Le client interne CitiCigars ne peut pas être blacklisté");
+
+  await db
+    .update(customers)
+    .set({
+      isBlacklisted: blacklisted,
+      blacklistReason: blacklisted ? (reason?.trim() || null) : null,
+      blacklistedAt: blacklisted ? new Date() : null,
+    })
+    .where(eq(customers.customerId, customerId));
+
+  const [updated] = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.customerId, customerId));
+
+  return updated;
+}
+
+export async function deleteOrBlacklistCustomer(customerId: string, reason?: string | null) {
+  const [customer] = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.customerId, customerId));
+
+  if (!customer) throw new Error("Client introuvable");
+  if (customer.isInternal) throw new Error("Le client interne CitiCigars ne peut pas être supprimé");
+
+  const [interactionRows, dnaRows, followupRows, orderRows] = await Promise.all([
+    db.select({ id: customerInteractions.interactionId })
+      .from(customerInteractions)
+      .where(eq(customerInteractions.customerId, customerId))
+      .limit(1),
+    db.select({ id: customerDna.dnaId })
+      .from(customerDna)
+      .where(eq(customerDna.customerId, customerId))
+      .limit(1),
+    db.select({ id: crmFollowups.followupId })
+      .from(crmFollowups)
+      .where(eq(crmFollowups.customerId, customerId))
+      .limit(1),
+    db.select({ id: orders.orderId })
+      .from(orders)
+      .where(eq(orders.customerId, customerId))
+      .limit(1),
+  ]);
+
+  const hasHistory =
+    interactionRows.length > 0 ||
+    dnaRows.length > 0 ||
+    followupRows.length > 0 ||
+    orderRows.length > 0;
+
+  if (!hasHistory) {
+    await db.delete(customers).where(eq(customers.customerId, customerId));
+    return { deleted: true, blacklisted: false };
+  }
+
+  await setCustomerBlacklist(customerId, true, reason || "Client conservé pour préserver son historique CRM");
+  return { deleted: false, blacklisted: true };
 }

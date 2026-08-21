@@ -63,14 +63,37 @@ function compareValues(a, b) {
   return String(a).localeCompare(String(b), 'fr', { sensitivity: 'base', numeric: true });
 }
 
-function SortableHeader({ label, sortKey, sortState, onSort, className = '' }) {
+function SortableHeader({
+  label,
+  sortKey,
+  sortState,
+  onSort,
+  onResize,
+  width,
+  className = '',
+}) {
   const active = sortState.key === sortKey;
-  const arrow = active ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : '';
+  const arrow = active ? (sortState.direction === 'asc' ? ' ?' : ' ?') : '';
+
   return (
-    <th className={`p-2 whitespace-nowrap ${className}`}>
-      <button type="button" onClick={() => onSort(sortKey)} className="font-semibold hover:underline">
+    <th
+      className={`p-2 whitespace-nowrap relative ${className}`}
+      style={{ width, minWidth: width, maxWidth: width }}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="font-semibold hover:underline"
+      >
         {label}{arrow}
       </button>
+
+      <span
+        role="separator"
+        onMouseDown={onResize}
+        className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none hover:bg-gray-200"
+        title="Glisser pour ajuster la largeur"
+      />
     </th>
   );
 }
@@ -79,6 +102,79 @@ function lineMarginXaf(row) {
   if (row.actualLineCostXaf == null || row.actualLineCostXaf === '') return null;
   return Number(row.actualLineRevenueXaf || 0) - Number(row.actualLineCostXaf);
 }
+
+
+const ORDER_TABLE_COLUMNS = [
+  { key: 'orderId', label: 'SALE ID', index: 2, width: 145 },
+  { key: 'orderDate', label: 'Date', index: 3, width: 105 },
+  { key: 'customerName', label: 'Client', index: 4, width: 180 },
+  { key: 'lineCount', label: 'Lignes', index: 5, width: 80 },
+  { key: 'itemQuantity', label: 'Qt?', index: 6, width: 70 },
+  { key: 'finalSaleTotalXaf', label: 'Net commande', index: 7, width: 130 },
+  { key: 'amountPaid', label: 'Pay?', index: 8, width: 115 },
+  { key: 'balanceDue', label: 'Balance', index: 9, width: 115 },
+  { key: 'paymentStatus', label: 'Statut', index: 10, width: 100 },
+  { key: 'orderCostXaf', label: 'Co?t commande', index: 11, width: 130 },
+  { key: 'marginXaf', label: 'Marge XAF', index: 12, width: 120 },
+  { key: 'marginRate', label: 'Marge %', index: 13, width: 100 },
+];
+
+const LINE_TABLE_COLUMNS = [
+  { key: 'orderId', label: 'SALE ID', index: 1, width: 145 },
+  { key: 'orderDate', label: 'Date', index: 2, width: 105 },
+  { key: 'customerName', label: 'Client', index: 3, width: 180 },
+  { key: 'itemSku', label: 'SKU', index: 4, width: 145 },
+  { key: 'brand', label: 'Marque', index: 5, width: 120 },
+  { key: 'series', label: 'S?rie', index: 6, width: 145 },
+  { key: 'vitole', label: 'Vitole', index: 7, width: 120 },
+  { key: 'itemType', label: 'Type', index: 8, width: 105 },
+  { key: 'quantity', label: 'Qt?', index: 9, width: 70 },
+  { key: 'actualLineRevenueXaf', label: 'CA ligne', index: 10, width: 115 },
+  { key: 'actualLineCostXaf', label: 'Co?t r?el', index: 11, width: 115 },
+  { key: 'lineMarginXaf', label: 'Marge ligne', index: 12, width: 115 },
+];
+
+const DEFAULT_TRANSACTION_WIDTHS = {
+  orders: Object.fromEntries(ORDER_TABLE_COLUMNS.map((c) => [c.key, c.width])),
+  lines: Object.fromEntries(LINE_TABLE_COLUMNS.map((c) => [c.key, c.width])),
+};
+
+const TRANSACTION_PREF_KEY = 'citicigars.crm.transactions.tablePrefs';
+
+const loadTransactionPrefs = () => {
+  const defaults = {
+    fontSize: 'small',
+    density: 'normal',
+    hidden: { orders: [], lines: [] },
+    widths: DEFAULT_TRANSACTION_WIDTHS,
+  };
+
+  try {
+    const saved =
+      JSON.parse(localStorage.getItem(TRANSACTION_PREF_KEY) || 'null') || {};
+
+    return {
+      ...defaults,
+      ...saved,
+      hidden: {
+        orders: saved.hidden?.orders || [],
+        lines: saved.hidden?.lines || [],
+      },
+      widths: {
+        orders: {
+          ...DEFAULT_TRANSACTION_WIDTHS.orders,
+          ...(saved.widths?.orders || {}),
+        },
+        lines: {
+          ...DEFAULT_TRANSACTION_WIDTHS.lines,
+          ...(saved.widths?.lines || {}),
+        },
+      },
+    };
+  } catch {
+    return defaults;
+  }
+};
 
 const TransactionExplorer = () => {
   const [filters, setFilters] = useState(emptyFilters);
@@ -91,6 +187,110 @@ const TransactionExplorer = () => {
   const [expandedOrders, setExpandedOrders] = useState(() => new Set());
   const [orderSort, setOrderSort] = useState({ key: 'orderDate', direction: 'desc' });
   const [lineSort, setLineSort] = useState({ key: 'orderDate', direction: 'desc' });
+  const [tablePrefs, setTablePrefs] = useState(loadTransactionPrefs);
+  const [showDisplay, setShowDisplay] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem(TRANSACTION_PREF_KEY, JSON.stringify(tablePrefs));
+  }, [tablePrefs]);
+
+  const tableFontClass =
+    tablePrefs.fontSize === 'small'
+      ? 'text-xs'
+      : tablePrefs.fontSize === 'large'
+        ? 'text-sm'
+        : 'text-[13px]';
+
+  const tablePaddingClass =
+    tablePrefs.density === 'compact'
+      ? '[&_th]:py-1 [&_td]:py-1'
+      : tablePrefs.density === 'comfortable'
+        ? '[&_th]:py-3 [&_td]:py-3'
+        : '[&_th]:py-2 [&_td]:py-2';
+
+  const columnVisible = (mode, key) =>
+    !(tablePrefs.hidden?.[mode] || []).includes(key);
+
+  const toggleColumn = (mode, key) => {
+    setTablePrefs((current) => {
+      const hidden = current.hidden?.[mode] || [];
+      return {
+        ...current,
+        hidden: {
+          ...current.hidden,
+          [mode]: hidden.includes(key)
+            ? hidden.filter((x) => x !== key)
+            : [...hidden, key],
+        },
+      };
+    });
+  };
+
+  const columnWidth = (mode, key) =>
+    tablePrefs.widths?.[mode]?.[key] ||
+    DEFAULT_TRANSACTION_WIDTHS[mode][key];
+
+  const startColumnResize = (event, mode, key) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = columnWidth(mode, key);
+
+    const move = (e) => {
+      const next = Math.max(65, startWidth + e.clientX - startX);
+      setTablePrefs((current) => ({
+        ...current,
+        widths: {
+          ...current.widths,
+          [mode]: {
+            ...current.widths?.[mode],
+            [key]: next,
+          },
+        },
+      }));
+    };
+
+    const stop = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', stop);
+    };
+
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+  };
+
+  const currentColumns =
+    viewMode === 'orders' ? ORDER_TABLE_COLUMNS : LINE_TABLE_COLUMNS;
+
+  const tableColumnCss = [
+    ...ORDER_TABLE_COLUMNS.map((c) => {
+      const width = columnWidth('orders', c.key);
+      const display = columnVisible('orders', c.key) ? '' : 'display:none;';
+      return `
+        .crm-orders-table > thead > tr > th:nth-child(${c.index}),
+        .crm-orders-table > tbody > tr.crm-order-summary > td:nth-child(${c.index}) {
+          width:${width}px;
+          min-width:${width}px;
+          max-width:${width}px;
+          ${display}
+        }
+      `;
+    }),
+    ...LINE_TABLE_COLUMNS.map((c) => {
+      const width = columnWidth('lines', c.key);
+      const display = columnVisible('lines', c.key) ? '' : 'display:none;';
+      return `
+        .crm-lines-table > thead > tr > th:nth-child(${c.index}),
+        .crm-lines-table > tbody > tr > td:nth-child(${c.index}) {
+          width:${width}px;
+          min-width:${width}px;
+          max-width:${width}px;
+          ${display}
+        }
+      `;
+    }),
+  ].join('\n');
 
   const loadSavedViews = async () => {
     try {
@@ -266,6 +466,7 @@ const TransactionExplorer = () => {
 
   return (
     <div>
+      <style>{tableColumnCss}</style>
       <h1 className="text-2xl font-serif font-bold text-primary mb-1">Explorateur de transactions</h1>
       <p className="text-sm text-gray-500 mb-4">
         Filtre et exporte tes transactions vers Excel. Pas d'analyse ici — TCD et ratios restent dans Excel.
@@ -352,7 +553,7 @@ const TransactionExplorer = () => {
 
       {error && <p className="text-red-600 mb-3">{error}</p>}
 
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <button
           type="button"
           onClick={() => setViewMode('orders')}
@@ -367,26 +568,110 @@ const TransactionExplorer = () => {
         >
           Lignes ({rows.length})
         </button>
+
+        <button
+          type="button"
+          onClick={() => setShowDisplay((v) => !v)}
+          className="ml-auto border bg-white px-4 py-2 rounded-md text-sm"
+        >
+          Affichage
+        </button>
       </div>
+
+      {showDisplay && (
+        <div className="mb-4 rounded-md border bg-white p-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="text-sm">
+              <span className="block mb-1 font-medium">Taille du texte</span>
+              <select
+                value={tablePrefs.fontSize}
+                onChange={(e) =>
+                  setTablePrefs((p) => ({ ...p, fontSize: e.target.value }))
+                }
+                className="w-full rounded-md border px-3 py-2"
+              >
+                <option value="small">Petit</option>
+                <option value="normal">Normal</option>
+                <option value="large">Grand</option>
+              </select>
+            </label>
+
+            <label className="text-sm">
+              <span className="block mb-1 font-medium">Densit? des lignes</span>
+              <select
+                value={tablePrefs.density}
+                onChange={(e) =>
+                  setTablePrefs((p) => ({ ...p, density: e.target.value }))
+                }
+                className="w-full rounded-md border px-3 py-2"
+              >
+                <option value="compact">Compact</option>
+                <option value="normal">Normal</option>
+                <option value="comfortable">Confortable</option>
+              </select>
+            </label>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setTablePrefs({
+                    fontSize: 'small',
+                    density: 'normal',
+                    hidden: { orders: [], lines: [] },
+                    widths: DEFAULT_TRANSACTION_WIDTHS,
+                  })
+                }
+                className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm"
+              >
+                R?initialiser l'affichage
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 border-t pt-4">
+            <div className="mb-2 text-sm font-medium">
+              Colonnes visibles ? {viewMode === 'orders' ? 'Commandes' : 'Lignes'}
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              {currentColumns.map((column) => (
+                <label key={column.key} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={columnVisible(viewMode, column.key)}
+                    onChange={() => toggleColumn(viewMode, column.key)}
+                  />
+                  {column.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500">
+            Les pr?f?rences sont m?moris?es sur ce navigateur. La largeur se r?gle en glissant le bord droit des en-t?tes.
+          </p>
+        </div>
+      )}
 
       {viewMode === 'orders' ? (
         <div className="overflow-x-auto bg-white border rounded-md">
-          <table className="w-full text-xs">
+          <table className={`crm-orders-table w-full table-fixed ${tableFontClass} ${tablePaddingClass}`}>
             <thead className="bg-gray-50 text-left">
               <tr>
                 <th className="p-2 w-8"></th>
-                <SortableHeader label="SALE ID" sortKey="orderId" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Date" sortKey="orderDate" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Client" sortKey="customerName" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Lignes" sortKey="lineCount" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Qté" sortKey="itemQuantity" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Net commande" sortKey="finalSaleTotalXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Payé" sortKey="amountPaid" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Balance" sortKey="balanceDue" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Statut" sortKey="paymentStatus" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Coût commande" sortKey="orderCostXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Marge XAF" sortKey="marginXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
-                <SortableHeader label="Marge %" sortKey="marginRate" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} />
+                <SortableHeader label="SALE ID" sortKey="orderId" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderId')} onResize={(e) => startColumnResize(e, 'orders', 'orderId')} />
+                <SortableHeader label="Date" sortKey="orderDate" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderDate')} onResize={(e) => startColumnResize(e, 'orders', 'orderDate')} />
+                <SortableHeader label="Client" sortKey="customerName" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'customerName')} onResize={(e) => startColumnResize(e, 'orders', 'customerName')} />
+                <SortableHeader label="Lignes" sortKey="lineCount" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'lineCount')} onResize={(e) => startColumnResize(e, 'orders', 'lineCount')} />
+                <SortableHeader label="Qté" sortKey="itemQuantity" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'itemQuantity')} onResize={(e) => startColumnResize(e, 'orders', 'itemQuantity')} />
+                <SortableHeader label="Net commande" sortKey="finalSaleTotalXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'finalSaleTotalXaf')} onResize={(e) => startColumnResize(e, 'orders', 'finalSaleTotalXaf')} />
+                <SortableHeader label="Payé" sortKey="amountPaid" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'amountPaid')} onResize={(e) => startColumnResize(e, 'orders', 'amountPaid')} />
+                <SortableHeader label="Balance" sortKey="balanceDue" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'balanceDue')} onResize={(e) => startColumnResize(e, 'orders', 'balanceDue')} />
+                <SortableHeader label="Statut" sortKey="paymentStatus" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'paymentStatus')} onResize={(e) => startColumnResize(e, 'orders', 'paymentStatus')} />
+                <SortableHeader label="Coût commande" sortKey="orderCostXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderCostXaf')} onResize={(e) => startColumnResize(e, 'orders', 'orderCostXaf')} />
+                <SortableHeader label="Marge XAF" sortKey="marginXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'marginXaf')} onResize={(e) => startColumnResize(e, 'orders', 'marginXaf')} />
+                <SortableHeader label="Marge %" sortKey="marginRate" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'marginRate')} onResize={(e) => startColumnResize(e, 'orders', 'marginRate')} />
               </tr>
             </thead>
             <tbody>
@@ -394,7 +679,7 @@ const TransactionExplorer = () => {
                 const expanded = expandedOrders.has(order.orderId);
                 return (
                   <React.Fragment key={order.orderId}>
-                    <tr className="border-t hover:bg-gray-50">
+                    <tr className="crm-order-summary border-t hover:bg-gray-50">
                       <td className="p-2">
                         <button
                           type="button"
@@ -427,7 +712,7 @@ const TransactionExplorer = () => {
                         <td colSpan={12} className="p-3">
                           <div className="font-semibold mb-2">Détail commande {order.orderId}</div>
                           <div className="overflow-x-auto border rounded bg-white">
-                            <table className="w-full text-xs">
+                            <table className={`w-full ${tableFontClass} ${tablePaddingClass}`}>
                               <thead className="bg-gray-50 text-left">
                                 <tr>
                                   <th className="p-2">SKU</th>
@@ -472,21 +757,21 @@ const TransactionExplorer = () => {
         </div>
       ) : (
         <div className="overflow-x-auto bg-white border rounded-md">
-          <table className="w-full text-xs">
+          <table className={`crm-lines-table w-full table-fixed ${tableFontClass} ${tablePaddingClass}`}>
             <thead className="bg-gray-50 text-left">
               <tr>
-                <SortableHeader label="SALE ID" sortKey="orderId" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Date" sortKey="orderDate" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Client" sortKey="customerName" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="SKU" sortKey="itemSku" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Marque" sortKey="brand" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Série" sortKey="series" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Vitole" sortKey="vitole" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Type" sortKey="itemType" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Qté" sortKey="quantity" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="CA ligne" sortKey="actualLineRevenueXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Coût réel" sortKey="actualLineCostXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
-                <SortableHeader label="Marge ligne" sortKey="lineMarginXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} />
+                <SortableHeader label="SALE ID" sortKey="orderId" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'orderId')} onResize={(e) => startColumnResize(e, 'lines', 'orderId')} />
+                <SortableHeader label="Date" sortKey="orderDate" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'orderDate')} onResize={(e) => startColumnResize(e, 'lines', 'orderDate')} />
+                <SortableHeader label="Client" sortKey="customerName" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'customerName')} onResize={(e) => startColumnResize(e, 'lines', 'customerName')} />
+                <SortableHeader label="SKU" sortKey="itemSku" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'itemSku')} onResize={(e) => startColumnResize(e, 'lines', 'itemSku')} />
+                <SortableHeader label="Marque" sortKey="brand" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'brand')} onResize={(e) => startColumnResize(e, 'lines', 'brand')} />
+                <SortableHeader label="Série" sortKey="series" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'series')} onResize={(e) => startColumnResize(e, 'lines', 'series')} />
+                <SortableHeader label="Vitole" sortKey="vitole" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'vitole')} onResize={(e) => startColumnResize(e, 'lines', 'vitole')} />
+                <SortableHeader label="Type" sortKey="itemType" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'itemType')} onResize={(e) => startColumnResize(e, 'lines', 'itemType')} />
+                <SortableHeader label="Qté" sortKey="quantity" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'quantity')} onResize={(e) => startColumnResize(e, 'lines', 'quantity')} />
+                <SortableHeader label="CA ligne" sortKey="actualLineRevenueXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineRevenueXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineRevenueXaf')} />
+                <SortableHeader label="Coût réel" sortKey="actualLineCostXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineCostXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineCostXaf')} />
+                <SortableHeader label="Marge ligne" sortKey="lineMarginXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'lineMarginXaf')} onResize={(e) => startColumnResize(e, 'lines', 'lineMarginXaf')} />
               </tr>
             </thead>
             <tbody>

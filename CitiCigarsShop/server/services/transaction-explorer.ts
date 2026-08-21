@@ -234,7 +234,22 @@ function asNumberOrNull(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function roundXaf(value: unknown): number | null {
+  const n = asNumberOrNull(value);
+  return n == null ? null : Math.round(n);
+}
+
 function buildLineExport(rows: TransactionExplorerRow[]): Record<string, unknown>[] {
+  const moneyKeys = new Set([
+    "actualUnitPriceXaf",
+    "actualLineRevenueXaf",
+    "standardUnitCostXaf",
+    "standardLineCostXaf",
+    "actualLineCostXaf",
+    "costVarianceVsStandardXaf",
+    "lineMarginXaf",
+  ]);
+
   return rows.map((r) => {
     const actualCost = asNumberOrNull(r.actualLineCostXaf);
     const lineMarginXaf = actualCost == null ? null : r.actualLineRevenueXaf - actualCost;
@@ -252,7 +267,11 @@ function buildLineExport(rows: TransactionExplorerRow[]): Record<string, unknown
     const out: Record<string, unknown> = {};
     for (const col of LINE_EXPORT_COLUMNS) {
       const v = source[col.key];
-      out[col.header] = v instanceof Date ? v.toISOString().slice(0, 10) : v;
+      out[col.header] = v instanceof Date
+        ? v.toISOString().slice(0, 10)
+        : moneyKeys.has(col.key)
+          ? roundXaf(v)
+          : v;
     }
     return out;
   });
@@ -339,12 +358,12 @@ function buildOrderExport(rows: TransactionExplorerRow[]): Record<string, unknow
       "Relation commerciale / Type commande": order.orderNotes,
       "Nb lignes": order.lineCount,
       "Qté items": order.itemQuantity,
-      "Prix net commande": order.finalSaleTotalXaf,
-      "Encaissé": order.amountPaid,
-      "Balance": order.balanceDue,
+      "Prix net commande": Math.round(order.finalSaleTotalXaf),
+      "Encaissé": Math.round(order.amountPaid),
+      "Balance": Math.round(order.balanceDue),
       "Statut paiement": order.paymentStatus,
-      "Coût réel commande": orderCostXaf,
-      "Marge XAF": marginXaf,
+      "Coût réel commande": roundXaf(orderCostXaf),
+      "Marge XAF": roundXaf(marginXaf),
       "Marge %": marginRate,
     };
   });

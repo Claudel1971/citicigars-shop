@@ -45,6 +45,24 @@ function assertFiniteNonNegative(value: number, label: string) {
  * sale form does not currently capture the physical stock bucket (Box/Pack/
  * Loose/Accessory) required to decrement stock without guessing.
  */
+export async function deleteManualSale(orderId: string) {
+  const [order] = await db
+    .select({
+      orderId: orders.orderId,
+      source: orders.source,
+    })
+    .from(orders)
+    .where(eq(orders.orderId, orderId));
+
+  if (!order) throw new Error("Vente introuvable");
+  if (order.source !== "manual") {
+    throw new Error("Seules les ventes saisies manuellement peuvent être supprimées");
+  }
+
+  await db.delete(orders).where(eq(orders.orderId, orderId));
+  return { deleted: true };
+}
+
 export async function createManualSale(input: CreateManualSaleInput) {
   if (!input.customerId) throw new Error("Client requis");
   if (!input.orderDate) throw new Error("Date de vente requise");
@@ -94,8 +112,18 @@ export async function createManualSale(input: CreateManualSaleInput) {
   }
 
   return db.transaction(async (tx: any) => {
-    const [customer] = await tx.select({ customerId: customers.customerId }).from(customers).where(eq(customers.customerId, input.customerId));
+    const [customer] = await tx
+      .select({
+        customerId: customers.customerId,
+        isBlacklisted: customers.isBlacklisted,
+      })
+      .from(customers)
+      .where(eq(customers.customerId, input.customerId));
+
     if (!customer) throw new Error("Client introuvable");
+    if (customer.isBlacklisted) {
+      throw new Error("Vente impossible : ce client est actuellement blacklisté");
+    }
 
     const orderId = await allocateSaleId(tx);
     const amountPaid = amountPaidInput;

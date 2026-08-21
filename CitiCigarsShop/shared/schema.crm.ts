@@ -37,6 +37,9 @@ export const customers = mysqlTable(
     // movements) must be excludable from external customer/acquisition
     // KPIs without a special-cased id check scattered across queries.
     isInternal: boolean("is_internal").notNull().default(false),
+    isBlacklisted: boolean("is_blacklisted").notNull().default(false),
+    blacklistReason: varchar("blacklist_reason", { length: 500 }),
+    blacklistedAt: timestamp("blacklisted_at"),
     notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
@@ -44,6 +47,7 @@ export const customers = mysqlTable(
   (table) => ({
     phoneIdx: index("idx_customers_phone").on(table.phoneWhatsapp),
     statusIdx: index("idx_customers_status").on(table.status),
+    blacklistedIdx: index("idx_customers_blacklisted").on(table.isBlacklisted),
   })
 );
 
