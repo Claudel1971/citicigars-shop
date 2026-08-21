@@ -1,0 +1,5 @@
+﻿sale_id,customer_id,customer_name,followup_type,amount_xaf,action
+CTCG-SALE-000004,CTCG-CUST-000003,Olivier Sohaing,RECEIVABLE,500000.0,Recouvrer le solde de CTCG-SALE-000004
+CTCG-SALE-000011,CTCG-CUST-000008,Gérard Toghoua,RECEIVABLE,60000.0,Recouvrer le solde de CTCG-SALE-000011
+CTCG-SALE-000015,CTCG-CUST-000011,Cyrille Choupo,RECEIVABLE,400000.0,Recouvrer le solde de CTCG-SALE-000015
+CTCG-SALE-000008,CTCG-CUST-000005,David Eto'o,CONSIGNMENT_REVIEW,860000.0,"Réconcilier dépôt-vente: stock confié, ventes éventuelles, encaissé et récupération"

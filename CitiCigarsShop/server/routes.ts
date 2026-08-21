@@ -9,10 +9,14 @@ import * as fs from "fs";
 import * as path from "path";
 import multer from "multer";
 import { parseTechnicalSheetTXT } from "./services/technical-sheet-parser";
+import { registerCrmRoutes } from "./routes.crm";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
-const ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD || "citicigars2024";
+import { getAdminPassword, isValidAdminToken, requireAdminAuth } from "./middleware/auth";
+// No hardcoded fallback: middleware/auth.ts throws at startup if
+// CMS_ADMIN_PASSWORD is not set. See brief correction #5/#7.
+const ADMIN_PASSWORD = getAdminPassword();
 const CMS_ASSETS_DIR = path.resolve(ROOT_DIR, "client/public/cms-assets");
 
 if (!fs.existsSync(CMS_ASSETS_DIR)) {
@@ -414,7 +418,7 @@ export async function registerRoutes(
     const authHeader = req.headers.authorization;
     const cmsToken = req.headers['x-cms-token'];
     const token = cmsToken || authHeader?.replace("Bearer ", "");
-    return token && Buffer.from(token, "base64").toString() === ADMIN_PASSWORD;
+    return isValidAdminToken(token);
   }
 
   app.get("/api/cms/assets", (req, res) => {
@@ -604,6 +608,8 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to calculate price" });
     }
   });
+
+  registerCrmRoutes(app);
 
   return httpServer;
 }

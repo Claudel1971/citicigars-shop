@@ -12,6 +12,11 @@ import PackConfig from '@/components/admin/PackConfig';
 import ProductManager from '@/components/admin/ProductManager';
 import ContentManager from '@/components/admin/ContentManager';
 import ImportFiches from '@/components/admin/ImportFiches';
+import CrmList from '@/components/admin/crm/CrmList';
+import CustomerDetail from '@/components/admin/crm/CustomerDetail';
+import ConversationAnalyzer from '@/components/admin/crm/ConversationAnalyzer';
+import Followups from '@/components/admin/crm/Followups';
+import TransactionExplorer from '@/components/admin/crm/TransactionExplorer';
 import { Menu } from 'lucide-react';
 import { API_URL } from '@/config';
 
@@ -19,7 +24,7 @@ const PromotionManager = () => <div className="p-8">Gestion des promotions (À v
 
 const Admin = () => {
   // ... state remains same
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [isAuthenticated, setIsAuthenticated] = React.useState(() => !!sessionStorage.getItem('cms_token'));
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
   
@@ -176,6 +181,11 @@ const Admin = () => {
               <Route path="/admin/products" component={ProductManager} />
               <Route path="/admin/content" component={ContentManager} />
               <Route path="/admin/fiches" component={ImportFiches} />
+              <Route path="/admin/crm" component={CrmList} />
+              <Route path="/admin/crm-whatsapp" component={ConversationAnalyzer} />
+              <Route path="/admin/crm-followups" component={Followups} />
+              <Route path="/admin/crm-transactions" component={TransactionExplorer} />
+              <Route path="/admin/crm/:id" component={CustomerDetail} />
               
               {/* If we are here, it means we matched /admin/* in App.tsx but nothing specific above */}
               {/* This might be a sub-route not covered or just a trailing slash issue */}

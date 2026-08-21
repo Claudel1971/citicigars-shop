@@ -1,0 +1,60 @@
+﻿legacy_sku,new_sku,legacy_type,verified_present_in_final_master,migration_rule
+CTGBDL001,CTCG-BDL-000001,Coffret Fabricant,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGBDL002,CTCG-BDL-000002,Coffret Fabricant,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGBDL003,CTCG-BDL-000003,Coffret Fabricant,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGBDL004,CTCG-BDL-000004,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGBDL005,CTCG-BDL-000005,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGBDL006,CTCG-BDL-000006,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGBDL007,CTCG-BDL-000007,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGHO0001,CTCG-HO-000001,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0001,CTCG-NI-000001,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0003,CTCG-NI-000003,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0004,CTCG-NI-000004,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0005,CTCG-NI-000005,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0006,CTCG-NI-000006,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0007,CTCG-NI-000007,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0008,CTCG-NI-000008,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0009,CTCG-NI-000009,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0010,CTCG-NI-000010,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0011,CTCG-NI-000011,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0012,CTCG-NI-000012,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0013,CTCG-NI-000013,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0014,CTCG-NI-000014,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0015,CTCG-NI-000015,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0016,CTCG-NI-000016,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0017,CTCG-NI-000017,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0018,CTCG-NI-000018,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0019,CTCG-NI-000019,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0020,CTCG-NI-000020,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0020-P,CTCG-NI-000020-P,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0021,CTCG-NI-000021,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0021-P,CTCG-NI-000021-P,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0022,CTCG-NI-000022,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0023,CTCG-NI-000023,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0024,CTCG-NI-000024,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0025,CTCG-NI-000025,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0026,CTCG-NI-000026,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0027,CTCG-NI-000027,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0028,CTCG-NI-000028,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0029,CTCG-NI-000029,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0032,CTCG-NI-000032,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0033,CTCG-NI-000033,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0001,CTCG-RD-000001,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0002,CTCG-RD-000002,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0003,CTCG-RD-000003,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0004,CTCG-RD-000004,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0005,CTCG-RD-000005,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0006,CTCG-RD-000006,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0007,CTCG-RD-000007,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0008,CTCG-RD-000008,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0009,CTCG-RD-000009,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0010,CTCG-RD-000010,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGRD0011,CTCG-RD-000011,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGACC-ETU,CTCG-ACC-ETU,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGACC-CEN,CTCG-ACC-CEN,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGACC-HUM,CTCG-ACC-HUM,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGACC-CUT,CTCG-ACC-CUT,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGACC-CAP,CTCG-ACC-CAP,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGACC-BRI,CTCG-ACC-BRI,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGSRV-PER,CTCG-SRV-PER,Service,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGSRV-SAC,CTCG-SRV-SAC,Service,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.

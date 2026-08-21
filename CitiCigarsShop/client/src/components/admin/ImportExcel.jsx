@@ -21,7 +21,11 @@ const ImportExcel = () => {
 
   const mapExcelRowToProduct = (row) => {
     const sku = row['SKU'] || row['sku'];
-    const isBundle = sku && sku.startsWith('CTGBDL');
+    // Accepts both the legacy prefix and the new CTCG-BDL-* prefix so this
+    // keeps working through the SKU migration transition, whichever side
+    // of it a given environment currently is on. See
+    // migrations-mysql/SKU_MIGRATION_AUDIT.md.
+    const isBundle = sku && (sku.startsWith('CTGBDL') || sku.startsWith('CTCG-BDL'));
     
     const rabais = normaliserRabais(row['Rabais (%)'] || row['Rabais'] || row['rabais'] || row['Rabais(%)'] || 0);
     const prixUnitaire = parseInt(row['prix_unitaire'] || row['Prix_unitaire'] || row['Prix unitaire'] || row['prix unitaire'] || row['Prix Unitaire'] || row['p. u.'] || row['p.u.'] || row['p. u'] || row['pu'] || row['P. U.'] || row['P.U.'] || row['Prix_Unit'] || row['Prix Unit'] || row['prixUnitaire'] || 0);
