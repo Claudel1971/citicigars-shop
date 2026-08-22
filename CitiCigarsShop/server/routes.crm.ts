@@ -59,6 +59,12 @@ export function registerCrmRoutes(app: Express) {
       if (!updated) return res.status(404).json({ error: "Client introuvable" });
       res.json(updated);
     } catch (error) {
+      // customerType invalide (ex. un alias UI non reconnu) : jamais un repli
+      // silencieux vers B2C -- 400 explicite, pas 500 générique. Même pattern
+      // que POST /api/crm/analyze-conversation/validate.
+      if (error instanceof crmService.InvalidCustomerTypeError) {
+        return res.status(400).json({ error: error.message });
+      }
       console.error("[PUT /api/crm/customers/:id]", error);
       res.status(500).json({ error: "Erreur lors de la mise à jour du client" });
     }
