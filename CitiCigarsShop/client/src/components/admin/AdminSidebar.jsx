@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight, ShoppingCart, Archive } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -16,16 +16,25 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
 
   const [crmOpen, setCrmOpen] = useState(crmSubLinks.some((l) => location.startsWith(l.path)));
 
-  const links = [
-    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/admin/products', icon: Package, label: 'Prix_Produits' },
+  // Obsolete features (regroupement 22 août 2026) : rien de supprimé, ces
+  // écrans restent accessibles, juste repliés sous un parent dédié pour
+  // désencombrer le menu principal. "Produits" (/admin/characteristics)
+  // n'en fait pas partie et reste au niveau principal.
+  const obsoleteLinks = [
     { path: '/admin/import', icon: Upload, label: 'Import Excel' },
     { path: '/admin/prices', icon: DollarSign, label: 'Maj Prix (Excel)' },
     { path: '/admin/puissance', icon: Flame, label: 'Maj Puissance' },
-    { path: '/admin/characteristics', icon: Edit3, label: 'Produits' },
     { path: '/admin/images', icon: ImageIcon, label: 'Images' },
     { path: '/admin/associations', icon: Link2, label: 'Associations' },
     { path: '/admin/promotions', icon: Percent, label: 'Promotions' },
+  ];
+
+  const [obsoleteOpen, setObsoleteOpen] = useState(obsoleteLinks.some((l) => location.startsWith(l.path)));
+
+  const links = [
+    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/admin/products', icon: Package, label: 'Prix_Produits' },
+    { path: '/admin/characteristics', icon: Edit3, label: 'Produits' },
     { path: '/admin/content', icon: FileText, label: 'Contenu (CMS)' },
     { path: '/admin/fiches', icon: FileText, label: 'Fiches Techniques' },
     { path: '/admin/config', icon: Settings, label: 'Configuration' },
@@ -89,8 +98,8 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
         {links.map(link => (
           <Link key={link.path} href={link.path} className={cn(
                "flex items-center gap-3 px-4 py-3 rounded-md transition-colors text-sm font-medium cursor-pointer",
-               isActive(link.path) 
-                 ? "bg-secondary text-primary font-bold" 
+               isActive(link.path)
+                 ? "bg-secondary text-primary font-bold"
                  : "hover:bg-white/10 text-primary-foreground/80"
              )}
              onClick={onNavigate}
@@ -99,6 +108,37 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
                {link.label}
           </Link>
         ))}
+
+        <button
+          onClick={() => setObsoleteOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-md transition-colors text-sm font-medium text-primary-foreground/80 hover:bg-white/10"
+        >
+          <span className="flex items-center gap-3">
+            <Archive size={18} />
+            Obsolete features
+          </span>
+          {obsoleteOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        </button>
+        {obsoleteOpen && (
+          <div className="ml-4 space-y-1 border-l border-white/10 pl-2">
+            {obsoleteLinks.map((link) => (
+              <Link
+                key={link.path}
+                href={link.path}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm cursor-pointer",
+                  isActive(link.path)
+                    ? "bg-secondary text-primary font-bold"
+                    : "hover:bg-white/10 text-primary-foreground/70"
+                )}
+                onClick={onNavigate}
+              >
+                <link.icon size={16} />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </nav>
 
       <button 
