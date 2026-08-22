@@ -5,6 +5,8 @@ import { crmFetch } from './crmApi';
 const fmtXaf = (n) =>
   n == null ? '?' : `${Math.round(Number(n)).toLocaleString('fr-FR')} XAF`;
 
+const TYPE_LABELS = { B2C: 'B2C', CORPORATE: 'B2B', PARTNER: 'Partenaire', OTHER: 'Autre' };
+
 const CustomerDetail = () => {
   const [, params] = useRoute('/admin/crm/:id');
   const [detail, setDetail] = useState(null);
@@ -157,7 +159,7 @@ const CustomerDetail = () => {
               customer.customerId}
           </h1>
           <p className="text-gray-500 mb-4">
-            {customer.phoneWhatsapp || 'Aucun téléphone'} · {customer.customerType}
+            {customer.phoneWhatsapp || 'Aucun téléphone'} · {TYPE_LABELS[customer.customerType] || customer.customerType}
             {customer.companyName ? ` ? ${customer.companyName}` : ''}
             {customer.isInternal ? ' ? (interne)' : ''}
           </p>

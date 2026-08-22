@@ -12,7 +12,7 @@ const STATUS_LABELS = {
 
 const TYPE_LABELS = {
   B2C: 'B2C',
-  CORPORATE: 'Corporate',
+  CORPORATE: 'B2B',
   PARTNER: 'Partenaire',
   OTHER: 'Autre',
 };

@@ -242,7 +242,7 @@ const ConversationAnalyzer = () => {
                   className="w-full border rounded-md px-3 py-2"
                 >
                   <option value="B2C">B2C</option>
-                  <option value="CORPORATE">Corporate</option>
+                  <option value="CORPORATE">B2B</option>
                   <option value="PARTNER">Partenaire</option>
                   <option value="OTHER">Autre</option>
                 </select>
