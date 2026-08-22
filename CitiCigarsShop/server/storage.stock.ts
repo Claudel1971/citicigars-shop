@@ -13,6 +13,7 @@
 import { randomUUID } from "crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db.mysql";
+type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 import {
   skus,
   cigarCatalog,
@@ -443,20 +444,29 @@ export class StockStorage {
    * timestamp éventuellement fourni par l'appelant est ignoré (le frontend n'en
    * envoie de toute façon plus).
    */
-  async upsertLeadIdempotent(input: {
-    clientRequestId: string;
-    firstName: string;
-    lastName: string;
-    country: string;
-    city: string;
-    whatsapp: string;
-    dnaProfileId: string;
-    answersSnapshot: unknown;
-    refinementsSnapshot: unknown;
-    consentGiven: boolean;
-    captureMode: "normal" | "zero";
-  }): Promise<{ lead: DnaLead; created: boolean }> {
-    const [existing] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
+  /**
+   * exec optionnel (défaut `db`) : permet d'exécuter cette méthode À L'INTÉRIEUR
+   * d'une transaction Drizzle partagée avec d'autres écritures (réconciliation
+   * DNA → CRM, 20 août) sans dupliquer la logique ni casser les appelants
+   * existants qui ne passent rien (comportement strictement inchangé pour eux).
+   */
+  async upsertLeadIdempotent(
+    input: {
+      clientRequestId: string;
+      firstName: string;
+      lastName: string;
+      country: string;
+      city: string;
+      whatsapp: string;
+      dnaProfileId: string;
+      answersSnapshot: unknown;
+      refinementsSnapshot: unknown;
+      consentGiven: boolean;
+      captureMode: "normal" | "zero";
+    },
+    exec: DbOrTx = db
+  ): Promise<{ lead: DnaLead; created: boolean }> {
+    const [existing] = await exec.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     if (existing) return { lead: existing, created: false };
 
     // Point 3 (audit) : `created` doit refléter si CET appel a réellement inséré
@@ -465,7 +475,7 @@ export class StockStorage {
     // à tort. Recalculé après la tentative d'insertion, jamais avant.
     let created = true;
     try {
-      await db.insert(dnaLeads).values({
+      await exec.insert(dnaLeads).values({
         clientRequestId: input.clientRequestId,
         firstName: input.firstName,
         lastName: input.lastName,
@@ -487,7 +497,7 @@ export class StockStorage {
       // l'unique index a gagné côté adversaire, on relit simplement la ligne gagnante.
       created = false;
     }
-    const [row] = await db.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
+    const [row] = await exec.select().from(dnaLeads).where(eq(dnaLeads.clientRequestId, input.clientRequestId));
     return { lead: row!, created };
   }
 

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { eq, and, desc, asc, sql as sqlOp } from "drizzle-orm";
 import { db } from "../db.mysql";
+type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 import {
   customers,
   customerInteractions,
@@ -26,8 +27,8 @@ function generateId(): string {
  * and is expected to already exist before this is ever called for a new
  * external customer.
  */
-async function allocateCustomerId(): Promise<string> {
-  const rows = await db.select({ customerId: customers.customerId }).from(customers);
+async function allocateCustomerId(exec: DbOrTx = db): Promise<string> {
+  const rows = await exec.select({ customerId: customers.customerId }).from(customers).for("update");
   const nextSeq = nextSequenceFromExisting(rows.map((r) => r.customerId));
   return formatCtcgId("CUST", nextSeq);
 }
@@ -47,35 +48,40 @@ export interface CreateCustomerResult {
  * the only automatic reconciliation allowed — see brief: "zéro fusion
  * automatique douteuse" for anything less certain than an exact phone
  * match).
+ *
+ * exec optionnel (défaut `db`) : permet un usage à l'intérieur d'une
+ * transaction partagée (réconciliation DNA → CRM, 20 août) — comportement
+ * inchangé pour tout appelant existant qui ne passe rien.
  */
-export async function createCustomer(input: InsertCustomer): Promise<CreateCustomerResult> {
+export async function createCustomer(input: InsertCustomer, exec: DbOrTx = db): Promise<CreateCustomerResult> {
   const normalizedPhone = normalizePhone(input.phoneWhatsapp ?? null);
 
   if (normalizedPhone) {
-    const existingCandidates = await db
+    const existingCandidates = await exec
       .select({
         customerId: customers.customerId,
         phoneWhatsapp: customers.phoneWhatsapp,
       })
       .from(customers)
-      .where(eq(customers.phoneWhatsapp, normalizedPhone));
+      .where(eq(customers.phoneWhatsapp, normalizedPhone))
+      .for("update");
 
     const match = findExactPhoneMatch(normalizedPhone, existingCandidates);
     if (match) {
-      const [existing] = await db.select().from(customers).where(eq(customers.customerId, match.customerId));
+      const [existing] = await exec.select().from(customers).where(eq(customers.customerId, match.customerId));
       return { customer: existing, wasExistingDuplicate: true };
     }
   }
 
-  const customerId = await allocateCustomerId();
-  await db.insert(customers).values({
+  const customerId = await allocateCustomerId(exec);
+  await exec.insert(customers).values({
     ...input,
     customerId,
     phoneWhatsapp: normalizedPhone,
     phoneRaw: input.phoneWhatsapp ?? input.phoneRaw ?? null,
   } as typeof customers.$inferInsert);
 
-  const [created] = await db.select().from(customers).where(eq(customers.customerId, customerId));
+  const [created] = await exec.select().from(customers).where(eq(customers.customerId, customerId));
   return { customer: created, wasExistingDuplicate: false };
 }
 
@@ -215,10 +221,10 @@ export async function deleteManualInteraction(interactionId: string) {
 // DNA/Curator engine. Nothing here recomputes or redefines any DNA profile.
 // ---------------------------------------------------------------------------
 
-export async function recordDnaResult(input: InsertCustomerDna) {
+export async function recordDnaResult(input: InsertCustomerDna, exec: DbOrTx = db) {
   const dnaId = generateId();
-  await db.insert(customerDna).values({ ...input, dnaId } as typeof customerDna.$inferInsert);
-  const [created] = await db.select().from(customerDna).where(eq(customerDna.dnaId, dnaId));
+  await exec.insert(customerDna).values({ ...input, dnaId } as typeof customerDna.$inferInsert);
+  const [created] = await exec.select().from(customerDna).where(eq(customerDna.dnaId, dnaId));
   return created;
 }
 

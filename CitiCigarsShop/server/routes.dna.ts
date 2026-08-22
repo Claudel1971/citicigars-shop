@@ -3,12 +3,37 @@
 // puisse être branché en live plus tard, sans changer son contrat.
 
 import type { Express, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { stockStorage } from "./storage.stock";
+import { db } from "./db.mysql";
+import { ingestDnaResult } from "./services/dna-intake";
+import { mapCuratorPayloadToCrmIntake } from "./services/dna-crm-mapping";
 
 const MAX_CIGAR_IDS_PER_BATCH = 500;
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
+}
+
+// Garde-fous repris tels quels de l'ancien handler mort de routes.crm.ts
+// (réconciliation, 20 août) : rate limit dédié + garde de taille de payload.
+const dnaContactRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20, // généreux pour une instance Curator unique, assez strict pour freiner un abus
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requêtes, réessayez dans un instant." },
+});
+
+function dnaContactBodyGuard(req: any, res: any, next: any) {
+  const contentLength = parseInt(req.headers["content-length"] || "0", 10);
+  const MAX_BYTES = 200 * 1024; // 200KB — généreux pour un payload DNA, assez petit pour freiner un abus
+  if (contentLength > MAX_BYTES) {
+    console.warn(`[dna/contact] rejected: payload too large (${contentLength} bytes)`);
+    res.status(413).json({ error: "Payload trop volumineux" });
+    return;
+  }
+  next();
 }
 
 export function registerDnaRoutes(app: Express): void {
@@ -47,8 +72,14 @@ export function registerDnaRoutes(app: Express): void {
     }
   });
 
-  // POST /api/dna/contact — persistance dna_leads, idempotent sur clientRequestId.
-  app.post("/api/dna/contact", async (req: Request, res: Response) => {
+  // POST /api/dna/contact — RÉCONCILIÉ (20 août 2026) : contrat HTTP réel du
+  // Curator inchangé, mais exécute désormais dans la même requête (1) la
+  // persistance événementielle dna_leads et (2) la résolution/création du
+  // client CRM + customer_dna. Garde-fous repris de l'ancien handler mort de
+  // routes.crm.ts (rate limit, garde de taille, validation stricte,
+  // journalisation structurée des rejets) — plus un seul handler pour cette
+  // route, l'ancien enregistrement dans routes.crm.ts est retiré.
+  app.post("/api/dna/contact", dnaContactRateLimit, dnaContactBodyGuard, async (req: Request, res: Response) => {
     try {
       const body = req.body ?? {};
       const clientRequestId = body.clientRequestId;
@@ -66,54 +97,101 @@ export function registerDnaRoutes(app: Express): void {
         !isNonEmptyString(contact.city) ||
         !isNonEmptyString(contact.phone)
       ) {
+        console.warn("[dna/contact] rejected: invalid_request (champ requis manquant)", {
+          hasClientRequestId: isNonEmptyString(clientRequestId),
+          hasFirstName: isNonEmptyString(participant.firstName),
+          hasLastName: isNonEmptyString(participant.lastName),
+          hasDnaId: isNonEmptyString(customerDNA.id),
+          hasCountry: isNonEmptyString(contact.country),
+          hasCity: isNonEmptyString(contact.city),
+          hasPhone: isNonEmptyString(contact.phone),
+        });
         res.status(400).json({ error: "invalid_request", message: "Champs requis manquants." });
         return;
       }
 
       // Décision de consentement de Claudel (remplace toute logique précédente) :
       // rejeté si absent, false, ou toute valeur autre que le booléen strict true.
-      // Le backend ne fabrique jamais consentGiven=true lui-même.
+      // Le backend ne fabrique jamais consentGiven=true lui-même. Aucune écriture
+      // (ni dna_leads ni CRM) tant que ceci n'a pas été validé.
       if (body.consentGiven !== true) {
+        console.warn("[dna/contact] rejected: consent_required", { clientRequestId });
         res.status(400).json({ error: "consent_required", message: "consentGiven doit être explicitement true." });
         return;
       }
 
       if (body.captureMode !== "normal" && body.captureMode !== "zero") {
+        console.warn("[dna/contact] rejected: invalid_capture_mode", { clientRequestId, captureMode: body.captureMode });
         res.status(400).json({ error: "invalid_capture_mode", message: "captureMode doit valoir normal ou zero." });
         return;
       }
 
-      const { lead, created } = await stockStorage.upsertLeadIdempotent({
-        clientRequestId,
-        firstName: participant.firstName,
-        lastName: participant.lastName,
-        country: contact.country,
-        city: contact.city,
-        whatsapp: contact.phone,
-        dnaProfileId: customerDNA.id,
-        answersSnapshot: {
-          power: customerDNA.power ?? null,
-          intensity: customerDNA.intensity ?? null,
-          family: customerDNA.family ?? null,
-          secondaryFamily: customerDNA.secondaryFamily ?? null,
-        },
-        refinementsSnapshot: {
-          spice: refinements.spice ?? null,
-          sweetness: refinements.sweetness ?? null,
-          signatures: refinements.signatures ?? [],
-          duration: refinements.duration ?? null,
-          ritualMoments: refinements.ritualMoments ?? [],
-        },
-        consentGiven: true,
-        captureMode: body.captureMode,
-      });
+      // Transaction unique : dna_leads (trace d'événement) + résolution/
+      // création client CRM + customer_dna, ensemble ou pas du tout — jamais
+      // un dna_leads écrit avec un lien CRM manquant à côté sans le savoir.
+      const { lead, created, crm } = await db.transaction(async (tx) => {
+        const { lead, created } = await stockStorage.upsertLeadIdempotent(
+          {
+            clientRequestId,
+            firstName: participant.firstName,
+            lastName: participant.lastName,
+            country: contact.country,
+            city: contact.city,
+            whatsapp: contact.phone,
+            dnaProfileId: customerDNA.id,
+            answersSnapshot: {
+              power: customerDNA.power ?? null,
+              intensity: customerDNA.intensity ?? null,
+              family: customerDNA.family ?? null,
+              secondaryFamily: customerDNA.secondaryFamily ?? null,
+            },
+            refinementsSnapshot: {
+              spice: refinements.spice ?? null,
+              sweetness: refinements.sweetness ?? null,
+              signatures: refinements.signatures ?? [],
+              duration: refinements.duration ?? null,
+              ritualMoments: refinements.ritualMoments ?? [],
+            },
+            consentGiven: true,
+            captureMode: body.captureMode,
+          },
+          tx
+        );
 
-      res.status(200).json({ ok: true, leadId: lead.id, created });
+        // Tentée systématiquement, même si le lead existait déjà (retry) :
+        // ingestDnaResult() est elle-même idempotente sur sourceRequestId
+        // (=clientRequestId), donc un retry après un échec CRM précédent
+        // complète le lien manquant au lieu de s'arrêter court sur le lead.
+        const crm = await ingestDnaResult(mapCuratorPayloadToCrmIntake(body), tx);
+
+        return { lead, created, crm };
+      }, { isolationLevel: "read committed" });
+      // READ COMMITTED, scopée à cette seule transaction (SET TRANSACTION ISOLATION
+      // LEVEL sans SESSION/GLOBAL ne s'applique qu'à la prochaine transaction sur
+      // cette connexion, relâchée au pool ensuite — aucune autre transaction de
+      // l'app n'est affectée). Nécessaire car cette transaction fait des relectures
+      // après capture d'ER_DUP_ENTRY (dna_leads, customer_dna) : sous REPEATABLE
+      // READ (défaut), l'instantané de cette transaction est fixé dès sa première
+      // lecture, avant qu'une requête concurrente n'ait committé — une relecture
+      // non verrouillée reste alors aveugle à la ligne pourtant déjà committée
+      // (vérifié empiriquement sur dna_leads ET customer_dna), et une relecture
+      // verrouillée (FOR UPDATE) est explicitement refusée par ce moteur
+      // (ER_CHECKREAD) plutôt que de servir la version fraîche.
+
+      res.status(200).json({
+        ok: true,
+        leadId: lead.id,
+        created,
+        customerId: crm.customerId,
+        wasExistingCustomer: crm.wasExistingCustomer,
+        dnaId: crm.dnaId,
+      });
     } catch (error) {
       console.error("Error in POST /api/dna/contact:", error);
       res.status(500).json({ error: "internal_error" });
     }
   });
+
 
   // POST /api/dna/watch — retrouve le lead via clientRequestId (le frontend n'a
   // jamais besoin de connaître leadId), crée le watch idempotent sur leadId.

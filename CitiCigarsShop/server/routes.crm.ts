@@ -4,7 +4,6 @@ import { db } from "./db.mysql";
 import { customers } from "../shared/schema.crm";
 import { requireAdminAuth } from "./middleware/auth";
 import * as crmService from "./services/crm";
-import { ingestDnaResult } from "./services/dna-intake";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
 import { queryTransactions, buildTransactionExportWorkbook } from "./services/transaction-explorer";
@@ -13,48 +12,6 @@ import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-
-// /api/dna/contact hardening (see CLAUDE_CONTINUE_NOW / prior discussion):
-// no browser-side secret — a value embedded in client-side JS is not a
-// secret. Origin/CORS allowlist is already enforced globally in
-// server/index.ts, which covers this endpoint too. V1 protection here is:
-// strict Zod validation (reject anything outside the DNA contract), a
-// dedicated rate limit, a small body-size cap, structured rejection
-// logging, and idempotence via sourceRequestId (already implemented in
-// dna-intake.ts).
-const dnaContactRateLimit = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20, // generous for a single Curator instance, tight enough to blunt abuse
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Trop de requêtes, réessayez dans un instant." },
-});
-
-const dnaContactSchema = z
-  .object({
-    contactName: z.string().max(255).nullable().optional(),
-    contactPhone: z.string().max(50).nullable().optional(),
-    contactEmail: z.string().email().max(255).nullable().optional(),
-    profileCode: z.string().min(1).max(50),
-    profileName: z.string().min(1).max(255),
-    profileTagline: z.string().max(500).nullable().optional(),
-    family: z.string().max(100).nullable().optional(),
-    engineVersion: z.string().min(1).max(50),
-    testedAt: z.string().datetime().optional(),
-    sourceRequestId: z.string().max(100).nullable().optional(),
-    fullPayload: z.record(z.string(), z.unknown()),
-  })
-  .strict(); // reject any field outside the DNA contract — no arbitrary data accepted
-
-function dnaContactBodyGuard(req: any, res: any, next: any) {
-  const contentLength = parseInt(req.headers["content-length"] || "0", 10);
-  const MAX_BYTES = 200 * 1024; // 200KB — generous for a DNA payload, small enough to blunt abuse
-  if (contentLength > MAX_BYTES) {
-    console.warn(`[dna/contact] rejected: payload too large (${contentLength} bytes)`);
-    return res.status(413).json({ error: "Payload trop volumineux" });
-  }
-  next();
-}
 
 export function registerCrmRoutes(app: Express) {
   // -------------------------------------------------------------------
@@ -219,35 +176,6 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error("[PUT /api/crm/followups/:id/reopen]", error);
       res.status(500).json({ error: "Erreur lors de la réouverture de la relance" });
-    }
-  });
-
-  // -------------------------------------------------------------------
-  // DNA intake — contract preserved as instructed: /api/dna/contact.
-  // NOT under requireAdminAuth by default since it's meant to be called by
-  // the external DNA engine, not a logged-in admin. Protect it instead with
-  // its own shared secret if/when the DNA engine can send one — flagged as
-  // an open point in the delivery report (see "points restant à valider").
-  // -------------------------------------------------------------------
-
-  app.post("/api/dna/contact", dnaContactRateLimit, dnaContactBodyGuard, async (req, res) => {
-    const parsed = dnaContactSchema.safeParse(req.body);
-    if (!parsed.success) {
-      console.warn("[dna/contact] rejected: invalid payload", {
-        issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), code: i.code })),
-        ip: req.ip,
-      });
-      return res.status(400).json({ error: "Payload DNA invalide", issues: parsed.error.issues });
-    }
-    try {
-      const result = await ingestDnaResult(parsed.data);
-      res.status(201).json(result);
-    } catch (error) {
-      console.warn("[dna/contact] rejected: ingestion error", {
-        message: error instanceof Error ? error.message : String(error),
-        ip: req.ip,
-      });
-      res.status(400).json({ error: error instanceof Error ? error.message : "Requête invalide" });
     }
   });
 

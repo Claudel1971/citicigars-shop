@@ -11,36 +11,42 @@
  * "Le moteur continue de calculer ailleurs. Le CRM reçoit et conserve le
  * résultat."
  *
- * Contract: POST /api/dna/contact (see routes.crm.ts) — this endpoint name
- * is preserved exactly as instructed, so the existing DNA engine can be
- * pointed at it (or kept pointed at it) without needing to change on its
- * side.
+ * RÉCONCILIATION (20 août 2026) : ce module n'est plus câblé directement sur
+ * le contrat HTTP externe. Le vrai contrat accepté par POST /api/dna/contact
+ * est celui du Curator réel (voir routes.dna.ts, inchangé) — cette fonction
+ * reçoit désormais un DnaContactPayload déjà construit par un adaptateur
+ * (server/services/dna-crm-mapping.ts) à partir du payload réel, jamais le
+ * corps HTTP brut. profileName/family proviennent réellement du Curator ;
+ * profileTagline et engineVersion ne sont PAS envoyés aujourd'hui par le
+ * Curator — restent optionnels ici, jamais inventés ni rendus obligatoires.
  */
 
 import { normalizePhone, findExactPhoneMatch } from "./phone";
 import { createCustomer, recordDnaResult } from "./crm";
 import { eq } from "drizzle-orm";
 import { db } from "../db.mysql";
+type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 import { customers, customerDna } from "../../shared/schema.crm";
 
 export interface DnaContactPayload {
-  // Contact identification as sent by the DNA engine
+  // Contact identification — mappé depuis participant.firstName/lastName +
+  // contact.phone du payload réel du Curator (voir dna-crm-mapping.ts).
   contactName?: string | null;
   contactPhone?: string | null;
   contactEmail?: string | null;
 
-  // DNA result fields — see brief correction: no "budget" here, this is
-  // strictly the cigar-identity result, not a commercial/purchase-intent
-  // field (those belong to customer_interactions / WhatsApp analysis).
+  // DNA result fields — profileCode/profileName/family proviennent
+  // réellement du Curator (customerDNA.id/label/family). profileTagline et
+  // engineVersion ne sont jamais envoyés par le Curator actuel : restent
+  // optionnels, jamais requis, jamais inventés côté serveur.
   profileCode: string;
-  profileName: string;
+  profileName?: string | null;
   profileTagline?: string | null;
   family?: string | null;
-  engineVersion: string;
+  engineVersion?: string | null;
   testedAt?: string; // ISO datetime; defaults to now if omitted
-  // Optional idempotency key from the DNA engine — if provided and already
-  // seen, ingestion is a no-op (returns the existing record) rather than
-  // creating a duplicate customer_dna row.
+  // Idempotency key — toujours fourni en pratique : c'est clientRequestId
+  // du Curator (voir dna-crm-mapping.ts), jamais réellement absent.
   sourceRequestId?: string | null;
 
   // Full raw payload from the engine, kept verbatim for future
@@ -54,13 +60,19 @@ export interface DnaIntakeResult {
   dnaId: string;
 }
 
-export async function ingestDnaResult(payload: DnaContactPayload): Promise<DnaIntakeResult> {
-  if (!payload.profileCode || !payload.engineVersion) {
-    throw new Error("ingestDnaResult: profileCode and engineVersion are required");
+/**
+ * exec optionnel (défaut `db`) : permet d'exécuter toute cette résolution
+ * DANS la même transaction que l'écriture dna_leads (réconciliation DNA →
+ * CRM, 20 août) — jamais un état où dna_leads est écrit mais le lien CRM
+ * échoue silencieusement à côté.
+ */
+export async function ingestDnaResult(payload: DnaContactPayload, exec: DbOrTx = db): Promise<DnaIntakeResult> {
+  if (!payload.profileCode) {
+    throw new Error("ingestDnaResult: profileCode is required");
   }
 
   if (payload.sourceRequestId) {
-    const [existingDna] = await db
+    const [existingDna] = await exec
       .select()
       .from(customerDna)
       .where(eq(customerDna.sourceRequestId, payload.sourceRequestId));
@@ -78,7 +90,7 @@ export async function ingestDnaResult(payload: DnaContactPayload): Promise<DnaIn
   let wasExistingCustomer = false;
 
   if (normalizedPhone) {
-    const candidates = await db
+    const candidates = await exec
       .select({ customerId: customers.customerId, phoneWhatsapp: customers.phoneWhatsapp })
       .from(customers)
       .where(eq(customers.phoneWhatsapp, normalizedPhone));
@@ -88,44 +100,72 @@ export async function ingestDnaResult(payload: DnaContactPayload): Promise<DnaIn
       wasExistingCustomer = true;
     } else {
       const [firstName, ...rest] = (payload.contactName ?? "Contact DNA").trim().split(" ");
-      const { customer } = await createCustomer({
-        firstName: firstName || null,
-        lastName: rest.join(" ") || null,
-        phoneWhatsapp: payload.contactPhone ?? null,
-        email: payload.contactEmail ?? null,
-        status: "PROSPECT",
-        source: "dna_engine",
-      } as any);
+      const { customer } = await createCustomer(
+        {
+          firstName: firstName || null,
+          lastName: rest.join(" ") || null,
+          phoneWhatsapp: payload.contactPhone ?? null,
+          email: payload.contactEmail ?? null,
+          status: "PROSPECT",
+          source: "dna_engine",
+        } as any,
+        exec
+      );
       customerId = customer.customerId;
     }
   } else {
-    // No usable phone from the DNA engine: still create a minimal contact
-    // record rather than dropping the result, but flag it via `source` so
-    // it surfaces for later reconciliation — never silently discarded.
     const [firstName, ...rest] = (payload.contactName ?? "Contact DNA (téléphone manquant)")
       .trim()
       .split(" ");
-    const { customer } = await createCustomer({
-      firstName: firstName || null,
-      lastName: rest.join(" ") || null,
-      email: payload.contactEmail ?? null,
-      status: "PROSPECT",
-      source: "dna_engine_no_phone",
-    } as any);
+    const { customer } = await createCustomer(
+      {
+        firstName: firstName || null,
+        lastName: rest.join(" ") || null,
+        email: payload.contactEmail ?? null,
+        status: "PROSPECT",
+        source: "dna_engine_no_phone",
+      } as any,
+      exec
+    );
     customerId = customer.customerId;
   }
 
-  const dna = await recordDnaResult({
-    customerId,
-    profileCode: payload.profileCode,
-    profileName: payload.profileName,
-    profileTagline: payload.profileTagline ?? null,
-    family: payload.family ?? null,
-    engineVersion: payload.engineVersion,
-    fullPayload: payload.fullPayload,
-    testedAt: payload.testedAt ? new Date(payload.testedAt) : new Date(),
-    sourceRequestId: payload.sourceRequestId ?? null,
-  } as any);
+  let dna: Awaited<ReturnType<typeof recordDnaResult>>;
+  try {
+    dna = await recordDnaResult(
+      {
+        customerId,
+        profileCode: payload.profileCode,
+        profileName: payload.profileName ?? null,
+        profileTagline: payload.profileTagline ?? null,
+        family: payload.family ?? null,
+        engineVersion: payload.engineVersion ?? null,
+        fullPayload: payload.fullPayload,
+        testedAt: payload.testedAt ? new Date(payload.testedAt) : new Date(),
+        sourceRequestId: payload.sourceRequestId ?? null,
+      } as any,
+      exec
+    );
+  } catch (e: any) {
+    if (e?.code !== "ER_DUP_ENTRY" || !payload.sourceRequestId) throw e;
+    // Course perdue contre une requête concurrente avec le même sourceRequestId
+    // (même stratégie que upsertLeadIdempotent pour dna_leads, storage.stock.ts) :
+    // l'unique index uq_dna_source_request a gagné côté adversaire, on relit
+    // simplement la ligne gagnante — jamais d'échec silencieux ni de doublon.
+    //
+    // Relecture non verrouillée : suffisant maintenant que cette transaction
+    // tourne en READ COMMITTED (voir routes.dna.ts) — chaque lecture y voit
+    // l'état commité le plus récent, et ER_DUP_ENTRY ne peut être levé que
+    // si la ligne gagnante est déjà committée. Un FOR UPDATE ici serait un
+    // verrou pris pour rien (et, sous REPEATABLE READ, provoquait ER_CHECKREAD
+    // — voir historique de cette investigation).
+    const [existingDna] = await exec
+      .select()
+      .from(customerDna)
+      .where(eq(customerDna.sourceRequestId, payload.sourceRequestId));
+    if (!existingDna) throw e;
+    return { customerId: existingDna.customerId, wasExistingCustomer: true, dnaId: existingDna.dnaId };
+  }
 
   return { customerId, wasExistingCustomer, dnaId: dna.dnaId };
 }

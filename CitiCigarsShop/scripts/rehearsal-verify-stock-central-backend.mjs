@@ -49,6 +49,8 @@ const { db } = await import("../server/db.mysql.ts");
 const { registerDnaRoutes } = await import("../server/routes.dna.ts");
 const { sql, eq, and } = await import("drizzle-orm");
 const { stockBalances, stockMovements, dnaLeads, dnaAvailabilityWatch } = await import("../shared/schema.stock.ts");
+const { customers, customerDna } = await import("../shared/schema.crm.ts");
+const { normalizePhone } = await import("../server/services/phone.ts");
 
 async function getBalance(sku, type, packSize) {
   const [row] = await db.select().from(stockBalances).where(and(eq(stockBalances.sku, sku), eq(stockBalances.type, type), eq(stockBalances.packSize, packSize)));
@@ -333,9 +335,10 @@ console.log("\n--- 11. POST /api/dna/contact rejoué avec le même clientRequest
   } else bad(`POST /api/dna/contact rejoué: r1=${JSON.stringify(r1)} r2=${JSON.stringify(r2)} lignes en base=${leadsForCrid.length}`);
 }
 
-console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId, 2 requêtes en vol en même temps) : created correct pour chacune (point 3) ---");
+console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId ET même téléphone, 2 requêtes en vol en même temps) : created correct pour chacune (point 3), aucun doublon customer/dna (verrous FOR UPDATE, 21 août) ---");
 {
   const clientRequestId = "test-crid-concurrent-" + Date.now();
+  const phone = "690111222";
   const payload = {
     clientRequestId,
     consentGiven: true,
@@ -343,15 +346,37 @@ console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId,
     participant: { firstName: "Concurrent", lastName: "Test" },
     customerDNA: { id: "BOI-1-1", label: "Le Boisé Délicat", family: "boise", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
-    contact: { country: "CM", city: "Douala", phone: "690111222" },
+    contact: { country: "CM", city: "Douala", phone },
   };
   const [rA, rB] = await Promise.all([post("/api/dna/contact", payload), post("/api/dna/contact", payload)]);
   const leadsForCrid = await db.select({ id: dnaLeads.id }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
+  const customersForPhone = await db
+    .select({ customerId: customers.customerId })
+    .from(customers)
+    .where(eq(customers.phoneWhatsapp, normalizePhone(phone)));
+  const dnaRowsForCrid = await db
+    .select({ dnaId: customerDna.dnaId, customerId: customerDna.customerId })
+    .from(customerDna)
+    .where(eq(customerDna.sourceRequestId, clientRequestId));
   const createdFlags = [rA.json.created, rB.json.created].sort();
-  if (rA.json.leadId === rB.json.leadId && leadsForCrid.length === 1 && JSON.stringify(createdFlags) === JSON.stringify([false, true])) {
-    ok(`Course réelle sur /contact: 1 seule ligne en base, exactement une réponse created=true et une created=false (jamais les deux à true) — bug du point 3 corrigé.`);
+  const sameCustomerId = !!rA.json.customerId && rA.json.customerId === rB.json.customerId;
+  const sameDnaId = !!rA.json.dnaId && rA.json.dnaId === rB.json.dnaId;
+  if (
+    rA.json.leadId === rB.json.leadId &&
+    leadsForCrid.length === 1 &&
+    JSON.stringify(createdFlags) === JSON.stringify([false, true]) &&
+    customersForPhone.length === 1 &&
+    dnaRowsForCrid.length === 1 &&
+    sameCustomerId &&
+    sameDnaId
+  ) {
+    ok(
+      `Course réelle sur /contact: 1 seul dna_leads, 1 seul customers (tel=${phone}), 1 seul customer_dna, même customerId=${rA.json.customerId} et dnaId=${rA.json.dnaId} pour les deux réponses — bug du point 3 corrigé sans doublon CRM.`
+    );
   } else {
-    bad(`Course réelle sur /contact: leadId A=${rA.json.leadId} B=${rB.json.leadId}, lignes en base=${leadsForCrid.length}, created=[${createdFlags}] (attendu exactement [false,true])`);
+    bad(
+      `Course réelle sur /contact: leadId A=${rA.json.leadId} B=${rB.json.leadId}, dna_leads=${leadsForCrid.length}, customers(tel)=${customersForPhone.length}, customer_dna=${dnaRowsForCrid.length}, customerId A=${rA.json.customerId} B=${rB.json.customerId}, dnaId A=${rA.json.dnaId} B=${rB.json.dnaId}, created=[${createdFlags}]`
+    );
   }
 }
 
