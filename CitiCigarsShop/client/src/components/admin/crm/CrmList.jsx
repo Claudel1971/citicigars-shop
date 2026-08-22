@@ -403,7 +403,7 @@ const CrmList = () => {
             </label>
 
             <label className="text-sm">
-              <span className="block mb-1 font-medium">Densit\u00e9 des lignes</span>
+              <span className="block mb-1 font-medium">Densité des lignes</span>
               <select
                 value={prefs.density}
                 onChange={(e) =>
@@ -423,7 +423,7 @@ const CrmList = () => {
                 onClick={resetDisplay}
                 className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm"
               >
-                R\u00e9initialiser l'affichage
+                Réinitialiser l'affichage
               </button>
             </div>
           </div>
@@ -443,7 +443,7 @@ const CrmList = () => {
               ))}
             </div>
             <p className="mt-2 text-xs text-gray-500">
-              La largeur se r\u00e8gle directement en glissant le bord droit de chaque en-t\u00eate.
+              La largeur se règle directement en glissant le bord droit de chaque en-tête.
             </p>
           </div>
         </div>
@@ -458,7 +458,7 @@ const CrmList = () => {
       <div className="flex flex-wrap gap-3 mb-4">
         <input
           type="text"
-          placeholder="Rechercher (ID, nom, t\u00e9l\u00e9phone, entreprise)..."
+          placeholder="Rechercher (ID, nom, téléphone, entreprise)..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded-md px-3 py-2 flex-1 min-w-[220px]"
@@ -572,7 +572,7 @@ const CrmList = () => {
                     colSpan={COLUMNS.filter((c) => visible(c.key)).length}
                     className="p-6 text-center text-gray-500"
                   >
-                    Aucun client trouv\u00e9.
+                    Aucun client trouvé.
                   </td>
                 </tr>
               )}
@@ -590,7 +590,7 @@ const CrmList = () => {
                   Nouveau client
                 </h2>
                 <p className="text-xs text-gray-500">
-                  L'ID CTCG-CUST-XXXXXX est attribu\u00e9 automatiquement \u00e0 l'enregistrement.
+                  L'ID CTCG-CUST-XXXXXX est attribué automatiquement à l'enregistrement.
                 </p>
               </div>
 
@@ -607,7 +607,7 @@ const CrmList = () => {
             <form onSubmit={createCustomer} className="p-5">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <label className="text-sm">
-                  <span className="mb-1 block font-medium">Pr\u00e9nom</span>
+                  <span className="mb-1 block font-medium">Prénom</span>
                   <input value={form.firstName} onChange={(e) => setFormField('firstName', e.target.value)} className="w-full rounded-md border px-3 py-2" />
                 </label>
 
@@ -617,7 +617,7 @@ const CrmList = () => {
                 </label>
 
                 <label className="text-sm">
-                  <span className="mb-1 block font-medium">WhatsApp / t\u00e9l\u00e9phone</span>
+                  <span className="mb-1 block font-medium">WhatsApp / téléphone</span>
                   <input value={form.phoneWhatsapp} onChange={(e) => setFormField('phoneWhatsapp', e.target.value)} placeholder="+237..." className="w-full rounded-md border px-3 py-2" />
                 </label>
 
@@ -666,7 +666,7 @@ const CrmList = () => {
 
                 <label className="text-sm md:col-span-2">
                   <span className="mb-1 block font-medium">Source</span>
-                  <input value={form.source} onChange={(e) => setFormField('source', e.target.value)} placeholder="WhatsApp, recommandation, DNA, \u00e9v\u00e9nement..." className="w-full rounded-md border px-3 py-2" />
+                  <input value={form.source} onChange={(e) => setFormField('source', e.target.value)} placeholder="WhatsApp, recommandation, DNA, événement..." className="w-full rounded-md border px-3 py-2" />
                 </label>
 
                 <label className="text-sm md:col-span-2">
