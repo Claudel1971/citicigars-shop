@@ -7,6 +7,7 @@ import {
   customerInteractions,
   customerDna,
   crmFollowups,
+  customerTypeValues,
   type InsertCustomer,
   type InsertCustomerInteraction,
   type InsertCustomerDna,
@@ -18,6 +19,46 @@ import { formatCtcgId, nextSequenceFromExisting } from "./ctcg-id";
 
 function generateId(): string {
   return crypto.randomUUID();
+}
+
+/**
+ * Thrown only for a customerType value that isn't a known alias — never for
+ * an absent/undefined value (that's just "not specified", not invalid).
+ * Distinguished from a generic Error so routes can map it to 400 instead of
+ * 500 without string-matching a message.
+ */
+export class InvalidCustomerTypeError extends Error {
+  constructor(value: unknown) {
+    super(`customerType invalide : ${JSON.stringify(value)}`);
+    this.name = "InvalidCustomerTypeError";
+  }
+}
+
+const CUSTOMER_TYPE_ALIASES: Record<string, (typeof customerTypeValues)[number]> = {
+  B2B: "CORPORATE", // libellé UI (CrmList.jsx/ConversationAnalyzer.jsx) -> valeur DB réelle
+  B2C: "B2C",
+  CORPORATE: "CORPORATE",
+  PARTNER: "PARTNER",
+  OTHER: "OTHER",
+};
+
+/**
+ * Ne fait jamais confiance à un customerType venu d'un appelant (y compris
+ * une proposition IA côté WhatsApp Analysis) sans passer par ici d'abord —
+ * appelé en tout premier dans createCustomer()/updateCustomer(), avant toute
+ * écriture. Accepte les alias UI connus (B2B -> CORPORATE). Une valeur
+ * absente/undefined n'est PAS une erreur (rien à normaliser, laisse le
+ * défaut DB s'appliquer) ; une valeur présente mais non reconnue lève
+ * InvalidCustomerTypeError plutôt qu'un repli silencieux vers B2C — un
+ * mauvais repli recréerait exactement le bug détecté le 22 août 2026
+ * (customerType invalide envoyé tel quel à un ENUM MySQL strict).
+ */
+function normalizeCustomerType(value: unknown): (typeof customerTypeValues)[number] | undefined {
+  if (value == null || value === "") return undefined;
+  if (typeof value !== "string") throw new InvalidCustomerTypeError(value);
+  const normalized = CUSTOMER_TYPE_ALIASES[value.toUpperCase()];
+  if (!normalized) throw new InvalidCustomerTypeError(value);
+  return normalized;
 }
 
 /**
@@ -54,6 +95,10 @@ export interface CreateCustomerResult {
  * inchangé pour tout appelant existant qui ne passe rien.
  */
 export async function createCustomer(input: InsertCustomer, exec: DbOrTx = db): Promise<CreateCustomerResult> {
+  const normalizedCustomerType = normalizeCustomerType((input as any).customerType);
+  if (normalizedCustomerType !== undefined) {
+    input = { ...input, customerType: normalizedCustomerType };
+  }
   const normalizedPhone = normalizePhone(input.phoneWhatsapp ?? null);
 
   if (normalizedPhone) {
@@ -94,6 +139,10 @@ export async function updateCustomer(
   if (typeof updates.phoneWhatsapp === "string") {
     patch.phoneWhatsapp = normalizePhone(updates.phoneWhatsapp);
     patch.phoneRaw = updates.phoneWhatsapp;
+  }
+  const normalizedCustomerType = normalizeCustomerType((updates as any).customerType);
+  if (normalizedCustomerType !== undefined) {
+    patch.customerType = normalizedCustomerType;
   }
   await exec.update(customers).set(patch).where(eq(customers.customerId, customerId));
   const [updated] = await exec.select().from(customers).where(eq(customers.customerId, customerId));

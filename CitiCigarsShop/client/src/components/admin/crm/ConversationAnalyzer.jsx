@@ -105,6 +105,13 @@ const ConversationAnalyzer = () => {
     setError(null);
 
     try {
+      // La valeur AFFICHÉE peut rester "B2B" (libellé UI) — mais /validate
+      // reçoit toujours la valeur DB réelle. Normalisation défensive : le
+      // serveur valide de toute façon (services/crm.ts), ceci évite juste un
+      // aller-retour 400 inutile pour le cas courant (valeur suggérée par
+      // l'IA jamais retouchée par l'humain).
+      const normalizedCustomerType = { B2B: 'CORPORATE', B2C: 'B2C', CORPORATE: 'CORPORATE', PARTNER: 'PARTNER', OTHER: 'OTHER' }[edited.customerType] || edited.customerType;
+
       const body = {
         clientRequestId,
         customerId: proposal.matchedCustomerId || undefined,
@@ -115,7 +122,7 @@ const ConversationAnalyzer = () => {
               firstName: edited.firstName.trim() || null,
               lastName: edited.lastName.trim() || null,
               phoneWhatsapp: edited.phone.trim(),
-              customerType: edited.customerType || 'B2C',
+              customerType: normalizedCustomerType || 'B2C',
               companyName: edited.companyName.trim() || null,
               jobTitle: edited.jobTitle.trim() || null,
               status: 'PROSPECT',
@@ -127,7 +134,7 @@ const ConversationAnalyzer = () => {
               firstName: edited.firstName.trim() || undefined,
               lastName: edited.lastName.trim() || undefined,
               phoneWhatsapp: edited.phone.trim() || undefined,
-              customerType: edited.customerType || undefined,
+              customerType: normalizedCustomerType || undefined,
               companyName: edited.companyName.trim() || undefined,
               jobTitle: edited.jobTitle.trim() || undefined,
             }

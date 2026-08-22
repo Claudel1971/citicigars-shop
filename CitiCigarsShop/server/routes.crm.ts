@@ -313,6 +313,12 @@ export function registerCrmRoutes(app: Express) {
 
       res.status(201).json(result);
     } catch (error) {
+      // customerType invalide (ex. un alias UI non reconnu) : la transaction a
+      // été annulée avant toute écriture (voir createCustomer/updateCustomer),
+      // jamais un repli silencieux vers B2C — 400 explicite, pas 500 générique.
+      if (error instanceof crmService.InvalidCustomerTypeError) {
+        return res.status(400).json({ error: error.message });
+      }
       console.error("[POST /api/crm/analyze-conversation/validate]", error);
       res.status(500).json({ error: "Erreur lors de l'enregistrement" });
     }
