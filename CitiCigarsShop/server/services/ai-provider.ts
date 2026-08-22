@@ -41,7 +41,7 @@ class AnthropicProvider implements AiProvider {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         max_tokens: 2000,
         system: `${request.systemPrompt}\n\nFormat de réponse attendu: ${request.responseFormatHint}`,
         messages: [{ role: "user", content: request.userPrompt }],
@@ -49,7 +49,21 @@ class AnthropicProvider implements AiProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`AnthropicProvider: API error ${response.status}`);
+      // Inclut le corps de l'erreur ({error:{type,message}} chez Anthropic) —
+      // un simple code HTTP ne suffit pas à distinguer une clé invalide d'un
+      // modèle refusé ou d'une limite de taux, et laisse un premier essai
+      // raté impossible à diagnostiquer à l'aveugle.
+      const errorBody = await response.text();
+      let detail = errorBody;
+      try {
+        const parsed = JSON.parse(errorBody);
+        if (parsed?.error?.message) {
+          detail = `${parsed.error.type ?? "error"}: ${parsed.error.message}`;
+        }
+      } catch {
+        // corps non-JSON (proxy, timeout, etc.) : on garde le texte brut tel quel
+      }
+      throw new Error(`AnthropicProvider: API error ${response.status} — ${detail}`);
     }
 
     const data = await response.json();
