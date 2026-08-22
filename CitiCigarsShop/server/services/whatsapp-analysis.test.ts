@@ -15,7 +15,9 @@ describe("analyzeConversation", () => {
       new FakeProvider(
         JSON.stringify({
           suggestedFirstName: { value: "Jean", confidence: "high", sourceExcerpt: "Jean: bonjour" },
+          suggestedLastName: { value: "Mbarga", confidence: "medium", sourceExcerpt: "Jean Mbarga ici" },
           suggestedPhone: { value: "+237690123456", confidence: "high", sourceExcerpt: "690123456" },
+          suggestedCustomerType: { value: "CORPORATE", confidence: "high", sourceExcerpt: "commande pour notre boutique" },
           summary: { value: "Intéressé par des Casa Carrillo", confidence: "high", sourceExcerpt: "..." },
           interest: { value: "Casa Carrillo Core Plus", confidence: "medium", sourceExcerpt: "..." },
           productsMentioned: { value: ["Casa Carrillo Core Plus"], confidence: "medium", sourceExcerpt: "..." },
@@ -31,6 +33,8 @@ describe("analyzeConversation", () => {
     expect(result.summary.value).toContain("Casa Carrillo");
     expect(result.suggestedPhone?.confidence).toBe("high");
     expect(result.matchedCustomerId).toBeNull(); // no existing customers passed in
+    expect(result.suggestedLastName?.value).toBe("Mbarga");
+    expect(result.suggestedCustomerType?.value).toBe("CORPORATE");
   });
 
   it("client existant -> rattachement automatique par téléphone exact uniquement", async () => {

@@ -69,9 +69,9 @@ const ConversationAnalyzer = () => {
       setProposal(data);
       setEdited({
         firstName: data.suggestedFirstName?.value || '',
-        lastName: '',
+        lastName: data.suggestedLastName?.value || '',
         phone: data.suggestedPhone?.value || '',
-        customerType: 'B2C',
+        customerType: data.suggestedCustomerType?.value || 'B2C',
         companyName: '',
         jobTitle: '',
         summary: data.summary?.value || '',
@@ -246,6 +246,7 @@ const ConversationAnalyzer = () => {
                   <option value="PARTNER">Partenaire</option>
                   <option value="OTHER">Autre</option>
                 </select>
+                <ConfidenceBadge level={proposal.suggestedCustomerType?.confidence} />
               </label>
 
               <label className="text-sm">
@@ -267,6 +268,7 @@ const ConversationAnalyzer = () => {
                   onChange={(e) => setField('lastName', e.target.value)}
                   className="w-full border rounded-md px-3 py-2"
                 />
+                <ConfidenceBadge level={proposal.suggestedLastName?.confidence} />
               </label>
 
               <label className="text-sm">

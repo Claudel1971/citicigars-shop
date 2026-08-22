@@ -25,7 +25,11 @@ export interface ConversationAnalysisProposal {
   matchedCustomerId: string | null; // null if likely a new prospect
   matchedCustomerConfidence: "high" | "medium" | "low" | "none";
   suggestedFirstName: ExtractedField<string> | null;
+  suggestedLastName: ExtractedField<string> | null;
   suggestedPhone: ExtractedField<string> | null;
+  // Valeur DB (customerTypeValues), pas le libellé UI — la UI affiche "B2B"
+  // pour CORPORATE, la valeur stockée reste inchangée (contrat interne actuel).
+  suggestedCustomerType: ExtractedField<"B2C" | "CORPORATE" | "PARTNER" | "OTHER"> | null;
   summary: ExtractedField<string>;
   interest: ExtractedField<string> | null;
   productsMentioned: ExtractedField<string[]>;
@@ -45,12 +49,23 @@ Règles strictes :
   si possible, un court extrait source qui justifie la valeur.
 - Si une information n'est pas présente, retourne null pour ce champ plutôt
   que de deviner.
+- Si un prénom ET un nom de famille sont mentionnés, sépare-les entre
+  suggestedFirstName et suggestedLastName — ne mets jamais le nom complet
+  dans un seul des deux champs. Si un seul mot est mentionné et que son
+  rôle (prénom ou nom) n'est pas clair, mets-le dans suggestedFirstName et
+  laisse suggestedLastName à null plutôt que de deviner.
+- Classe suggestedCustomerType à "CORPORATE" uniquement si la conversation
+  indique explicitement une commande en gros, un achat pour une entreprise,
+  ou un contact au nom d'une société. Sinon "B2C" par défaut si un contexte
+  d'achat personnel est clair, sinon null.
 - Réponds UNIQUEMENT en JSON valide, sans texte autour, correspondant
   exactement au schéma demandé.`;
 
 const RESPONSE_FORMAT_HINT = `{
   "suggestedFirstName": {"value": string, "confidence": "high"|"medium"|"low", "sourceExcerpt": string} | null,
+  "suggestedLastName": {"value": string, "confidence": "high"|"medium"|"low", "sourceExcerpt": string} | null,
   "suggestedPhone": {"value": string, "confidence": "high"|"medium"|"low", "sourceExcerpt": string} | null,
+  "suggestedCustomerType": {"value": "B2C"|"CORPORATE"|"PARTNER"|"OTHER", "confidence": "high"|"medium"|"low", "sourceExcerpt": string} | null,
   "summary": {"value": string, "confidence": "high"|"medium"|"low", "sourceExcerpt": string},
   "interest": {"value": string, "confidence": "high"|"medium"|"low", "sourceExcerpt": string} | null,
   "productsMentioned": {"value": string[], "confidence": "high"|"medium"|"low", "sourceExcerpt": string},
