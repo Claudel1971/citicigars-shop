@@ -9,6 +9,7 @@ import { readFileSync } from "fs";
 const HTML_PATH = new URL("../client/public/CitiCigars_DNA_Curator_v2_10_3_RC.html", import.meta.url);
 const ENGINE_PATH = new URL("../shared/dna-engine.cjs", import.meta.url);
 const DIMENSION_FORMATTER_PATH = new URL("../client/public/dimension-formatter.js", import.meta.url);
+const LIBPHONENUMBER_PATH = new URL("../client/public/libphonenumber-js.min.js", import.meta.url);
 
 let html = readFileSync(HTML_PATH, "utf-8");
 html = html.replace(
@@ -21,6 +22,12 @@ html = html.replace('<script src="dimension-formatter.js"></script>', `<script>$
 // resourceLoader complexe -> on l'inline directement pour ce test, contenu strictement identique.
 const engineSrc = readFileSync(ENGINE_PATH, "utf-8");
 html = html.replace('<script src="dna-engine.js"></script>', `<script>${engineSrc}</script>`);
+// Même raison qu'au-dessus pour libphonenumber-js.min.js : inline pour JSDOM.
+// Remplaçant sous forme de fonction (pas une string) : le bundle minifié
+// contient des séquences "$" que String.replace() interpréterait sinon comme
+// des motifs de remplacement spéciaux ($&, $1...) et corromprait le script.
+const libphonenumberSrc = readFileSync(LIBPHONENUMBER_PATH, "utf-8");
+html = html.replace('<script src="libphonenumber-js.min.js"></script>', () => `<script>${libphonenumberSrc}</script>`);
 
 function fail(msg) { console.error("FAIL: " + msg); process.exitCode = 1; }
 function ok(msg) { console.log("OK: " + msg); }
@@ -115,7 +122,8 @@ async function run(family, power, intensity, label, { htmlSource = html, pilotMo
     await new Promise((r) => setTimeout(r, 10));
     const citySel = doc.getElementById("city");
     citySel.value = citySel.options[1].value;
-    doc.getElementById("phone").value = "690123456";
+    doc.getElementById("phone").value = "690123456"; // numéro national seul, indicatif +237 fixe via dialCode
+    doc.getElementById("email").value = "test@example.com";
 
     doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
     await new Promise((r) => setTimeout(r, 10));
@@ -366,6 +374,7 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
     const citySel = doc.getElementById("city");
     citySel.value = citySel.options[1].value;
     doc.getElementById("phone").value = "690123456";
+    doc.getElementById("email").value = "test@example.com";
     doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
     await new Promise((r) => setTimeout(r, 10));
     doc.getElementById("consentContinue").dispatchEvent(new window.Event("click")); // modale de consentement : Continuer
@@ -383,6 +392,7 @@ async function runResolutionErrorThenRetry(family, power, intensity, expectedLab
     const citySel = doc.getElementById("city");
     citySel.value = citySel.options[1].value;
     doc.getElementById("phone").value = "690123456";
+    doc.getElementById("email").value = "test@example.com";
     doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
     await new Promise((r) => setTimeout(r, 10));
     doc.getElementById("consentContinue").dispatchEvent(new window.Event("click")); // modale de consentement : Continuer
@@ -459,6 +469,13 @@ async function runConsentModal(family, power, intensity, expectedLabel) {
   const citySel = doc.getElementById("city");
   citySel.value = citySel.options[1].value;
   doc.getElementById("phone").value = "690123456";
+  doc.getElementById("email").value = "test@example.com";
+
+  if (doc.getElementById("dialCode").textContent !== "+237") {
+    fail(`${expectedLabel}: le badge d'indicatif devrait afficher +237 pour le Cameroun, obtenu: ${doc.getElementById("dialCode").textContent}`);
+  } else {
+    ok(`${expectedLabel}: badge d'indicatif +237 affiché automatiquement pour le Cameroun (non modifiable, dérivé de libphonenumber-js)`);
+  }
 
   doc.getElementById("loadReco").dispatchEvent(new window.Event("click"));
   await new Promise((r) => setTimeout(r, 10));
@@ -526,6 +543,31 @@ async function runConsentModal(family, power, intensity, expectedLabel) {
     ok(`${expectedLabel}: captureMode=${expectedCaptureMode} envoyé directement à /contact`);
   }
 
+  // Correctif capture contact DNA (22 août) : le payload doit contenir un
+  // téléphone E.164 canonique (indicatif +237 assemblé automatiquement, pas
+  // saisi par l'utilisateur), un email, et la ville/pays choisis.
+  const c = capturedPayload && capturedPayload.contact;
+  if (!c || c.phone !== "+237690123456") {
+    fail(`${expectedLabel}: contact.phone attendu=+237690123456, obtenu=${JSON.stringify(c && c.phone)}`);
+  } else {
+    ok(`${expectedLabel}: contact.phone envoyé en E.164 canonique (+237690123456), indicatif assemblé automatiquement`);
+  }
+  if (!c || c.email !== "test@example.com") {
+    fail(`${expectedLabel}: contact.email attendu=test@example.com, obtenu=${JSON.stringify(c && c.email)}`);
+  } else {
+    ok(`${expectedLabel}: contact.email envoyé dans le payload`);
+  }
+  if (!c || !c.city) {
+    fail(`${expectedLabel}: contact.city absent du payload`);
+  } else {
+    ok(`${expectedLabel}: contact.city envoyé dans le payload (${c.city})`);
+  }
+  if (!c || c.country !== "CM") {
+    fail(`${expectedLabel}: contact.country attendu=CM, obtenu=${JSON.stringify(c && c.country)}`);
+  } else {
+    ok(`${expectedLabel}: contact.country envoyé dans le payload`);
+  }
+
   if (expectedLabel === "N=0") {
     if (saveWatchCalls !== 1) fail(`N=0: saveWatch appelé ${saveWatchCalls} fois après Continuer (attendu 1)`);
     else ok("N=0: saveWatch appelé exactement 1 fois après Continuer (cas zéro, bloquant)");
@@ -539,6 +581,129 @@ async function runConsentModal(family, power, intensity, expectedLabel) {
 
 await runConsentModal("veloute", 3, 3, "N>0");
 await runConsentModal("gourmand", 1, 1, "N=0");
+
+// --- Correctif capture contact DNA (22 août 2026) : assemblage E.164 par pays
+// (libphonenumber-js), refus UI sur numéro/email invalide. Le cas Cameroun est
+// déjà couvert par runConsentModal ci-dessus (contact.phone=+237690123456) ---
+async function runPhoneEmailValidation() {
+  const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", url: "https://example.com/dna.html" });
+  const { window } = dom;
+  window.Element.prototype.scrollIntoView = () => {};
+  await new Promise((r) => setTimeout(r, 50));
+  const doc = window.document;
+  installLiveAvailabilityFetch(window);
+
+  doc.getElementById("firstName").value = "Test";
+  doc.getElementById("lastName").value = "User";
+  doc.getElementById("startBtn").dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="power"] [data-val="3"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="intensity"] [data-val="3"]').dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[0].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-group="family"] [data-val="veloute"]').dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[1].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="spice"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-axis="sweetness"] [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#signatureChips [data-val="none"]').dispatchEvent(new window.Event("click"));
+  doc.querySelectorAll(".next")[2].dispatchEvent(new window.Event("click"));
+  doc.querySelector('[data-group="duration"] [data-val="around_60"]').dispatchEvent(new window.Event("click"));
+  doc.querySelector('#ritualMoments [data-val="evening"]').dispatchEvent(new window.Event("click"));
+  doc.getElementById("revealBtn").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 20));
+  doc.getElementById("wantReco").dispatchEvent(new window.Event("click"));
+
+  console.log("\n--- Validation téléphone/email par pays (libphonenumber-js) ---");
+
+  const countrySel = doc.getElementById("country");
+  const citySel = doc.getElementById("city");
+  const phone = doc.getElementById("phone");
+  const email = doc.getElementById("email");
+  const loadReco = doc.getElementById("loadReco");
+  const gateMessage = doc.getElementById("gateMessage");
+
+  function selectCountry(code) {
+    countrySel.value = code;
+    countrySel.dispatchEvent(new window.Event("change"));
+  }
+
+  // --- Canada : numéro national seul (5148929488) -> +15148929488 ---
+  selectCountry("CA");
+  await new Promise((r) => setTimeout(r, 10));
+  if (doc.getElementById("dialCode").textContent !== "+1") {
+    fail(`Canada: badge d'indicatif attendu=+1, obtenu=${doc.getElementById("dialCode").textContent}`);
+  } else {
+    ok("Canada: badge d'indicatif +1 affiché automatiquement à la sélection du pays");
+  }
+  citySel.value = citySel.options[1].value; // Montréal
+  phone.value = "5148929488";
+  email.value = "test@example.com";
+  let capturedPayload = null;
+  const originalSaveLead = window.saveLead;
+  window.saveLead = (payload) => { capturedPayload = payload; return Promise.resolve(true); };
+  loadReco.dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 10));
+  if (doc.getElementById("consentModalOverlay").hidden) {
+    fail(`Canada: la modale de consentement devrait s'ouvrir pour 5148929488 (message affiché: "${gateMessage.textContent}")`);
+  } else {
+    ok("Canada: numéro national 5148929488 accepté, modale de consentement ouverte");
+  }
+  doc.getElementById("consentContinue").dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 300));
+  if (!capturedPayload || capturedPayload.contact.phone !== "+15148929488") {
+    fail(`Canada: contact.phone attendu=+15148929488, obtenu=${JSON.stringify(capturedPayload && capturedPayload.contact && capturedPayload.contact.phone)}`);
+  } else {
+    ok("Canada: contact.phone envoyé en E.164 canonique +15148929488 (indicatif +1 assemblé automatiquement, jamais saisi ni perdu)");
+  }
+  window.saveLead = originalSaveLead;
+
+  // --- Numéro trop court (NANP attend 10 chiffres) -> refus UI ---
+  selectCountry("CA");
+  await new Promise((r) => setTimeout(r, 10));
+  citySel.value = citySel.options[1].value;
+  phone.value = "514892";
+  email.value = "test@example.com";
+  loadReco.dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 10));
+  if (doc.getElementById("consentModalOverlay").hidden) {
+    ok("Numéro trop court (514892, Canada): refusé côté UI, modale de consentement non ouverte");
+  } else {
+    fail("Numéro trop court (514892, Canada): la modale de consentement ne devrait pas s'ouvrir");
+    doc.getElementById("consentCancel").dispatchEvent(new window.Event("click"));
+  }
+
+  // --- Numéro trop long -> refus UI ---
+  selectCountry("CA");
+  await new Promise((r) => setTimeout(r, 10));
+  citySel.value = citySel.options[1].value;
+  phone.value = "51489294888888";
+  email.value = "test@example.com";
+  loadReco.dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 10));
+  if (doc.getElementById("consentModalOverlay").hidden) {
+    ok("Numéro trop long (51489294888888, Canada): refusé côté UI, modale de consentement non ouverte");
+  } else {
+    fail("Numéro trop long (51489294888888, Canada): la modale de consentement ne devrait pas s'ouvrir");
+    doc.getElementById("consentCancel").dispatchEvent(new window.Event("click"));
+  }
+
+  // --- Email invalide -> refus ---
+  selectCountry("CM");
+  await new Promise((r) => setTimeout(r, 10));
+  citySel.value = citySel.options[1].value;
+  phone.value = "690123456";
+  email.value = "pas-un-email";
+  loadReco.dispatchEvent(new window.Event("click"));
+  await new Promise((r) => setTimeout(r, 10));
+  if (doc.getElementById("consentModalOverlay").hidden) {
+    ok("Email invalide (pas-un-email): refusé côté UI, modale de consentement non ouverte");
+  } else {
+    fail("Email invalide (pas-un-email): la modale de consentement ne devrait pas s'ouvrir");
+    doc.getElementById("consentCancel").dispatchEvent(new window.Event("click"));
+  }
+
+  dom.window.close();
+}
+
+await runPhoneEmailValidation();
 
 if (process.exitCode === 1) {
   console.log("\n=== DES ECHECS ONT ETE DETECTES CI-DESSUS ===");

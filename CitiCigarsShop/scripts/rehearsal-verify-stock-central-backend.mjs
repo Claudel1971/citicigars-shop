@@ -262,7 +262,7 @@ console.log("\n--- 10b. POST /api/dna/contact sans consentGiven : 400 (décision
     participant: { firstName: "NoConsent", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] },
-    contact: { country: "CM", city: "Douala", phone: "690000001" },
+    contact: { country: "CM", city: "Douala", phone: "+237690000001", email: "noconsent@example.com" },
   };
   const r = await post("/api/dna/contact", payload);
   if (r.status === 400 && r.json.error === "consent_required") ok("POST /api/dna/contact sans consentGiven: 400 consent_required");
@@ -277,7 +277,7 @@ console.log("\n--- 10c. POST /api/dna/contact avec consentGiven:false : 400 ---"
     participant: { firstName: "FalseConsent", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] },
-    contact: { country: "CM", city: "Douala", phone: "690000002" },
+    contact: { country: "CM", city: "Douala", phone: "+237690000002", email: "falseconsent@example.com" },
   };
   const r = await post("/api/dna/contact", payload);
   if (r.status === 400 && r.json.error === "consent_required") ok("POST /api/dna/contact avec consentGiven:false: 400 consent_required");
@@ -297,7 +297,7 @@ console.log("\n--- 10d. POST /api/dna/contact avec consentGiven:true : lead cré
     participant: { firstName: "RealConsent", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "x", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], duration: "around_60", ritualMoments: [] },
-    contact: { country: "CM", city: "Douala", phone: "690000003" },
+    contact: { country: "CM", city: "Douala", phone: "+237690000003", email: "realconsent@example.com" },
   };
   const r = await post("/api/dna/contact", payload);
   const [leadRow] = await db.select({ consentGiven: dnaLeads.consentGiven, consentTimestamp: dnaLeads.consentTimestamp }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
@@ -325,7 +325,7 @@ console.log("\n--- 11. POST /api/dna/contact rejoué avec le même clientRequest
     participant: { firstName: "Jean", lastName: "Test" },
     customerDNA: { id: "VEL-1-1", label: "Le Velouté Délicat", family: "veloute", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 2, sweetness: 3, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: ["evening"] },
-    contact: { country: "CM", city: "Douala", phone: "690123456" },
+    contact: { country: "CM", city: "Douala", phone: "+237690123456", email: "jean.test@example.com" },
   };
   const r1 = await post("/api/dna/contact", payload);
   const r2 = await post("/api/dna/contact", payload);
@@ -338,7 +338,7 @@ console.log("\n--- 11. POST /api/dna/contact rejoué avec le même clientRequest
 console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId ET même téléphone, 2 requêtes en vol en même temps) : created correct pour chacune (point 3), aucun doublon customer/dna (verrous FOR UPDATE, 21 août) ---");
 {
   const clientRequestId = "test-crid-concurrent-" + Date.now();
-  const phone = "690111222";
+  const phone = "+237690111222";
   const payload = {
     clientRequestId,
     consentGiven: true,
@@ -346,7 +346,7 @@ console.log("\n--- 11b. POST /api/dna/contact CONCURRENT (même clientRequestId 
     participant: { firstName: "Concurrent", lastName: "Test" },
     customerDNA: { id: "BOI-1-1", label: "Le Boisé Délicat", family: "boise", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
-    contact: { country: "CM", city: "Douala", phone },
+    contact: { country: "CM", city: "Douala", phone, email: "concurrent@example.com" },
   };
   const [rA, rB] = await Promise.all([post("/api/dna/contact", payload), post("/api/dna/contact", payload)]);
   const leadsForCrid = await db.select({ id: dnaLeads.id }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));
@@ -425,7 +425,7 @@ console.log("\n--- 12c. POST /api/dna/watch avec un lead normal : rejeté, aucun
     participant: { firstName: "Normal", lastName: "Watch" },
     customerDNA: { id: "VEL-2-2", family: "veloute", power: 3, intensity: 3 },
     refinements: {},
-    contact: { country: "CM", city: "Douala", phone: "690000005" },
+    contact: { country: "CM", city: "Douala", phone: "+237690000005", email: "watchnormal@example.com" },
   });
   const watchRes = await post("/api/dna/watch", { clientRequestId, dnaProfileId: "VEL-2-2", answersSnapshot: {}, refinementsSnapshot: {} });
   const watches = contactRes.status === 200
@@ -448,7 +448,7 @@ console.log("\n--- 13. POST /api/dna/watch rejoué = un seul watch (idempotent s
     participant: { firstName: "Awa", lastName: "Test" },
     customerDNA: { id: "GOU-1-1", label: "Le Gourmand Délicat", family: "gourmand", power: 1, intensity: 1, secondaryFamily: null },
     refinements: { spice: 1, sweetness: 1, signatures: [], signatureNoPreference: true, duration: "around_60", ritualMoments: [] },
-    contact: { country: "CM", city: "Douala", phone: "690987654" },
+    contact: { country: "CM", city: "Douala", phone: "+237690987654", email: "awa.test@example.com" },
   };
   const contactRes = await post("/api/dna/contact", contactPayload);
   const [leadBeforeWatch] = await db.select({ capturedAtStep: dnaLeads.capturedAtStep }).from(dnaLeads).where(eq(dnaLeads.clientRequestId, clientRequestId));

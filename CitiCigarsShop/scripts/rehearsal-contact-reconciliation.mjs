@@ -29,7 +29,7 @@ function realPayload(overrides = {}) {
     customerDNA: { id: "GOU-2-2", label: "Le Gourmand Harmonieux", family: "gourmand", power: 3, intensity: 3, secondaryFamily: "boise" },
     refinements: { spice: null, sweetness: null, signatures: [], signatureNoPreference: false, duration: null, ritualMoments: [] },
     recommendationsShown: null,
-    contact: { country: "Cameroun", city: "Douala", phone: "+237690123456" },
+    contact: { country: "Cameroun", city: "Douala", phone: "+237690123456", email: "aicha.ndiaye@example.com" },
     ...overrides,
   };
 }
@@ -66,9 +66,9 @@ async function post(path, body) {
 // --- Test 3 : téléphone déjà existant -> rattaché au même customer_id ---
 {
   const sharedPhone = "+237677889900";
-  const p1 = realPayload({ contact: { country: "Cameroun", city: "Douala", phone: sharedPhone }, participant: { firstName: "Jean", lastName: "Mbarga" } });
+  const p1 = realPayload({ contact: { country: "Cameroun", city: "Douala", phone: sharedPhone, email: "jean.mbarga@example.com" }, participant: { firstName: "Jean", lastName: "Mbarga" } });
   const r1 = await post("/api/dna/contact", p1);
-  const p2 = realPayload({ contact: { country: "Cameroun", city: "Yaoundé", phone: sharedPhone }, participant: { firstName: "Jean", lastName: "Mbarga" } });
+  const p2 = realPayload({ contact: { country: "Cameroun", city: "Yaoundé", phone: sharedPhone, email: "jean.mbarga@example.com" }, participant: { firstName: "Jean", lastName: "Mbarga" } });
   const r2 = await post("/api/dna/contact", p2);
   assert(r1.json.customerId === r2.json.customerId, "Téléphone existant -> même customerId", [r1.json.customerId, r2.json.customerId]);
   assert(r2.json.wasExistingCustomer === true, "Téléphone existant -> wasExistingCustomer:true au 2e");
@@ -77,7 +77,7 @@ async function post(path, body) {
 
 // --- Test 4 : nouveau téléphone -> création d'un prospect unique ---
 {
-  const p = realPayload({ contact: { country: "Cameroun", city: "Bafoussam", phone: "+237655443322" } });
+  const p = realPayload({ contact: { country: "Cameroun", city: "Bafoussam", phone: "+237655443322", email: "test@example.com" } });
   const { json } = await post("/api/dna/contact", p);
   assert(typeof json.customerId === "string", "Nouveau téléphone -> customerId créé");
   assert(json.wasExistingCustomer === false, "Nouveau téléphone -> wasExistingCustomer:false");

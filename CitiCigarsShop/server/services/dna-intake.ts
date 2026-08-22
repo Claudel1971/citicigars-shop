@@ -34,6 +34,8 @@ export interface DnaContactPayload {
   contactName?: string | null;
   contactPhone?: string | null;
   contactEmail?: string | null;
+  contactCity?: string | null;
+  contactCountry?: string | null;
 
   // DNA result fields — profileCode/profileName/family proviennent
   // réellement du Curator (customerDNA.id/label/family). profileTagline et
@@ -106,6 +108,8 @@ export async function ingestDnaResult(payload: DnaContactPayload, exec: DbOrTx =
           lastName: rest.join(" ") || null,
           phoneWhatsapp: payload.contactPhone ?? null,
           email: payload.contactEmail ?? null,
+          city: payload.contactCity ?? null,
+          country: payload.contactCountry ?? undefined,
           status: "PROSPECT",
           source: "dna_engine",
         } as any,
@@ -122,6 +126,8 @@ export async function ingestDnaResult(payload: DnaContactPayload, exec: DbOrTx =
         firstName: firstName || null,
         lastName: rest.join(" ") || null,
         email: payload.contactEmail ?? null,
+        city: payload.contactCity ?? null,
+        country: payload.contactCountry ?? undefined,
         status: "PROSPECT",
         source: "dna_engine_no_phone",
       } as any,

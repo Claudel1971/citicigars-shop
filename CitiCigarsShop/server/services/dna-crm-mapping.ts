@@ -7,10 +7,20 @@
  * HTTP externe — celui-ci reste celui déjà accepté par routes.dna.ts,
  * exactement ce que le Curator envoie réellement.
  *
- * Mapping minimal (décision Claudel) :
+ * Mapping (mis à jour 22 août 2026 — correctif capture contact DNA) :
  *   clientRequestId              → sourceRequestId (clé d'idempotence)
  *   participant.firstName/lastName → identité client
  *   contact.phone                → téléphone WhatsApp, clé de rapprochement
+ *                                   (E.164 canonique, assemblé côté Curator
+ *                                   via libphonenumber-js à partir du pays
+ *                                   sélectionné + numéro national saisi)
+ *   contact.email                 → email client (obligatoire côté Curator
+ *                                   depuis ce correctif — le champ existait
+ *                                   déjà côté CRM, jamais alimenté avant)
+ *   contact.city                  → ville client (customers.city existe déjà,
+ *                                   aucune colonne créée)
+ *   contact.country                → pays client (customers.country existe
+ *                                   déjà, aucune colonne créée)
  *   customerDNA.id                → profileCode
  *   customerDNA.label              → profileName (réellement envoyé par le
  *                                    Curator — dna.name, voir buildDNA())
@@ -35,7 +45,9 @@ export function mapCuratorPayloadToCrmIntake(body: any): DnaContactPayload {
   return {
     contactName,
     contactPhone: contact.phone ?? null,
-    contactEmail: null, // le Curator ne collecte pas d'email aujourd'hui — jamais inventé
+    contactEmail: contact.email ?? null,
+    contactCity: contact.city ?? null,
+    contactCountry: contact.country ?? null,
     profileCode: customerDNA.id,
     profileName: customerDNA.label ?? null,
     profileTagline: null, // jamais envoyé par le Curator actuel — voir note en tête de fichier

@@ -15,6 +15,13 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+// Défense en profondeur pour POST /api/dna/contact (22 août 2026) — la
+// validation réelle par pays (longueur, format) a déjà lieu côté Curator via
+// libphonenumber-js ; ce regex ne vérifie que la forme E.164 générique
+// (ITU-T E.164 : + suivi de 8 à 15 chiffres, premier chiffre non nul).
+const E164_PHONE_RE = /^\+[1-9]\d{7,14}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Garde-fous repris tels quels de l'ancien handler mort de routes.crm.ts
 // (réconciliation, 20 août) : rate limit dédié + garde de taille de payload.
 const dnaContactRateLimit = rateLimit({
@@ -95,7 +102,8 @@ export function registerDnaRoutes(app: Express): void {
         !isNonEmptyString(customerDNA.id) ||
         !isNonEmptyString(contact.country) ||
         !isNonEmptyString(contact.city) ||
-        !isNonEmptyString(contact.phone)
+        !isNonEmptyString(contact.phone) ||
+        !isNonEmptyString(contact.email)
       ) {
         console.warn("[dna/contact] rejected: invalid_request (champ requis manquant)", {
           hasClientRequestId: isNonEmptyString(clientRequestId),
@@ -105,8 +113,28 @@ export function registerDnaRoutes(app: Express): void {
           hasCountry: isNonEmptyString(contact.country),
           hasCity: isNonEmptyString(contact.city),
           hasPhone: isNonEmptyString(contact.phone),
+          hasEmail: isNonEmptyString(contact.email),
         });
         res.status(400).json({ error: "invalid_request", message: "Champs requis manquants." });
+        return;
+      }
+
+      // Défense en profondeur (22 août 2026) : le Curator assemble et valide déjà
+      // le numéro en E.164 via libphonenumber-js côté client avant l'envoi — ce
+      // garde-fou ne fait que refuser explicitement tout appel qui contournerait
+      // cette validation (jamais silencieusement toléré), même principe que le
+      // rejet serveur du consentement juste en dessous.
+      if (!E164_PHONE_RE.test(contact.phone)) {
+        console.warn("[dna/contact] rejected: invalid_phone_format", { clientRequestId, phone: contact.phone });
+        res.status(400).json({
+          error: "invalid_phone_format",
+          message: "contact.phone doit être un numéro E.164 valide (+indicatif suivi de chiffres, ex. +15148929488).",
+        });
+        return;
+      }
+      if (!EMAIL_RE.test(contact.email)) {
+        console.warn("[dna/contact] rejected: invalid_email_format", { clientRequestId });
+        res.status(400).json({ error: "invalid_email_format", message: "contact.email doit être une adresse email valide." });
         return;
       }
 
