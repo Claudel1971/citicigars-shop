@@ -6,7 +6,7 @@ import { requireAdminAuth } from "./middleware/auth";
 import * as crmService from "./services/crm";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
-import { queryTransactions, buildTransactionExportWorkbook } from "./services/transaction-explorer";
+import { queryTransactions, buildTransactionExportWorkbook, getTopProductsByOrderCount } from "./services/transaction-explorer";
 import { createManualSale, deleteManualSale } from "./services/manual-sale";
 import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
@@ -313,6 +313,17 @@ export function registerCrmRoutes(app: Express) {
   // -------------------------------------------------------------------
   // Transaction Explorer — filter + export only, no BI/charts in the CRM.
   // -------------------------------------------------------------------
+
+  app.get("/api/crm/dashboard/top-products", requireAdminAuth, async (req, res) => {
+    try {
+      const limit = Number(req.query.limit) || 3;
+      const rows = await getTopProductsByOrderCount(limit);
+      res.json(rows);
+    } catch (error) {
+      console.error("[GET /api/crm/dashboard/top-products]", error);
+      res.status(500).json({ error: "Erreur lors du calcul des produits les plus vendus" });
+    }
+  });
 
   app.post("/api/crm/transactions/search", requireAdminAuth, async (req, res) => {
     try {

@@ -203,6 +203,40 @@ export async function queryTransactions(filters: TransactionExplorerFilters): Pr
   }));
 }
 
+export interface TopProductRow {
+  itemSku: string;
+  brand: string | null;
+  series: string | null;
+  vitole: string | null;
+  orderCount: number; // nombre de commandes DISTINCTES contenant ce SKU, toutes périodes
+}
+
+/**
+ * Top produits pour le Dashboard admin — nombre de commandes distinctes par
+ * SKU, toutes périodes (décision Claudel, 22 août 2026 : remplace le "14
+ * ventes" en dur qui n'était calculé sur rien). Réutilise queryTransactions()
+ * telle quelle plutôt que de dupliquer le join orders/order_items/customers
+ * — une commande supprimée (deleteManualSale) disparaît donc automatiquement
+ * ici aussi, par la même contrainte FK CASCADE qui la retire déjà de
+ * l'Explorateur.
+ */
+export async function getTopProductsByOrderCount(limit = 3): Promise<TopProductRow[]> {
+  const rows = await queryTransactions({});
+  const bySku = new Map<string, { brand: string | null; series: string | null; vitole: string | null; orderIds: Set<string> }>();
+  for (const r of rows) {
+    let entry = bySku.get(r.itemSku);
+    if (!entry) {
+      entry = { brand: r.brand, series: r.series, vitole: r.vitole, orderIds: new Set() };
+      bySku.set(r.itemSku, entry);
+    }
+    entry.orderIds.add(r.orderId);
+  }
+  return Array.from(bySku.entries())
+    .map(([itemSku, e]) => ({ itemSku, brand: e.brand, series: e.series, vitole: e.vitole, orderCount: e.orderIds.size }))
+    .sort((a, b) => b.orderCount - a.orderCount)
+    .slice(0, limit);
+}
+
 const LINE_EXPORT_COLUMNS: Array<{ key: string; header: string }> = [
   { key: "orderId", header: "SALE ID" },
   { key: "orderDate", header: "Date" },
