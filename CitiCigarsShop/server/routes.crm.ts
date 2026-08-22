@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "./db.mysql";
-import { customers } from "../shared/schema.crm";
+import { customers, customerInteractions, crmFollowups } from "../shared/schema.crm";
 import { requireAdminAuth } from "./middleware/auth";
 import * as crmService from "./services/crm";
 import { analyzeConversation } from "./services/whatsapp-analysis";
@@ -208,49 +208,110 @@ export function registerCrmRoutes(app: Express) {
    * to customers/customer_interactions/crm_followups as a result of a
    * WhatsApp analysis — never the /analyze-conversation endpoint itself.
    */
+  // Relit l'interaction déjà validée pour clientRequestId (+ son followup
+  // éventuel) et la renvoie telle quelle — jamais de seconde écriture,
+  // jamais d'erreur brute pour un second clic après un succès déjà acté.
+  async function loadAlreadyValidated(clientRequestId: string) {
+    const [existing] = await db
+      .select()
+      .from(customerInteractions)
+      .where(eq(customerInteractions.sourceRequestId, clientRequestId));
+    if (!existing) return null;
+    const [existingFollowup] = await db
+      .select()
+      .from(crmFollowups)
+      .where(eq(crmFollowups.sourceInteractionId, existing.interactionId));
+    return {
+      alreadyValidated: true,
+      customerId: existing.customerId,
+      interaction: existing,
+      followup: existingFollowup ?? null,
+    };
+  }
+
   app.post("/api/crm/analyze-conversation/validate", requireAdminAuth, async (req, res) => {
     try {
-      const { customerId, newCustomer, customerUpdates, interaction, followup } = req.body;
+      const { clientRequestId, customerId, newCustomer, customerUpdates, interaction, followup } = req.body;
 
-      let resolvedCustomerId = customerId as string | undefined;
-
-      if (!resolvedCustomerId && newCustomer) {
-        const { customer } = await crmService.createCustomer(newCustomer);
-        resolvedCustomerId = customer.customerId;
-      }
-
-      if (!resolvedCustomerId) {
+      if (!customerId && !newCustomer) {
         return res.status(400).json({ error: "customerId ou newCustomer requis" });
       }
 
-      if (customerId && customerUpdates) {
-        await crmService.updateCustomer(resolvedCustomerId, customerUpdates);
+      // Idempotence (22 août 2026) : un clientRequestId généré une seule fois
+      // par proposition analysée et réutilisé par le client à chaque tentative
+      // de /validate — même stratégie que dna_leads/customer_dna. Chemin
+      // rapide, aucune transaction ouverte si déjà validé.
+      if (clientRequestId) {
+        const already = await loadAlreadyValidated(clientRequestId);
+        if (already) return res.status(200).json(already);
       }
 
-      const createdInteraction = await crmService.addInteraction({
-        ...interaction,
-        customerId: resolvedCustomerId,
-        sourceType: "whatsapp_paste",
-        createdBy: "human", // the write is human-validated, even though the
-        // extraction itself was AI-assisted — see brief section 10.
-      });
+      let result;
+      try {
+        result = await db.transaction(async (tx) => {
+          let resolvedCustomerId = customerId as string | undefined;
 
-      let createdFollowup = null;
-      if (followup?.dueAt && followup?.action) {
-        createdFollowup = await crmService.createFollowup({
-          customerId: resolvedCustomerId,
-          sourceInteractionId: createdInteraction.interactionId,
-          action: followup.action,
-          dueAt: followup.dueAt,
-          status: "OPEN",
-        });
+          if (!resolvedCustomerId && newCustomer) {
+            const { customer } = await crmService.createCustomer(newCustomer, tx);
+            resolvedCustomerId = customer.customerId;
+          }
+
+          if (customerId && customerUpdates) {
+            await crmService.updateCustomer(resolvedCustomerId!, customerUpdates, tx);
+          }
+
+          const createdInteraction = await crmService.addInteraction(
+            {
+              ...interaction,
+              interactionDate: interaction?.interactionDate ? new Date(interaction.interactionDate) : new Date(),
+              nextActionAt: interaction?.nextActionAt ? new Date(interaction.nextActionAt) : null,
+              customerId: resolvedCustomerId,
+              sourceType: "whatsapp_paste",
+              createdBy: "human", // the write is human-validated, even though the
+              // extraction itself was AI-assisted — see brief section 10.
+              sourceRequestId: clientRequestId ?? null,
+            },
+            tx
+          );
+
+          let createdFollowup = null;
+          if (followup?.dueAt && followup?.action) {
+            createdFollowup = await crmService.createFollowup(
+              {
+                customerId: resolvedCustomerId!,
+                sourceInteractionId: createdInteraction.interactionId,
+                action: followup.action,
+                dueAt: followup.dueAt,
+                status: "OPEN",
+              },
+              tx
+            );
+          }
+
+          return { customerId: resolvedCustomerId, interaction: createdInteraction, followup: createdFollowup };
+        }, { isolationLevel: "read committed" });
+        // READ COMMITTED, scopée à cette seule transaction — même raison que
+        // routes.dna.ts (22 août 2026) : createCustomer()/allocateCustomerId()
+        // verrouillent via FOR UPDATE, et sous REPEATABLE READ (défaut) deux
+        // transactions concurrentes s'y bloquent en ER_LOCK_DEADLOCK plutôt
+        // que de se sérialiser proprement (vérifié empiriquement).
+      } catch (e: any) {
+        // Course réelle perdue contre un appel concurrent avec le même
+        // clientRequestId : celui-ci a déjà committé pendant que cette
+        // transaction était en cours — elle est intégralement annulée
+        // (customer y compris s'il venait d'être créé), on relit simplement
+        // la version gagnante plutôt que de renvoyer une erreur brute.
+        // ER_LOCK_DEADLOCK inclus : READ COMMITTED réduit très fortement le
+        // risque mais ne l'élimine pas totalement sur une fenêtre de course
+        // assez étroite.
+        if ((e?.code === "ER_DUP_ENTRY" || e?.code === "ER_LOCK_DEADLOCK") && clientRequestId) {
+          const already = await loadAlreadyValidated(clientRequestId);
+          if (already) return res.status(200).json(already);
+        }
+        throw e;
       }
 
-      res.status(201).json({
-        customerId: resolvedCustomerId,
-        interaction: createdInteraction,
-        followup: createdFollowup,
-      });
+      res.status(201).json(result);
     } catch (error) {
       console.error("[POST /api/crm/analyze-conversation/validate]", error);
       res.status(500).json({ error: "Erreur lors de l'enregistrement" });

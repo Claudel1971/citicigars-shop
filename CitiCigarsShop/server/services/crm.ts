@@ -87,15 +87,16 @@ export async function createCustomer(input: InsertCustomer, exec: DbOrTx = db): 
 
 export async function updateCustomer(
   customerId: string,
-  updates: Partial<InsertCustomer>
+  updates: Partial<InsertCustomer>,
+  exec: DbOrTx = db
 ): Promise<typeof customers.$inferSelect | undefined> {
   const patch: Partial<typeof customers.$inferInsert> = { ...updates };
   if (typeof updates.phoneWhatsapp === "string") {
     patch.phoneWhatsapp = normalizePhone(updates.phoneWhatsapp);
     patch.phoneRaw = updates.phoneWhatsapp;
   }
-  await db.update(customers).set(patch).where(eq(customers.customerId, customerId));
-  const [updated] = await db.select().from(customers).where(eq(customers.customerId, customerId));
+  await exec.update(customers).set(patch).where(eq(customers.customerId, customerId));
+  const [updated] = await exec.select().from(customers).where(eq(customers.customerId, customerId));
   return updated;
 }
 
@@ -184,13 +185,13 @@ export async function getCustomerDetail(customerId: string) {
 // Interactions (append-only — never overwrite history)
 // ---------------------------------------------------------------------------
 
-export async function addInteraction(input: InsertCustomerInteraction) {
+export async function addInteraction(input: InsertCustomerInteraction, exec: DbOrTx = db) {
   const interactionId = generateId();
-  await db.insert(customerInteractions).values({
+  await exec.insert(customerInteractions).values({
     ...input,
     interactionId,
   } as typeof customerInteractions.$inferInsert);
-  const [created] = await db
+  const [created] = await exec
     .select()
     .from(customerInteractions)
     .where(eq(customerInteractions.interactionId, interactionId));
@@ -234,11 +235,11 @@ export async function recordDnaResult(input: InsertCustomerDna, exec: DbOrTx = d
 // from the latest interaction's next_action_at.
 // ---------------------------------------------------------------------------
 
-export async function createFollowup(input: InsertCrmFollowup) {
-  const existing = await db.select({ followupId: crmFollowups.followupId }).from(crmFollowups);
+export async function createFollowup(input: InsertCrmFollowup, exec: DbOrTx = db) {
+  const existing = await exec.select({ followupId: crmFollowups.followupId }).from(crmFollowups);
   const followupId = formatCtcgId("FUP", nextSequenceFromExisting(existing.map((r) => r.followupId)));
-  await db.insert(crmFollowups).values({ ...input, followupId } as typeof crmFollowups.$inferInsert);
-  const [created] = await db.select().from(crmFollowups).where(eq(crmFollowups.followupId, followupId));
+  await exec.insert(crmFollowups).values({ ...input, followupId } as typeof crmFollowups.$inferInsert);
+  const [created] = await exec.select().from(crmFollowups).where(eq(crmFollowups.followupId, followupId));
   return created;
 }
 

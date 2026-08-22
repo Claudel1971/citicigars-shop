@@ -50,6 +50,13 @@
                         "when":  1787261000000,
                         "tag":  "0006_crm_sales_phase1",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  7,
+                        "version":  "5",
+                        "when":  1787360000000,
+                        "tag":  "0008_crm_interaction_idempotency",
+                        "breakpoints":  true
                     }
                 ]
 }

@@ -77,11 +77,19 @@ export const customerInteractions = mysqlTable(
     nextActionAt: date("next_action_at"),
     sourceType: mysqlEnum("source_type", interactionSourceTypeValues).notNull().default("manual"),
     createdBy: mysqlEnum("created_by", interactionCreatedByValues).notNull().default("human"),
+    // Nullable + unique: MySQL allows multiple NULLs in a unique index, so
+    // pre-existing rows (manual interactions, historical data) are unaffected
+    // — no backfill needed. Idempotence key for /analyze-conversation/validate
+    // (WhatsApp Analysis, 22 août 2026) : le client génère un clientRequestId
+    // une seule fois par proposition analysée et le réutilise si /validate est
+    // rappelé (double clic, retry) — même stratégie que dna_leads/customer_dna.
+    sourceRequestId: varchar("source_request_id", { length: 100 }),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
     customerIdx: index("idx_interactions_customer").on(table.customerId),
     nextActionIdx: index("idx_interactions_next_action").on(table.nextActionAt),
+    sourceRequestUnique: unique("uq_interactions_source_request").on(table.sourceRequestId),
   })
 );
 

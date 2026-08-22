@@ -44,6 +44,11 @@ const ConversationAnalyzer = () => {
   const [result, setResult] = useState(null);
 
   const [edited, setEdited] = useState({});
+  // Généré une seule fois par proposition analysée, réutilisé tel quel par
+  // /validate — clé d'idempotence côté serveur (customer_interactions.source_request_id) :
+  // un second clic sur "Valider" avec ce même id ne crée jamais une seconde
+  // ligne, même après un succès déjà enregistré.
+  const [clientRequestId, setClientRequestId] = useState(null);
 
   const analyze = async () => {
     if (!rawText.trim()) return;
@@ -67,6 +72,7 @@ const ConversationAnalyzer = () => {
       const data = await res.json();
 
       setProposal(data);
+      setClientRequestId(crypto.randomUUID());
       setEdited({
         firstName: data.suggestedFirstName?.value || '',
         lastName: data.suggestedLastName?.value || '',
@@ -100,6 +106,7 @@ const ConversationAnalyzer = () => {
 
     try {
       const body = {
+        clientRequestId,
         customerId: proposal.matchedCustomerId || undefined,
 
         newCustomer: proposal.matchedCustomerId
@@ -197,7 +204,7 @@ const ConversationAnalyzer = () => {
 
       {result && (
         <p className="text-green-700 mt-3">
-          ✓ Enregistré — client {result.customerId}
+          {result.alreadyValidated ? 'Déjà enregistré' : '✓ Enregistré'} — client {result.customerId}
           {result.followup ? ' + relance créée' : ''}.
         </p>
       )}
