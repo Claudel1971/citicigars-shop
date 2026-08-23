@@ -468,7 +468,7 @@ async function retryResolution(){
 }
 
 document.getElementById('wantReco').addEventListener('click',()=>{openContactGateNormal()});
-document.getElementById('noReco').addEventListener('click',()=>{document.getElementById('contactGate').hidden=true;document.getElementById('declineNote').hidden=false;document.getElementById('recoWrap').innerHTML='';
+document.getElementById('noReco').addEventListener('click',()=>{document.getElementById('contactGate').hidden=true;document.getElementById('declineNote').hidden=false;document.getElementById('recoWrap').innerHTML=''});
 
 function openContactGateNormal(){
   document.getElementById('contactGateTitle').textContent='Votre sélection personnalisée';
@@ -604,7 +604,8 @@ function renderPage6Block1(items){
   }).join('');
 }
 
-function document.getElementById('recoWrap').innerHTML='';
+function renderRecommendations(items,{append=false}={}){
+  const wrap=document.getElementById('recoWrap');
   if(!append) wrap.innerHTML='';
   if(!Array.isArray(items)||!items.length){
     if(!append) wrap.innerHTML='<div class="system-note">Nous n’avons pas actuellement de référence en stock qui corresponde suffisamment à votre profil. Votre Cigar DNA reste enregistré et nous pourrons vous proposer une alternative lorsque la sélection évoluera.</div>';
