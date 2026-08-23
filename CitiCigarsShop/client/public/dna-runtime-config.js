@@ -18,6 +18,15 @@
     return;
   }
 
+  if (window.location.hostname.endsWith(".onrender.com")) {
+    window.CITICIGARS_RUNTIME_CONFIG = {
+      ...current,
+      API_BASE: `${window.location.origin}/api`,
+      DNA_PILOT_MODE: current.DNA_PILOT_MODE === true,
+    };
+    return;
+  }
+
   // Fail closed outside local development. The WHC staging and production
   // deployments replace this public runtime file with the matching Render
   // API_BASE before publishing the HTML. No production URL is a fallback.
@@ -26,3 +35,4 @@
     DNA_PILOT_MODE: current.DNA_PILOT_MODE === true,
   };
 })(window);
+
