@@ -6,8 +6,24 @@ CTGBDL004,CTCG-BDL-000004,Coffret Composite,YES,Exact mapping; update all FK/har
 CTGBDL005,CTCG-BDL-000005,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGBDL006,CTCG-BDL-000006,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGBDL007,CTCG-BDL-000007,Coffret Composite,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGCU0001,CTCG-CU-000001,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0002,CTCG-CU-000002,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0003,CTCG-CU-000003,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0004,CTCG-CU-000004,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0005,CTCG-CU-000005,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0006,CTCG-CU-000006,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0007,CTCG-CU-000007,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0008,CTCG-CU-000008,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0009,CTCG-CU-000009,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0010,CTCG-CU-000010,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0011,CTCG-CU-000011,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0012,CTCG-CU-000012,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0013,CTCG-CU-000013,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0014,CTCG-CU-000014,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGCU0015,CTCG-CU-000015,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- ligne cubaine, préfixe CU nouveau; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
 CTGHO0001,CTCG-HO-000001,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0001,CTCG-NI-000001,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0002,CTCG-NI-000002,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
 CTGNI0003,CTCG-NI-000003,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0004,CTCG-NI-000004,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0005,CTCG-NI-000005,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
@@ -26,9 +42,7 @@ CTGNI0017,CTCG-NI-000017,Boîte,YES,Exact mapping; update all FK/hardcoded refer
 CTGNI0018,CTCG-NI-000018,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0019,CTCG-NI-000019,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0020,CTCG-NI-000020,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
-CTGNI0020-P,CTCG-NI-000020-P,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0021,CTCG-NI-000021,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
-CTGNI0021-P,CTCG-NI-000021-P,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0022,CTCG-NI-000022,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0023,CTCG-NI-000023,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0024,CTCG-NI-000024,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
@@ -37,8 +51,19 @@ CTGNI0026,CTCG-NI-000026,Boîte,YES,Exact mapping; update all FK/hardcoded refer
 CTGNI0027,CTCG-NI-000027,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0028,CTCG-NI-000028,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0029,CTCG-NI-000029,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0030,CTCG-NI-000030,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
 CTGNI0032,CTCG-NI-000032,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGNI0033,CTCG-NI-000033,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGNI0034,CTCG-NI-000034,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0035,CTCG-NI-000035,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0036,CTCG-NI-000036,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0037,CTCG-NI-000037,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0038,CTCG-NI-000038,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0039,CTCG-NI-000039,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0040,CTCG-NI-000040,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0041,CTCG-NI-000041,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0042,CTCG-NI-000042,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
+CTGNI0043,CTCG-NI-000043,Boîte,YES,Nouveau mapping validé par Claudel (27 SKU sans équivalent, 20260822) -- numéro legacy conservé; kind=CIGAR confirmé en base, type stock non revérifié indépendamment (champ documentaire).
 CTGRD0001,CTCG-RD-000001,Pack,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGRD0002,CTCG-RD-000002,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGRD0003,CTCG-RD-000003,Boîte,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
@@ -56,5 +81,5 @@ CTGACC-HUM,CTCG-ACC-HUM,Accessoire,YES,Exact mapping; update all FK/hardcoded re
 CTGACC-CUT,CTCG-ACC-CUT,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGACC-CAP,CTCG-ACC-CAP,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
 CTGACC-BRI,CTCG-ACC-BRI,Accessoire,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
-CTGSRV-PER,CTCG-SRV-PER,Service,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
-CTGSRV-SAC,CTCG-SRV-SAC,Service,YES,Exact mapping; update all FK/hardcoded references in same controlled migration.
+CTGSRV-PER,CTCG-SRV-PER,Service,NO,Historique/orphelin -- aucune ligne skus jamais créée pour ce service (jamais suivi en stock); déjà utilisé au format CTCG-SRV-PER dans les ventes historiques réelles importées (scripts/master2_order_items.csv). Aucune action de migration nécessaire, gardé ici pour traçabilité uniquement.
+CTGSRV-SAC,CTCG-SRV-SAC,Service,NO,Historique/orphelin -- aucune ligne skus jamais créée pour ce service (jamais suivi en stock); déjà utilisé au format CTCG-SRV-SAC dans les ventes historiques réelles importées (scripts/master2_order_items.csv). Aucune action de migration nécessaire, gardé ici pour traçabilité uniquement.
