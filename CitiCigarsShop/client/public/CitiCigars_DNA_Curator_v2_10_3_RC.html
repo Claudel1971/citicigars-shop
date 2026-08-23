@@ -108,19 +108,12 @@ button,input,select{font:inherit} button{cursor:pointer} [hidden]{display:none!i
 
 <section class="screen" data-step="2"><div class="card question-card">
   <h2>Continuons avec votre univers aromatique</h2>
-  <p class="q-help">Choisissez celui vers lequel vous revenez le plus spontanément.</p>
+  <p class="q-help">Choisissez les 2 vers lesquels vous revenez le plus spontanément.</p>
   <div class="choice-grid two" data-group="family">
     <button class="choice" data-val="veloute"><span class="main">Crémeux & rond</span><span class="sub">Soyeux, doux, enveloppant.</span></button>
     <button class="choice" data-val="boise"><span class="main">Bois & noix</span><span class="sub">Cèdre, bois nobles, structure, élégance.</span></button>
     <button class="choice" data-val="gourmand"><span class="main">Cacao & café</span><span class="sub">Chocolat, notes chaleureuses, richesse.</span></button>
     <button class="choice" data-val="fauve"><span class="main">Terre & cuir</span><span class="sub">Sous-bois, profondeur, caractère.</span></button>
-  </div>
-  <div class="secondary-wrap" id="secondaryWrap" hidden>
-    <div class="secondary-title">Un second univers vous attire aussi ? <span style="font-size:11px">(facultatif)</span></div>
-    <div class="chips" data-group="secondaryFamily">
-      <button class="chip" data-val="veloute">Crémeux & rond</button><button class="chip" data-val="boise">Bois & noix</button><button class="chip" data-val="gourmand">Cacao & café</button><button class="chip" data-val="fauve">Terre & cuir</button>
-    </div>
-    <button class="skip" id="clearSecondary">Aucune seconde préférence</button>
   </div>
   <div class="nav"><button class="back">Retour</button><div class="spacer"></div><button class="next" disabled>Suivant</button></div>
   <div class="stepper" aria-label="Progression du test"><span class="step-seg active"></span><span class="step-seg active"></span><span class="step-seg"></span><span class="step-seg"></span></div>
@@ -275,7 +268,7 @@ function buildDNA(a){
 function showStep(n){step=Math.max(0,Math.min(5,n));document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',+s.dataset.step===step));window.scrollTo({top:0,behavior:'smooth'});syncNav()}
 function syncNav(){
   document.querySelector('.screen[data-step="1"] .next').disabled=!(answers.power&&answers.intensity);
-  document.querySelector('.screen[data-step="2"] .next').disabled=!answers.family;
+  document.querySelector('.screen[data-step="2"] .next').disabled=!(answers.family&&answers.secondaryFamily);
   document.querySelector('.screen[data-step="3"] .next').disabled=!(answers.spice!==undefined&&answers.sweetness!==undefined);
   document.getElementById('revealBtn').disabled=!(answers.duration&&answers.ritualMoments.length);
 }
@@ -283,12 +276,15 @@ function setAxis(axis,val){answers[axis]=val==='none'?null:+val;document.querySe
 document.querySelectorAll('[data-axis] button').forEach(b=>b.addEventListener('click',()=>setAxis(b.parentElement.dataset.axis,b.dataset.val)));
 
 document.querySelectorAll('[data-group="family"] .choice').forEach(b=>b.addEventListener('click',()=>{
-  answers.family=b.dataset.val;document.querySelectorAll('[data-group="family"] .choice').forEach(x=>x.classList.toggle('sel',x===b));
-  document.getElementById('secondaryWrap').hidden=false;
-  document.querySelectorAll('[data-group="secondaryFamily"] .chip').forEach(x=>{const same=x.dataset.val===answers.family;x.classList.toggle('disabled',same);if(same&&x.classList.contains('sel')){x.classList.remove('sel');answers.secondaryFamily=null}});syncNav();
+  const val=b.dataset.val;
+  if(answers.family===val){answers.family=answers.secondaryFamily;answers.secondaryFamily=null}
+  else if(answers.secondaryFamily===val){answers.secondaryFamily=null}
+  else if(!answers.family){answers.family=val}
+  else if(!answers.secondaryFamily){answers.secondaryFamily=val}
+  // sinon : 2 deja selectionnes, ce 3e choix est ignore (jamais 3 en meme temps)
+  document.querySelectorAll('[data-group="family"] .choice').forEach(x=>x.classList.toggle('sel',x.dataset.val===answers.family||x.dataset.val===answers.secondaryFamily));
+  syncNav();
 }));
-document.querySelectorAll('[data-group="secondaryFamily"] .chip').forEach(b=>b.addEventListener('click',()=>{if(b.classList.contains('disabled'))return;const chosen=answers.secondaryFamily===b.dataset.val?null:b.dataset.val;answers.secondaryFamily=chosen;document.querySelectorAll('[data-group="secondaryFamily"] .chip').forEach(x=>x.classList.toggle('sel',x.dataset.val===chosen))}));
-document.getElementById('clearSecondary').addEventListener('click',()=>{answers.secondaryFamily=null;document.querySelectorAll('[data-group="secondaryFamily"] .chip').forEach(x=>x.classList.remove('sel'))});
 
 document.querySelectorAll('#signatureChips button').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.val;if(v==='none'){answers.signatures=[];answers.signatureNoPreference=!answers.signatureNoPreference;document.querySelectorAll('#signatureChips button').forEach(x=>x.classList.remove('sel'));if(answers.signatureNoPreference)b.classList.add('sel');return}answers.signatureNoPreference=false;document.querySelector('#signatureChips [data-val="none"]').classList.remove('sel');const ix=answers.signatures.indexOf(v);if(ix>=0){answers.signatures.splice(ix,1);b.classList.remove('sel')}else if(answers.signatures.length<2){answers.signatures.push(v);b.classList.add('sel')}}));
 document.querySelectorAll('[data-group="duration"] .choice').forEach(b=>b.addEventListener('click',()=>{answers.duration=b.dataset.val;document.querySelectorAll('[data-group="duration"] .choice').forEach(x=>x.classList.toggle('sel',x===b));syncNav()}));
