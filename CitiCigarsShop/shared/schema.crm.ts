@@ -203,6 +203,41 @@ export const customerSourcingInterests = mysqlTable(
 );
 
 // ---------------------------------------------------------------------------
+// CUSTOMER CIGAR PREFERENCES
+// 1 row = 1 cigar declared by 1 customer in Page 6 Bloc 3.
+// referenceId is nullable when the customer uses "Autre".
+// ---------------------------------------------------------------------------
+
+export const customerCigarPreferences = mysqlTable(
+  "customer_cigar_preferences",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    customerId: varchar("customer_id", { length: 36 })
+      .notNull()
+      .references(() => customers.customerId, { onDelete: "cascade" }),
+    sourceRequestId: varchar("source_request_id", { length: 100 }).notNull(),
+    position: int("position").notNull(),
+    referenceId: varchar("reference_id", { length: 64 }),
+    brand: varchar("brand", { length: 255 }).notNull(),
+    line: varchar("line", { length: 255 }).notNull(),
+    dimensionsRaw: varchar("dimensions_raw", { length: 100 }),
+    dimensionsNormalized: varchar("dimensions_normalized", { length: 100 }).notNull(),
+    format: varchar("format", { length: 100 }),
+    vitola: varchar("vitola", { length: 100 }),
+    source: varchar("source", { length: 30 }).notNull().default("DNA"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    customerIdx: index("idx_cigar_preferences_customer").on(table.customerId),
+    referenceIdx: index("idx_cigar_preferences_reference").on(table.referenceId),
+    requestPositionUnique: unique("uq_cigar_preferences_request_position").on(
+      table.sourceRequestId,
+      table.position
+    ),
+  })
+);
+
+// ---------------------------------------------------------------------------
 // Zod insert schemas + types
 // ---------------------------------------------------------------------------
 
@@ -230,6 +265,11 @@ export const insertCustomerSourcingInterestSchema = createInsertSchema(customerS
   updatedAt: true,
 });
 
+export const insertCustomerCigarPreferenceSchema = createInsertSchema(customerCigarPreferences).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type CustomerInteraction = typeof customerInteractions.$inferSelect;
@@ -240,3 +280,5 @@ export type CrmFollowup = typeof crmFollowups.$inferSelect;
 export type InsertCrmFollowup = z.infer<typeof insertCrmFollowupSchema>;
 export type CustomerSourcingInterest = typeof customerSourcingInterests.$inferSelect;
 export type InsertCustomerSourcingInterest = z.infer<typeof insertCustomerSourcingInterestSchema>;
+export type CustomerCigarPreference = typeof customerCigarPreferences.$inferSelect;
+export type InsertCustomerCigarPreference = z.infer<typeof insertCustomerCigarPreferenceSchema>;
