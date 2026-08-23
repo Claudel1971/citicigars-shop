@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, varchar, int, text, boolean, json, timestamp, mysqlEnum, primaryKey, index, uniqueIndex } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, int, text, boolean, json, timestamp, date, mysqlEnum, primaryKey, index, uniqueIndex } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -191,6 +191,28 @@ export const dnaAvailabilityWatch = mysqlTable("dna_availability_watch", {
   statusIdx: index("idx_dna_watch_status").on(table.status),
 }));
 
+// --- 9. priorisation (priorité commerciale de liquidation, DNA Curator V2) ---
+// Ne couvre QUE les SKU ayant une priorité commerciale explicite (P1/P2) --
+// un SKU absent de cette table participe normalement au moteur DNA par son
+// seul score (aucune ligne ici != exclu du Curator; l'exclusion complète se
+// fait en amont, au niveau du stock/catalogue, comme un stock=0). La fenêtre
+// d'application (score >= meilleur_score - 5) et l'ordre P1 avant P2 sont une
+// responsabilité de la fonction de priorisation, pas de cette table.
+export const priorisation = mysqlTable("priorisation", {
+  id: int("id").primaryKey().autoincrement(),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  priorityLevel: int("priority_level").notNull(), // 1 ou 2
+  active: boolean("active").notNull().default(true),
+  reason: varchar("reason", { length: 500 }),
+  validFrom: date("valid_from").notNull(),
+  validTo: date("valid_to"), // NULL = sans expiration
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  skuIdx: index("idx_priorisation_sku").on(table.sku),
+  activeIdx: index("idx_priorisation_active").on(table.active),
+}));
+
 // --- Zod insert schemas + types ---
 export const insertCigarCatalogSchema = createInsertSchema(cigarCatalog);
 export const insertAccessorySchema = createInsertSchema(accessories);
@@ -211,4 +233,6 @@ export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type DnaLead = typeof dnaLeads.$inferSelect;
 export type InsertDnaLead = z.infer<typeof insertDnaLeadSchema>;
 export type DnaAvailabilityWatch = typeof dnaAvailabilityWatch.$inferSelect;
+export type Priorisation = typeof priorisation.$inferSelect;
+export type InsertPriorisation = typeof priorisation.$inferInsert;
 export type InsertDnaAvailabilityWatch = z.infer<typeof insertDnaAvailabilityWatchSchema>;

@@ -1,62 +1,69 @@
 {
-    "version":  "7",
-    "dialect":  "mysql",
-    "entries":  [
-                    {
-                        "idx":  0,
-                        "version":  "5",
-                        "when":  1786866770314,
-                        "tag":  "0000_existing_schema_baseline",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  1,
-                        "version":  "5",
-                        "when":  1786866788507,
-                        "tag":  "0001_stock_central_new_tables",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  2,
-                        "version":  "5",
-                        "when":  1786866802430,
-                        "tag":  "0002_stock_central_backfill_skus",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  3,
-                        "version":  "5",
-                        "when":  1786866867517,
-                        "tag":  "0003_stock_central_alter_existing_columns",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  4,
-                        "version":  "5",
-                        "when":  1786866891682,
-                        "tag":  "0004_stock_central_foreign_keys",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  5,
-                        "version":  "5",
-                        "when":  1786866906021,
-                        "tag":  "0005_stock_central_triggers",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  6,
-                        "version":  "5",
-                        "when":  1787261000000,
-                        "tag":  "0006_crm_sales_phase1",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  7,
-                        "version":  "5",
-                        "when":  1787360000000,
-                        "tag":  "0008_crm_interaction_idempotency",
-                        "breakpoints":  true
-                    }
-                ]
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786866770314,
+      "tag": "0000_existing_schema_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786866788507,
+      "tag": "0001_stock_central_new_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786866802430,
+      "tag": "0002_stock_central_backfill_skus",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1786866867517,
+      "tag": "0003_stock_central_alter_existing_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786866891682,
+      "tag": "0004_stock_central_foreign_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1786866906021,
+      "tag": "0005_stock_central_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787261000000,
+      "tag": "0006_crm_sales_phase1",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1787360000000,
+      "tag": "0008_crm_interaction_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787444641078,
+      "tag": "0009_dna_priorisation",
+      "breakpoints": true
+    }
+  ]
 }
