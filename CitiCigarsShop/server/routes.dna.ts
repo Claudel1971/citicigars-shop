@@ -1,6 +1,6 @@
-// Les 3 endpoints P0 DNA (mission V6 Â§14) : disponibilitÃ© live, contact, watch.
-// Ne modifie jamais le frontend DNA â€” ce fichier existe pour que resolveDnaPool()
-// puisse Ãªtre branchÃ© en live plus tard, sans changer son contrat.
+// Les 3 endpoints P0 DNA (mission V6 §14) : disponibilité live, contact, watch.
+// Ne modifie jamais le frontend DNA — ce fichier existe pour que resolveDnaPool()
+// puisse être branché en live plus tard, sans changer son contrat.
 
 import type { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
@@ -16,26 +16,26 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
-// DÃ©fense en profondeur pour POST /api/dna/contact (22 aoÃ»t 2026) â€” la
-// validation rÃ©elle par pays (longueur, format) a dÃ©jÃ  lieu cÃ´tÃ© Curator via
-// libphonenumber-js ; ce regex ne vÃ©rifie que la forme E.164 gÃ©nÃ©rique
-// (ITU-T E.164 : + suivi de 8 Ã  15 chiffres, premier chiffre non nul).
+// Défense en profondeur pour POST /api/dna/contact (22 août 2026) — la
+// validation réelle par pays (longueur, format) a déjà lieu côté Curator via
+// libphonenumber-js ; ce regex ne vérifie que la forme E.164 générique
+// (ITU-T E.164 : + suivi de 8 à 15 chiffres, premier chiffre non nul).
 const E164_PHONE_RE = /^\+[1-9]\d{7,14}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Garde-fous repris tels quels de l'ancien handler mort de routes.crm.ts
-// (rÃ©conciliation, 20 aoÃ»t) : rate limit dÃ©diÃ© + garde de taille de payload.
+// (réconciliation, 20 août) : rate limit dédié + garde de taille de payload.
 const dnaContactRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  max: 20, // gÃ©nÃ©reux pour une instance Curator unique, assez strict pour freiner un abus
+  max: 20, // généreux pour une instance Curator unique, assez strict pour freiner un abus
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Trop de requÃªtes, rÃ©essayez dans un instant." },
+  message: { error: "Trop de requêtes, réessayez dans un instant." },
 });
 
 function dnaContactBodyGuard(req: any, res: any, next: any) {
   const contentLength = parseInt(req.headers["content-length"] || "0", 10);
-  const MAX_BYTES = 200 * 1024; // 200KB â€” gÃ©nÃ©reux pour un payload DNA, assez petit pour freiner un abus
+  const MAX_BYTES = 200 * 1024; // 200KB — généreux pour un payload DNA, assez petit pour freiner un abus
   if (contentLength > MAX_BYTES) {
     console.warn(`[dna/contact] rejected: payload too large (${contentLength} bytes)`);
     res.status(413).json({ error: "Payload trop volumineux" });
@@ -45,9 +45,9 @@ function dnaContactBodyGuard(req: any, res: any, next: any) {
 }
 
 export function registerDnaRoutes(app: Express): void {
-  // Task 5 â€” scoring DNA V2 sur le snapshot MASTER v5, filtrÃ© par le stock
-  // commercial rÃ©el de Stock Central Ã  chaque requÃªte. Les 12 SKU
-  // "RÃ©servÃ© - activation" sont exclus avant scoring.
+  // Task 5 — scoring DNA V2 sur le snapshot MASTER v5, filtré par le stock
+  // commercial réel de Stock Central à chaque requête. Les 12 SKU
+  // "Réservé - activation" sont exclus avant scoring.
   app.post("/api/dna/recommendations-v2", async (req: Request, res: Response) => {
     try {
       const client = req.body?.client ?? req.body;
@@ -65,15 +65,16 @@ export function registerDnaRoutes(app: Express): void {
       res.status(500).json({ error: "dna_recommendations_failed" });
     }
   });
-  // POST /api/dna/availability â€” batch unique, disponibilitÃ© Pack/Box uniquement.
-  // Contrat volontairement identique Ã  liveAvailabilityByCigarId cÃ´tÃ© moteur
+
+  // POST /api/dna/availability — batch unique, disponibilité Pack/Box uniquement.
+  // Contrat volontairement identique à liveAvailabilityByCigarId côté moteur
   // (shared/dna-engine.cjs) : { [cigarId]: { packAvailable, boxAvailable } },
-  // directement rÃ©utilisable sans transformation une fois le live branchÃ©.
+  // directement réutilisable sans transformation une fois le live branché.
   app.post("/api/dna/availability", async (req: Request, res: Response) => {
     try {
       const cigarIds = req.body?.cigarIds;
       if (!Array.isArray(cigarIds) || cigarIds.length === 0 || !cigarIds.every(isNonEmptyString)) {
-        res.status(400).json({ error: "invalid_request", message: "cigarIds doit Ãªtre un tableau non vide de chaÃ®nes." });
+        res.status(400).json({ error: "invalid_request", message: "cigarIds doit être un tableau non vide de chaînes." });
         return;
       }
       if (cigarIds.length > MAX_CIGAR_IDS_PER_BATCH) {
@@ -84,11 +85,11 @@ export function registerDnaRoutes(app: Express): void {
       const { resolved, unresolved } = await stockStorage.getAvailabilityForCigarIds(cigarIds);
 
       if (unresolved.length > 0) {
-        // RÃ©ponse volontairement NON-2xx et explicite (audit, point 3) : un
-        // CIGAR_ID non rÃ©solu ne doit jamais Ãªtre omis silencieusement d'une
-        // rÃ©ponse 200, ce qui produirait un faux "indisponible" indiscernable
-        // d'un vrai N=0 cÃ´tÃ© DNA. Le frontend doit pouvoir distinguer cet Ã©tat
-        // et dÃ©clencher RESOLUTION_ERROR plutÃ´t que d'afficher un rÃ©sultat.
+        // Réponse volontairement NON-2xx et explicite (audit, point 3) : un
+        // CIGAR_ID non résolu ne doit jamais être omis silencieusement d'une
+        // réponse 200, ce qui produirait un faux "indisponible" indiscernable
+        // d'un vrai N=0 côté DNA. Le frontend doit pouvoir distinguer cet état
+        // et déclencher RESOLUTION_ERROR plutôt que d'afficher un résultat.
         res.status(502).json({ error: "unresolved_cigar_ids", unresolved, resolved });
         return;
       }
@@ -100,13 +101,13 @@ export function registerDnaRoutes(app: Express): void {
     }
   });
 
-  // POST /api/dna/contact â€” RÃ‰CONCILIÃ‰ (20 aoÃ»t 2026) : contrat HTTP rÃ©el du
-  // Curator inchangÃ©, mais exÃ©cute dÃ©sormais dans la mÃªme requÃªte (1) la
-  // persistance Ã©vÃ©nementielle dna_leads et (2) la rÃ©solution/crÃ©ation du
+  // POST /api/dna/contact — RÉCONCILIÉ (20 août 2026) : contrat HTTP réel du
+  // Curator inchangé, mais exécute désormais dans la même requête (1) la
+  // persistance événementielle dna_leads et (2) la résolution/création du
   // client CRM + customer_dna. Garde-fous repris de l'ancien handler mort de
   // routes.crm.ts (rate limit, garde de taille, validation stricte,
-  // journalisation structurÃ©e des rejets) â€” plus un seul handler pour cette
-  // route, l'ancien enregistrement dans routes.crm.ts est retirÃ©.
+  // journalisation structurée des rejets) — plus un seul handler pour cette
+  // route, l'ancien enregistrement dans routes.crm.ts est retiré.
   app.post("/api/dna/contact", dnaContactRateLimit, dnaContactBodyGuard, async (req: Request, res: Response) => {
     try {
       const body = req.body ?? {};
@@ -140,32 +141,32 @@ export function registerDnaRoutes(app: Express): void {
         return;
       }
 
-      // DÃ©fense en profondeur (22 aoÃ»t 2026) : le Curator assemble et valide dÃ©jÃ 
-      // le numÃ©ro en E.164 via libphonenumber-js cÃ´tÃ© client avant l'envoi â€” ce
+      // Défense en profondeur (22 août 2026) : le Curator assemble et valide déjà
+      // le numéro en E.164 via libphonenumber-js côté client avant l'envoi — ce
       // garde-fou ne fait que refuser explicitement tout appel qui contournerait
-      // cette validation (jamais silencieusement tolÃ©rÃ©), mÃªme principe que le
+      // cette validation (jamais silencieusement toléré), même principe que le
       // rejet serveur du consentement juste en dessous.
       if (!E164_PHONE_RE.test(contact.phone)) {
         console.warn("[dna/contact] rejected: invalid_phone_format", { clientRequestId, phone: contact.phone });
         res.status(400).json({
           error: "invalid_phone_format",
-          message: "contact.phone doit Ãªtre un numÃ©ro E.164 valide (+indicatif suivi de chiffres, ex. +15148929488).",
+          message: "contact.phone doit être un numéro E.164 valide (+indicatif suivi de chiffres, ex. +15148929488).",
         });
         return;
       }
       if (!EMAIL_RE.test(contact.email)) {
         console.warn("[dna/contact] rejected: invalid_email_format", { clientRequestId });
-        res.status(400).json({ error: "invalid_email_format", message: "contact.email doit Ãªtre une adresse email valide." });
+        res.status(400).json({ error: "invalid_email_format", message: "contact.email doit être une adresse email valide." });
         return;
       }
 
-      // DÃ©cision de consentement de Claudel (remplace toute logique prÃ©cÃ©dente) :
-      // rejetÃ© si absent, false, ou toute valeur autre que le boolÃ©en strict true.
-      // Le backend ne fabrique jamais consentGiven=true lui-mÃªme. Aucune Ã©criture
-      // (ni dna_leads ni CRM) tant que ceci n'a pas Ã©tÃ© validÃ©.
+      // Décision de consentement de Claudel (remplace toute logique précédente) :
+      // rejeté si absent, false, ou toute valeur autre que le booléen strict true.
+      // Le backend ne fabrique jamais consentGiven=true lui-même. Aucune écriture
+      // (ni dna_leads ni CRM) tant que ceci n'a pas été validé.
       if (body.consentGiven !== true) {
         console.warn("[dna/contact] rejected: consent_required", { clientRequestId });
-        res.status(400).json({ error: "consent_required", message: "consentGiven doit Ãªtre explicitement true." });
+        res.status(400).json({ error: "consent_required", message: "consentGiven doit être explicitement true." });
         return;
       }
 
@@ -175,9 +176,9 @@ export function registerDnaRoutes(app: Express): void {
         return;
       }
 
-      // Transaction unique : dna_leads (trace d'Ã©vÃ©nement) + rÃ©solution/
-      // crÃ©ation client CRM + customer_dna, ensemble ou pas du tout â€” jamais
-      // un dna_leads Ã©crit avec un lien CRM manquant Ã  cÃ´tÃ© sans le savoir.
+      // Transaction unique : dna_leads (trace d'événement) + résolution/
+      // création client CRM + customer_dna, ensemble ou pas du tout — jamais
+      // un dna_leads écrit avec un lien CRM manquant à côté sans le savoir.
       const { lead, created, crm } = await db.transaction(async (tx) => {
         const { lead, created } = await stockStorage.upsertLeadIdempotent(
           {
@@ -207,25 +208,25 @@ export function registerDnaRoutes(app: Express): void {
           tx
         );
 
-        // TentÃ©e systÃ©matiquement, mÃªme si le lead existait dÃ©jÃ  (retry) :
-        // ingestDnaResult() est elle-mÃªme idempotente sur sourceRequestId
-        // (=clientRequestId), donc un retry aprÃ¨s un Ã©chec CRM prÃ©cÃ©dent
-        // complÃ¨te le lien manquant au lieu de s'arrÃªter court sur le lead.
+        // Tentée systématiquement, même si le lead existait déjà (retry) :
+        // ingestDnaResult() est elle-même idempotente sur sourceRequestId
+        // (=clientRequestId), donc un retry après un échec CRM précédent
+        // complète le lien manquant au lieu de s'arrêter court sur le lead.
         const crm = await ingestDnaResult(mapCuratorPayloadToCrmIntake(body), tx);
 
         return { lead, created, crm };
       }, { isolationLevel: "read committed" });
-      // READ COMMITTED, scopÃ©e Ã  cette seule transaction (SET TRANSACTION ISOLATION
-      // LEVEL sans SESSION/GLOBAL ne s'applique qu'Ã  la prochaine transaction sur
-      // cette connexion, relÃ¢chÃ©e au pool ensuite â€” aucune autre transaction de
-      // l'app n'est affectÃ©e). NÃ©cessaire car cette transaction fait des relectures
-      // aprÃ¨s capture d'ER_DUP_ENTRY (dna_leads, customer_dna) : sous REPEATABLE
-      // READ (dÃ©faut), l'instantanÃ© de cette transaction est fixÃ© dÃ¨s sa premiÃ¨re
-      // lecture, avant qu'une requÃªte concurrente n'ait committÃ© â€” une relecture
-      // non verrouillÃ©e reste alors aveugle Ã  la ligne pourtant dÃ©jÃ  committÃ©e
-      // (vÃ©rifiÃ© empiriquement sur dna_leads ET customer_dna), et une relecture
-      // verrouillÃ©e (FOR UPDATE) est explicitement refusÃ©e par ce moteur
-      // (ER_CHECKREAD) plutÃ´t que de servir la version fraÃ®che.
+      // READ COMMITTED, scopée à cette seule transaction (SET TRANSACTION ISOLATION
+      // LEVEL sans SESSION/GLOBAL ne s'applique qu'à la prochaine transaction sur
+      // cette connexion, relâchée au pool ensuite — aucune autre transaction de
+      // l'app n'est affectée). Nécessaire car cette transaction fait des relectures
+      // après capture d'ER_DUP_ENTRY (dna_leads, customer_dna) : sous REPEATABLE
+      // READ (défaut), l'instantané de cette transaction est fixé dès sa première
+      // lecture, avant qu'une requête concurrente n'ait committé — une relecture
+      // non verrouillée reste alors aveugle à la ligne pourtant déjà committée
+      // (vérifié empiriquement sur dna_leads ET customer_dna), et une relecture
+      // verrouillée (FOR UPDATE) est explicitement refusée par ce moteur
+      // (ER_CHECKREAD) plutôt que de servir la version fraîche.
 
       res.status(200).json({
         ok: true,
@@ -242,8 +243,8 @@ export function registerDnaRoutes(app: Express): void {
   });
 
 
-  // POST /api/dna/watch â€” retrouve le lead via clientRequestId (le frontend n'a
-  // jamais besoin de connaÃ®tre leadId), crÃ©e le watch idempotent sur leadId.
+  // POST /api/dna/watch — retrouve le lead via clientRequestId (le frontend n'a
+  // jamais besoin de connaître leadId), crée le watch idempotent sur leadId.
   app.post("/api/dna/watch", async (req: Request, res: Response) => {
     try {
       const body = req.body ?? {};
@@ -267,18 +268,18 @@ export function registerDnaRoutes(app: Express): void {
 
       if ("error" in result) {
         if (result.error === "zero_case_required") {
-          res.status(409).json({ error: "zero_case_required", message: "Un watch est rÃ©servÃ© aux leads capturÃ©s dans le cas zÃ©ro." });
+          res.status(409).json({ error: "zero_case_required", message: "Un watch est réservé aux leads capturés dans le cas zéro." });
           return;
         }
         if (result.error === "consent_missing") {
-          // DÃ©cision de consentement de Claudel : source de vÃ©ritÃ© unique = le lead
-          // persistÃ© (lead.consentGiven), jamais un flag rÃ©pÃ©tÃ© dans la requÃªte /watch.
-          // 403 : autorisation sur un Ã©tat existant, pas une erreur de validation de
-          // la requÃªte courante (elle-mÃªme bien formÃ©e).
-          res.status(403).json({ error: "consent_missing", message: "Le lead associÃ© n'a pas de consentement enregistrÃ©." });
+          // Décision de consentement de Claudel : source de vérité unique = le lead
+          // persisté (lead.consentGiven), jamais un flag répété dans la requête /watch.
+          // 403 : autorisation sur un état existant, pas une erreur de validation de
+          // la requête courante (elle-même bien formée).
+          res.status(403).json({ error: "consent_missing", message: "Le lead associé n'a pas de consentement enregistré." });
           return;
         }
-        res.status(404).json({ error: "lead_not_found", message: "Aucun lead trouvÃ© pour ce clientRequestId â€” appelez /api/dna/contact d'abord." });
+        res.status(404).json({ error: "lead_not_found", message: "Aucun lead trouvé pour ce clientRequestId — appelez /api/dna/contact d'abord." });
         return;
       }
 
