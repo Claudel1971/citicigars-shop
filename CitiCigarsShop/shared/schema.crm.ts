@@ -168,7 +168,7 @@ export const crmFollowups = mysqlTable(
 // 1 row = 1 sourcing reference proposed to 1 customer during a Page 6 session.
 // ---------------------------------------------------------------------------
 
-export const sourcingClassValues = ["A1", "A2", "B"] as const;
+export const sourcingClassValues = ["A1-P", "A1-R", "A2-P", "A2-R", "B"] as const;
 
 export const customerSourcingInterests = mysqlTable(
   "customer_sourcing_interests",
