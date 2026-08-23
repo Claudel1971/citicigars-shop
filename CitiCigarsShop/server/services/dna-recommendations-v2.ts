@@ -1,6 +1,9 @@
+import { createRequire } from "module";
 import { stockStorage } from "../storage.stock";
 import { db } from "../db.mysql";
 import { priorisation } from "../../shared/schema.stock";
+
+const require = createRequire(import.meta.url);
 
 type Availability = { packAvailable: boolean; boxAvailable: boolean };
 
