@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, varchar, text, timestamp, json, mysqlEnum, index, date, foreignKey, unique, boolean } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, timestamp, json, mysqlEnum, index, date, foreignKey, unique, boolean, int, decimal } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { cigarCatalog } from "./schema.stock";
 
 // ---------------------------------------------------------------------------
 // CUSTOMERS
@@ -163,6 +164,45 @@ export const crmFollowups = mysqlTable(
 );
 
 // ---------------------------------------------------------------------------
+// CUSTOMER SOURCING INTERESTS
+// 1 row = 1 sourcing reference proposed to 1 customer during a Page 6 session.
+// ---------------------------------------------------------------------------
+
+export const sourcingClassValues = ["A1", "A2", "B"] as const;
+
+export const customerSourcingInterests = mysqlTable(
+  "customer_sourcing_interests",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    customerId: varchar("customer_id", { length: 36 })
+      .notNull()
+      .references(() => customers.customerId, { onDelete: "cascade" }),
+    dnaId: varchar("dna_id", { length: 36 })
+      .notNull()
+      .references(() => customerDna.dnaId, { onDelete: "cascade" }),
+    sourceRequestId: varchar("source_request_id", { length: 100 }).notNull(),
+    cigarId: varchar("cigar_id", { length: 20 })
+      .notNull()
+      .references(() => cigarCatalog.cigarId, { onDelete: "restrict" }),
+    sourcingClass: mysqlEnum("sourcing_class", sourcingClassValues).notNull(),
+    dnaScore: decimal("dna_score", { precision: 5, scale: 1 }).notNull(),
+    interested: boolean("interested").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    customerIdx: index("idx_sourcing_customer").on(table.customerId),
+    dnaIdx: index("idx_sourcing_dna").on(table.dnaId),
+    cigarIdx: index("idx_sourcing_cigar").on(table.cigarId),
+    interestedIdx: index("idx_sourcing_interested").on(table.interested),
+    requestCigarUnique: unique("uq_sourcing_request_cigar").on(
+      table.sourceRequestId,
+      table.cigarId
+    ),
+  })
+);
+
+// ---------------------------------------------------------------------------
 // Zod insert schemas + types
 // ---------------------------------------------------------------------------
 
@@ -184,6 +224,12 @@ export const insertCrmFollowupSchema = createInsertSchema(crmFollowups).omit({
   createdAt: true,
 });
 
+export const insertCustomerSourcingInterestSchema = createInsertSchema(customerSourcingInterests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type CustomerInteraction = typeof customerInteractions.$inferSelect;
@@ -192,3 +238,5 @@ export type CustomerDna = typeof customerDna.$inferSelect;
 export type InsertCustomerDna = z.infer<typeof insertCustomerDnaSchema>;
 export type CrmFollowup = typeof crmFollowups.$inferSelect;
 export type InsertCrmFollowup = z.infer<typeof insertCrmFollowupSchema>;
+export type CustomerSourcingInterest = typeof customerSourcingInterests.$inferSelect;
+export type InsertCustomerSourcingInterest = z.infer<typeof insertCustomerSourcingInterestSchema>;
