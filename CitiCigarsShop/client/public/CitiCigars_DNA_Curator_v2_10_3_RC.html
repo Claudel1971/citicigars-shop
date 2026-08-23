@@ -726,13 +726,14 @@ function renderPage6Block2(items){
 
   wrap.innerHTML=bloc2.proposed.map(function(r){
     const id=String(r.cigarId||'');
-    const name=[r.brand,r.line].filter(Boolean).join(' ? ');
-    const meta=[r.vitole,r.dimension,r.format].filter(Boolean).join(' ? ');
+    const name=[r.brand,r.line].filter(Boolean).join(' \u2014 ');
+    const meta=[r.vitole,r.dimension,r.format].filter(Boolean).join(' \u00b7 ');
     const selected=bloc2IsSelected(id);
 
     return '<article class="b2-card" data-cigar-id="'+escapeHtml(id)+'" data-sourcing-class="'+escapeHtml(r.sourcingClass||'')+'">'
       +'<div class="b2-card-name">'+escapeHtml(name||'Cigare')+'</div>'
       +'<div class="b2-card-meta">'+escapeHtml(meta)+'</div>'
+      +'<button type="button" class="b2-interest-btn'+(selected?' selected':'')+'" data-b2-id="'+escapeHtml(id)+'">'
       +'\u00c7a m\u2019int\u00e9resse'
       +'</button>'
       +'</article>';
