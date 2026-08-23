@@ -1,4 +1,6 @@
 import { stockStorage } from "../storage.stock";
+import { db } from "../db.mysql";
+import { priorisation } from "../../shared/schema.stock";
 
 type Availability = { packAvailable: boolean; boxAvailable: boolean };
 
@@ -59,6 +61,19 @@ export interface LiveDnaCandidateV2 extends DnaRankedCore {
 
 const dnaEngineV2 = require("../../shared/dna-engine-v2.cjs") as {
   rankCandidates(client: DnaClientProfileV2, cigars: MasterDnaCandidateV5[]): DnaRankedCore[];
+};
+
+const priorisationEngineV2 = require("../../shared/priorisation-engine-v2.cjs") as {
+  applyCommercialPriority(
+    dnaRanked: LiveDnaCandidateV2[],
+    priorityTable: Record<string, {
+      active: boolean;
+      priority_level: number | null;
+      valid_from: string | Date | null;
+      valid_to: string | Date | null;
+    }>,
+    options?: { window?: number; today?: Date },
+  ): LiveDnaCandidateV2[];
 };
 
 const masterDnaV5 = require("../../shared/master-dna-v5.cjs") as {
@@ -128,9 +143,44 @@ export function rankDnaCandidatesWithAvailability(
  *
  * Any unresolved CIGAR_ID is an integrity error and fails closed.
  */
+// Task 8 commercial priority: DNA score is untouched; only candidates
+// inside the frozen 5-point window can be reordered P1 -> P2 -> unprioritized.
+async function loadPriorityTableV2(): Promise<Record<string, {
+  active: boolean;
+  priority_level: number | null;
+  valid_from: string | Date | null;
+  valid_to: string | Date | null;
+}>> {
+  const rows = await db.select({
+    sku: priorisation.sku,
+    priorityLevel: priorisation.priorityLevel,
+    active: priorisation.active,
+    validFrom: priorisation.validFrom,
+    validTo: priorisation.validTo,
+  }).from(priorisation);
+
+  const table: Record<string, {
+    active: boolean;
+    priority_level: number | null;
+    valid_from: string | Date | null;
+    valid_to: string | Date | null;
+  }> = {};
+
+  for (const row of rows) {
+    table[row.sku] = {
+      active: row.active === true,
+      priority_level: row.priorityLevel ?? null,
+      valid_from: row.validFrom ?? null,
+      valid_to: row.validTo ?? null,
+    };
+  }
+  return table;
+}
+
 export async function getLiveDnaRankingV2(client: DnaClientProfileV2): Promise<{
   sourceVersion: string;
   ranked: LiveDnaCandidateV2[];
+  top5: LiveDnaCandidateV2[];
 }> {
   assertValidClientProfile(client);
 
@@ -143,9 +193,14 @@ export async function getLiveDnaRankingV2(client: DnaClientProfileV2): Promise<{
     throw new Error(`DNA_V2_UNRESOLVED_CIGAR_IDS: ${unresolved.join(",")}`);
   }
 
+  const ranked = rankDnaCandidatesWithAvailability(client, resolved);
+  const priorityTable = await loadPriorityTableV2();
+  const top5 = priorisationEngineV2.applyCommercialPriority(ranked, priorityTable, { window: 5 });
+
   return {
     sourceVersion: masterDnaV5.SOURCE_VERSION,
-    ranked: rankDnaCandidatesWithAvailability(client, resolved),
+    ranked,
+    top5,
   };
 }
 
