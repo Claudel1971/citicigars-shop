@@ -764,7 +764,7 @@ var b3Current=null;
 
 async function ensureReferential(){
   if(CIGAR_REFERENTIAL) return CIGAR_REFERENTIAL;
-  const res=await fetch('cigar-referential-935.json');
+  const res=await fetch('/cigar-referential-935.json');
   CIGAR_REFERENTIAL=await res.json();
   return CIGAR_REFERENTIAL;
 }
