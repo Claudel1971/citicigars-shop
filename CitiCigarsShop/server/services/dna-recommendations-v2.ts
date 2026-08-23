@@ -39,6 +39,26 @@ interface MasterDnaCandidateV5 {
   curatorEligible: boolean;
 }
 
+interface SourcingPoolCandidateV3 {
+  cigarId: string;
+  brand: string;
+  line: string;
+  vitole: string | null;
+  format: string | null;
+  dimension: string | null;
+  power: number | string | null;
+  sourcingClass: "A1-P" | "A1-R" | "A2-P" | "A2-R" | "B";
+  family1: string | null;
+  family2: string | null;
+  family3: string | null;
+  intensity: number | string | null;
+  spice: number | string | null;
+  sweet: number | string | null;
+  signatures: string[];
+  durationMin: number | string | null;
+  durationMax: number | string | null;
+}
+
 interface DnaRankedCore {
   cigarId: string;
   sku: string;
@@ -61,6 +81,21 @@ export interface LiveDnaCandidateV2 extends DnaRankedCore {
   format: string | null;
   availability: Availability;
 }
+
+export interface LiveDnaSourcingCandidateV2 extends DnaRankedCore {
+  brand: string;
+  line: string;
+  vitole: string | null;
+  dimension: string | null;
+  format: string | null;
+  sourcingClass: "A1-P" | "A1-R" | "A2-P" | "A2-R" | "B";
+}
+
+const sourcingPoolTop25 = require("../../shared/data/sourcing-pool-top25-v3.json") as {
+  sourceVersion: string;
+  count: number;
+  candidates: SourcingPoolCandidateV3[];
+};
 
 const dnaEngineV2 = require("../../shared/dna-engine-v2.cjs") as {
   rankCandidates(client: DnaClientProfileV2, cigars: MasterDnaCandidateV5[]): DnaRankedCore[];
@@ -180,10 +215,103 @@ async function loadPriorityTableV2(): Promise<Record<string, {
   return table;
 }
 
+
+function sourcingIdentityKey(
+  brand: string,
+  line: string,
+  dimension: string | null,
+): string {
+  const normalize = (v: string | null) =>
+    String(v ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+
+  return [
+    normalize(brand),
+    normalize(line),
+    normalize(dimension),
+  ].join("|");
+}
+
+function getSourcingTop5V2(
+  client: DnaClientProfileV2,
+  availabilityByCigarId: Record<string, Availability>,
+): LiveDnaSourcingCandidateV2[] {
+  const availableIdentityKeys = new Set(
+    masterDnaV5.CANDIDATES
+      .filter((c) => {
+        const a = availabilityByCigarId[c.cigarId];
+        return !!a && (a.packAvailable || a.boxAvailable);
+      })
+      .map((c) => sourcingIdentityKey(c.brand, c.line, c.dimension))
+  );
+
+  const eligibleSourcing = sourcingPoolTop25.candidates.filter(
+    (c) =>
+      !availableIdentityKeys.has(
+        sourcingIdentityKey(c.brand, c.line, c.dimension)
+      )
+  );
+
+  const engineCandidates: MasterDnaCandidateV5[] = eligibleSourcing.map((c) => ({
+    cigarId: c.cigarId,
+    sku: `SOURCING-${c.cigarId}`,
+    brand: c.brand,
+    line: c.line,
+    vitole: c.vitole,
+    dimension: c.dimension,
+    format: c.format,
+    puissance: c.power,
+    famille1: c.family1,
+    famille2: c.family2,
+    famille3: c.family3,
+    intensite: c.intensity,
+    spice: c.spice,
+    sweet: c.sweet,
+    signatures: Array.isArray(c.signatures) ? c.signatures : [],
+    dureeMin: c.durationMin,
+    dureeMax: c.durationMax,
+    confidence: null,
+    curatorEligible: true,
+  }));
+
+  const ranked = dnaEngineV2.rankCandidates(client, engineCandidates);
+
+  const sourceById = new Map(
+    eligibleSourcing.map((c) => [c.cigarId, c])
+  );
+
+  return ranked.slice(0, 5).map((r) => {
+    const source = sourceById.get(r.cigarId);
+
+    if (!source) {
+      throw new Error(
+        `DNA_V2_SOURCING_MAPPING_ERROR: ${r.cigarId}`
+      );
+    }
+
+    return {
+      ...r,
+      brand: source.brand,
+      line: source.line,
+      vitole: source.vitole,
+      dimension: source.dimension,
+      format: source.format,
+      sourcingClass: source.sourcingClass,
+    };
+  });
+}
+
 export async function getLiveDnaRankingV2(client: DnaClientProfileV2): Promise<{
   sourceVersion: string;
+  sourcingSourceVersion: string;
   ranked: LiveDnaCandidateV2[];
   top5: LiveDnaCandidateV2[];
+  sourcingTop5: LiveDnaSourcingCandidateV2[];
 }> {
   assertValidClientProfile(client);
 
@@ -199,11 +327,14 @@ export async function getLiveDnaRankingV2(client: DnaClientProfileV2): Promise<{
   const ranked = rankDnaCandidatesWithAvailability(client, resolved);
   const priorityTable = await loadPriorityTableV2();
   const top5 = priorisationEngineV2.applyCommercialPriority(ranked, priorityTable, { window: 5 });
+  const sourcingTop5 = getSourcingTop5V2(client, resolved);
 
   return {
     sourceVersion: masterDnaV5.SOURCE_VERSION,
+    sourcingSourceVersion: sourcingPoolTop25.sourceVersion,
     ranked,
     top5,
+    sourcingTop5,
   };
 }
 
