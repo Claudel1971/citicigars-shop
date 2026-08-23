@@ -12,6 +12,11 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
+  // Serve the standalone DNA Curator at /dna and /dna/.
+  app.get(["/dna", "/dna/"], (_req, res) => {
+    res.sendFile(path.resolve(distPath, "CitiCigars_DNA_Curator_v2_10_3_RC.html"));
+  });
+
   // fall through to index.html if the file doesn't exist
   // BUT exclude /api routes - they should return 404 if not found
   app.use("*", (req, res) => {
