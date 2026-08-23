@@ -3,7 +3,7 @@ import { stockStorage } from "../storage.stock";
 import { db } from "../db.mysql";
 import { priorisation } from "../../shared/schema.stock";
 
-const require = createRequire(import.meta.url);
+const require = createRequire(typeof __filename !== "undefined" ? __filename : process.cwd() + "/server/services/dna-recommendations-v2.ts");
 
 type Availability = { packAvailable: boolean; boxAvailable: boolean };
 
