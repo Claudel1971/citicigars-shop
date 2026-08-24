@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { mysqlTable, varchar, text, timestamp, json, mysqlEnum, index, date, foreignKey, unique, boolean, int, decimal } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { cigarCatalog } from "./schema.stock";
+import { cigarCatalog, skus } from "./schema.stock";
 
 // ---------------------------------------------------------------------------
 // CUSTOMERS
@@ -113,6 +113,7 @@ export const customerDna = mysqlTable(
     engineVersion: varchar("engine_version", { length: 50 }),
     fullPayload: json("full_payload"), // raw output from the DNA engine, kept as-is
     testedAt: timestamp("tested_at").notNull(),
+    page6CompletedAt: timestamp("page6_completed_at"),
     // Optional idempotency key the DNA engine MAY send (e.g. its own result
     // id) so re-sending the same result never creates a duplicate row here.
     // Nullable + unique: MySQL allows multiple NULLs in a unique index, so
@@ -240,6 +241,104 @@ export const customerCigarPreferences = mysqlTable(
 // ---------------------------------------------------------------------------
 // Zod insert schemas + types
 // ---------------------------------------------------------------------------
+
+
+
+// ---------------------------------------------------------------------------
+// DNA RUN RECOMMENDATIONS ? TASK 18
+// Snapshot immuable du Bloc 1 tel qu'expos? au client.
+// ---------------------------------------------------------------------------
+
+export const customerDnaRecommendations = mysqlTable(
+  "customer_dna_recommendations",
+  {
+    id: int("id").primaryKey().autoincrement(),
+
+    customerId: varchar("customer_id", { length: 36 })
+      .notNull()
+      .references(() => customers.customerId, { onDelete: "cascade" }),
+
+    dnaId: varchar("dna_id", { length: 36 })
+      .notNull()
+      .references(() => customerDna.dnaId, { onDelete: "cascade" }),
+
+    sourceRequestId: varchar("source_request_id", { length: 100 }).notNull(),
+
+    cigarId: varchar("cigar_id", { length: 20 })
+      .notNull()
+      .references(() => cigarCatalog.cigarId, { onDelete: "restrict" }),
+
+    sku: varchar("sku", { length: 50 })
+      .notNull()
+      .references(() => skus.sku, { onDelete: "restrict" }),
+
+    rankPosition: int("rank_position").notNull(),
+    dnaScore: decimal("dna_score", { precision: 5, scale: 1 }).notNull(),
+    priorityLevel: int("priority_level"),
+
+    packAvailable: boolean("pack_available").notNull(),
+    boxAvailable: boolean("box_available").notNull(),
+
+    dnaSourceVersion: varchar("dna_source_version", { length: 100 }),
+    sourcingSourceVersion: varchar("sourcing_source_version", { length: 100 }),
+
+    exposedAt: timestamp("exposed_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    requestRankUnique: unique("uq_dna_recommendation_run_rank").on(
+      table.sourceRequestId,
+      table.rankPosition
+    ),
+    requestCigarUnique: unique("uq_dna_recommendation_run_cigar").on(
+      table.sourceRequestId,
+      table.cigarId
+    ),
+    customerIdx: index("idx_dna_recommendation_customer").on(table.customerId),
+    dnaIdx: index("idx_dna_recommendation_dna").on(table.dnaId),
+    cigarIdx: index("idx_dna_recommendation_cigar").on(table.cigarId),
+  })
+);
+
+export const dnaRecommendationEventTypeValues = [
+  "CLICK",
+  "ADD_TO_CART",
+  "PURCHASE",
+] as const;
+
+export const customerDnaRecommendationEvents = mysqlTable(
+  "customer_dna_recommendation_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+
+    recommendationId: int("recommendation_id")
+      .notNull()
+      .references(() => customerDnaRecommendations.id, { onDelete: "cascade" }),
+
+    customerId: varchar("customer_id", { length: 36 })
+      .notNull()
+      .references(() => customers.customerId, { onDelete: "cascade" }),
+
+    dnaId: varchar("dna_id", { length: 36 })
+      .notNull()
+      .references(() => customerDna.dnaId, { onDelete: "cascade" }),
+
+    eventType: mysqlEnum("event_type", dnaRecommendationEventTypeValues).notNull(),
+
+    sku: varchar("sku", { length: 50 }),
+    orderId: varchar("order_id", { length: 100 }),
+    orderLineId: varchar("order_line_id", { length: 100 }),
+    quantity: int("quantity"),
+
+    occurredAt: timestamp("occurred_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    recommendationIdx: index("idx_dna_reco_event_recommendation").on(table.recommendationId),
+    dnaIdx: index("idx_dna_reco_event_dna").on(table.dnaId),
+    eventTypeIdx: index("idx_dna_reco_event_type").on(table.eventType),
+  })
+);
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   customerId: true,

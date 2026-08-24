@@ -64,6 +64,34 @@
       "when": 1787444641078,
       "tag": "0009_dna_priorisation",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1787444642078,
+      "tag": "0010_customer_sourcing_interests",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1787444643078,
+      "tag": "0011_customer_cigar_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1787444644078,
+      "tag": "0012_sourcing_class_detail",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787444645078,
+      "tag": "0013_dna_run_performance",
+      "breakpoints": true
     }
   ]
 }

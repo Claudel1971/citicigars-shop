@@ -39,24 +39,25 @@ interface MasterDnaCandidateV5 {
   curatorEligible: boolean;
 }
 
-interface SourcingPoolCandidateV3 {
+interface SourcingPoolCandidateV4 {
   cigarId: string;
   brand: string;
   line: string;
   vitole: string | null;
   format: string | null;
   dimension: string | null;
-  power: number | string | null;
+  puissance: number | string | null;
   sourcingClass: "A1-P" | "A1-R" | "A2-P" | "A2-R" | "B";
-  family1: string | null;
-  family2: string | null;
-  family3: string | null;
-  intensity: number | string | null;
+  famille1: string | null;
+  famille2: string | null;
+  famille3: string | null;
+  intensite: number | string | null;
   spice: number | string | null;
   sweet: number | string | null;
   signatures: string[];
-  durationMin: number | string | null;
-  durationMax: number | string | null;
+  dureeMin: number | string | null;
+  dureeMax: number | string | null;
+  confidence: string | null;
 }
 
 interface DnaRankedCore {
@@ -91,10 +92,10 @@ export interface LiveDnaSourcingCandidateV2 extends DnaRankedCore {
   sourcingClass: "A1-P" | "A1-R" | "A2-P" | "A2-R" | "B";
 }
 
-const sourcingPoolTop25 = require("../../shared/data/sourcing-pool-top25-v3.json") as {
+const sourcingPoolTop25 = require("../../shared/data/sourcing-pool-top25-v4.json") as {
   sourceVersion: string;
   count: number;
-  candidates: SourcingPoolCandidateV3[];
+  candidates: SourcingPoolCandidateV4[];
 };
 
 const dnaEngineV2 = require("../../shared/dna-engine-v2.cjs") as {
@@ -265,17 +266,17 @@ function getSourcingTop5V2(
     vitole: c.vitole,
     dimension: c.dimension,
     format: c.format,
-    puissance: c.power,
-    famille1: c.family1,
-    famille2: c.family2,
-    famille3: c.family3,
-    intensite: c.intensity,
+    puissance: c.puissance,
+    famille1: c.famille1,
+    famille2: c.famille2,
+    famille3: c.famille3,
+    intensite: c.intensite,
     spice: c.spice,
     sweet: c.sweet,
     signatures: Array.isArray(c.signatures) ? c.signatures : [],
-    dureeMin: c.durationMin,
-    dureeMax: c.durationMax,
-    confidence: null,
+    dureeMin: c.dureeMin,
+    dureeMax: c.dureeMax,
+    confidence: c.confidence ?? null,
     curatorEligible: true,
   }));
 

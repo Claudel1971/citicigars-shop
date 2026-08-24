@@ -4,11 +4,19 @@
 
 import type { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { and, eq } from "drizzle-orm";
 import { stockStorage } from "./storage.stock";
 import { db } from "./db.mysql";
 import { ingestDnaResult } from "./services/dna-intake";
 import { mapCuratorPayloadToCrmIntake } from "./services/dna-crm-mapping";
 import { getLiveDnaRankingV2 } from "./services/dna-recommendations-v2";
+import {
+  customerDna,
+  customerDnaRecommendations,
+  customerDnaRecommendationEvents,
+  customerSourcingInterests,
+  customerCigarPreferences,
+} from "../shared/schema.crm";
 
 const MAX_CIGAR_IDS_PER_BATCH = 500;
 
@@ -238,6 +246,320 @@ export function registerDnaRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("Error in POST /api/dna/contact:", error);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+
+
+
+  // -------------------------------------------------------------------------
+  // TASK 18 ? Finalisation Page 6 / DNA Run
+  //
+  // Sauvegarde atomiquement :
+  //   Bloc 1 = snapshot immuable des recommandations r?ellement expos?es
+  //   Bloc 2 = int?r?ts sourcing, y compris les non-s?lections explicites
+  //   Bloc 3 = cigares d?clar?s par le client
+  //   customer_dna.page6_completed_at = cl?ture du DNA Run
+  //
+  // Une fois compl?t?, un run n'est jamais recalcul? ni r??crit.
+  // -------------------------------------------------------------------------
+  app.post("/api/dna/page6", async (req: Request, res: Response) => {
+    try {
+      const body = req.body ?? {};
+
+      const clientRequestId = body.clientRequestId;
+      const customerId = body.customerId;
+      const dnaId = body.dnaId;
+
+      const block1 = body.block1 ?? {};
+      const block2 = body.block2 ?? {};
+      const block3 = body.block3 ?? {};
+
+      if (
+        !isNonEmptyString(clientRequestId) ||
+        !isNonEmptyString(customerId) ||
+        !isNonEmptyString(dnaId)
+      ) {
+        res.status(400).json({
+          error: "invalid_request",
+          message: "clientRequestId, customerId et dnaId sont requis.",
+        });
+        return;
+      }
+
+      if (
+        !Array.isArray(block1.recommendations) ||
+        !Array.isArray(block2.proposals) ||
+        !Array.isArray(block3.entries)
+      ) {
+        res.status(400).json({
+          error: "invalid_request",
+          message: "Structure Page 6 invalide.",
+        });
+        return;
+      }
+
+      if (
+        block2.treated !== true ||
+        block3.treated !== true
+      ) {
+        res.status(409).json({
+          error: "page6_incomplete",
+          message: "Les Blocs 2 et 3 doivent ?tre trait?s avant la finalisation.",
+        });
+        return;
+      }
+
+      if (block1.recommendations.length > 5 || block3.entries.length > 5) {
+        res.status(400).json({
+          error: "invalid_request",
+          message: "Maximum 5 ?l?ments autoris?s par bloc.",
+        });
+        return;
+      }
+
+      const result = await db.transaction(async (tx) => {
+        const runs = await tx
+          .select({
+            dnaId: customerDna.dnaId,
+            customerId: customerDna.customerId,
+            sourceRequestId: customerDna.sourceRequestId,
+            page6CompletedAt: customerDna.page6CompletedAt,
+          })
+          .from(customerDna)
+          .where(
+            and(
+              eq(customerDna.dnaId, dnaId),
+              eq(customerDna.customerId, customerId),
+              eq(customerDna.sourceRequestId, clientRequestId)
+            )
+          )
+          .limit(1)
+          .for("update");
+
+        const run = runs[0];
+
+        if (!run) {
+          return { error: "dna_run_not_found" };
+        }
+
+        // Idempotence + immutabilit? historique :
+        // un retry apr?s succ?s ne modifie jamais le snapshot.
+        if (run.page6CompletedAt) {
+          return {
+            ok: true,
+            alreadyCompleted: true,
+            completedAt: run.page6CompletedAt,
+          };
+        }
+
+        // Bloc 1 ? snapshot exact de ce qui a ?t? expos? au client.
+        if (block1.recommendations.length > 0) {
+          await tx.insert(customerDnaRecommendations).values(
+            block1.recommendations.map((r: any, index: number) => ({
+              customerId,
+              dnaId,
+              sourceRequestId: clientRequestId,
+              cigarId: String(r.cigarId),
+              sku: String(r.sku),
+              rankPosition: Number(r.rankPosition ?? index + 1),
+              dnaScore: String(Number(r.dnaScore ?? r.score ?? 0).toFixed(1)),
+              priorityLevel:
+                r.priorityLevel === null || r.priorityLevel === undefined
+                  ? null
+                  : Number(r.priorityLevel),
+              packAvailable: r.packAvailable === true,
+              boxAvailable: r.boxAvailable === true,
+              dnaSourceVersion: block1.sourceVersion ?? null,
+              sourcingSourceVersion: block1.sourcingSourceVersion ?? null,
+            }))
+          );
+        }
+
+        // Bloc 2 ? on conserve toutes les propositions expos?es :
+        // interested=true/false donne le d?nominateur n?cessaire au funnel.
+        if (block2.proposals.length > 0) {
+          await tx.insert(customerSourcingInterests).values(
+            block2.proposals.map((r: any) => ({
+              customerId,
+              dnaId,
+              sourceRequestId: clientRequestId,
+              cigarId: String(r.cigarId),
+              sourcingClass: r.sourcingClass,
+              dnaScore: String(Number(r.dnaScore ?? r.score ?? 0).toFixed(1)),
+              interested: r.interested === true,
+            }))
+          );
+        }
+
+        // Bloc 3 ? pr?f?rences d?clar?es.
+        // dimensions_normalized reste obligatoire en DB :
+        // r?f?rentiel -> dimension canonique ;
+        // "Autre" parseable -> valeur normalis?e ;
+        // "Autre" non parseable -> saisie brute conserv?e telle quelle.
+        if (block3.entries.length > 0) {
+          await tx.insert(customerCigarPreferences).values(
+            block3.entries.map((e: any, index: number) => {
+              const dimensionsNormalized =
+                e.dimensionsNormalized ||
+                e.dimension ||
+                e.dimensionsRaw;
+
+              if (!isNonEmptyString(dimensionsNormalized)) {
+                throw new Error("DNA_PAGE6_INVALID_DIMENSIONS");
+              }
+
+              return {
+                customerId,
+                sourceRequestId: clientRequestId,
+                position: index + 1,
+                referenceId: e.referenceId ?? null,
+                brand: String(e.marque ?? ""),
+                line: String(e.ligne ?? ""),
+                dimensionsRaw: e.dimensionsRaw ?? null,
+                dimensionsNormalized,
+                format: e.format ?? null,
+                vitola: e.vitole ?? null,
+                source: "DNA",
+              };
+            })
+          );
+        }
+
+        const completedAt = new Date();
+
+        await tx
+          .update(customerDna)
+          .set({ page6CompletedAt: completedAt })
+          .where(eq(customerDna.dnaId, dnaId));
+
+        return {
+          ok: true,
+          alreadyCompleted: false,
+          completedAt,
+          counts: {
+            block1: block1.recommendations.length,
+            block2: block2.proposals.length,
+            block3: block3.entries.length,
+          },
+        };
+      }, { isolationLevel: "read committed" });
+
+      if ("error" in result) {
+        if (result.error === "dna_run_not_found") {
+          res.status(404).json({
+            error: "dna_run_not_found",
+            message: "Le DNA Run correspondant est introuvable ou incoh?rent.",
+          });
+          return;
+        }
+      }
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (message === "DNA_PAGE6_INVALID_DIMENSIONS") {
+        res.status(400).json({
+          error: "invalid_dimensions",
+          message: "Une pr?f?rence Bloc 3 ne contient aucune dimension exploitable.",
+        });
+        return;
+      }
+
+      console.error("Error in POST /api/dna/page6:", error);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+
+
+  // Task 19 ? attribution d'un clic depuis le Bloc 1 du Curator.
+  // Le clic n'est accepte que pour une recommandation effectivement exposee
+  // dans ce DNA Run et apres finalisation de la Page 6.
+  app.post("/api/dna/recommendation-click", async (req: Request, res: Response) => {
+    try {
+      const body = req.body ?? {};
+
+      const clientRequestId = body.clientRequestId;
+      const customerId = body.customerId;
+      const dnaId = body.dnaId;
+      const sku = body.sku;
+
+      if (
+        !isNonEmptyString(clientRequestId) ||
+        !isNonEmptyString(customerId) ||
+        !isNonEmptyString(dnaId) ||
+        !isNonEmptyString(sku)
+      ) {
+        res.status(400).json({
+          error: "invalid_request",
+          message: "Identifiants CLICK incomplets.",
+        });
+        return;
+      }
+
+      const rows = await db
+        .select({
+          recommendationId: customerDnaRecommendations.id,
+          customerId: customerDnaRecommendations.customerId,
+          dnaId: customerDnaRecommendations.dnaId,
+          sku: customerDnaRecommendations.sku,
+          page6CompletedAt: customerDna.page6CompletedAt,
+        })
+        .from(customerDnaRecommendations)
+        .innerJoin(
+          customerDna,
+          eq(customerDna.dnaId, customerDnaRecommendations.dnaId),
+        )
+        .where(
+          and(
+            eq(customerDnaRecommendations.sourceRequestId, clientRequestId),
+            eq(customerDnaRecommendations.customerId, customerId),
+            eq(customerDnaRecommendations.dnaId, dnaId),
+            eq(customerDnaRecommendations.sku, sku),
+          ),
+        )
+        .limit(1);
+
+      const recommendation = rows[0];
+
+      if (!recommendation) {
+        res.status(404).json({
+          error: "recommendation_not_found",
+        });
+        return;
+      }
+
+      if (!recommendation.page6CompletedAt) {
+        res.status(409).json({
+          error: "dna_run_not_completed",
+        });
+        return;
+      }
+
+      const inserted = await db
+        .insert(customerDnaRecommendationEvents)
+        .values({
+          recommendationId: recommendation.recommendationId,
+          customerId,
+          dnaId,
+          eventType: "CLICK",
+          sku: recommendation.sku,
+          occurredAt: new Date(),
+        });
+
+      const eventId =
+        Number((inserted as any)[0]?.insertId ?? 0) || null;
+
+      res.status(201).json({
+        ok: true,
+        eventType: "CLICK",
+        eventId,
+        recommendationId: recommendation.recommendationId,
+        sku: recommendation.sku,
+      });
+    } catch (error) {
+      console.error("Error in POST /api/dna/recommendation-click:", error);
       res.status(500).json({ error: "internal_error" });
     }
   });

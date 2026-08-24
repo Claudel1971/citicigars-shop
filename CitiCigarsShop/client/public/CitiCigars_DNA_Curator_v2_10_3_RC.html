@@ -440,7 +440,16 @@ document.querySelectorAll('#ritualMoments .ritual-choice').forEach(b=>b.addEvent
 
 document.getElementById('startBtn').addEventListener('click',()=>{answers.firstName=document.getElementById('firstName').value.trim();answers.lastName=document.getElementById('lastName').value.trim();showStep(1)});
 document.querySelectorAll('.back').forEach(b=>b.addEventListener('click',()=>showStep(step===5?4:step-1)));
-document.querySelectorAll('.next').forEach(b=>{if(b.id==='revealBtn')return;b.addEventListener('click',()=>showStep(step+1))});
+document.querySelectorAll('.next').forEach(b=>{
+  if(b.id==='revealBtn')return;
+  b.addEventListener('click',async()=>{
+    if(step===6){
+      await finalizePage6();
+      return;
+    }
+    showStep(step+1);
+  });
+});
 document.getElementById('revealBtn').addEventListener('click',()=>reveal());
 document.getElementById('resultBack').addEventListener('click',()=>showStep(4));
 
@@ -526,6 +535,21 @@ async function reveal(){
   clearGateMessage();
 
   // Nouveau passage par reveal() = nouvelle session de résultat DNA (point 5b, audit).
+  page6Persisted=false;
+  page6PersistInFlight=false;
+
+  // Nouveau DNA Run = nouvel ?tat Page 6.
+  bloc2.proposed=[];
+  bloc2.selectedIds=[];
+  bloc2.noneConfirmed=false;
+
+  bloc3.entries=[];
+  bloc3.noneConfirmed=false;
+  b3Current=null;
+
+  b3RenderEntries();
+  b3ResetPicker();
+
   currentClientRequestId=uuid();
   resolvedPool=await resolveDnaPool(answers);
 
@@ -706,6 +730,7 @@ function bloc2Toggle(cigarId){
   }
 
   renderPage6Block2(bloc2.proposed);
+  page6SyncNav();
 }
 
 function renderPage6Block2(items){
@@ -752,25 +777,106 @@ function renderPage6Block2(items){
 function renderPage6Block1(items){
   const wrap=document.getElementById('page6Block1Reco');
   if(!wrap) return;
+
   wrap.innerHTML='';
+
   const top5=Array.isArray(items)?items.slice(0,5):[];
+
   if(!top5.length){
-    wrap.innerHTML='<div class="system-note">Nous n’avons pas actuellement de référence en stock qui corresponde suffisamment à votre profil.</div>';
+    wrap.innerHTML='<div class="system-note">Nous n\u2019avons pas actuellement de r\u00e9f\u00e9rence en stock qui corresponde suffisamment \u00e0 votre profil.</div>';
     return;
   }
-  wrap.innerHTML=top5.map(function(r){
-    const name=[r.brand,r.line].filter(Boolean).join(' — ');
-    const meta=[r.vitole,r.dimension,r.format].filter(Boolean).join(' · ');
-    const confidence=r.dataConfidence?(' · données '+r.dataConfidence):'';
-    return '<article class="reco-card" data-sku="'+escapeHtml(r.sku||'')+'">'
-      +'<div class="reco-media" id="reco-media-'+escapeHtml(r.sku||'')+'">C</div>'
+
+  const unlockMessage=page6Persisted
+    ?'<div class="system-note dna-unlock-note">Ton profil est compl\u00e9t\u00e9. Tu peux maintenant cliquer sur l\u2019un des cigares disponibles pour d\u00e9couvrir sa fiche d\u00e9taill\u00e9e.</div>'
+    :'';
+
+  const cards=top5.map(function(r){
+    const name=[r.brand,r.line].filter(Boolean).join(' \u2014 ');
+    const meta=[r.vitole,r.dimension,r.format].filter(Boolean).join(' \u00b7 ');
+    const confidence=r.dataConfidence?(' \u00b7 donn\u00e9es '+r.dataConfidence):'';
+
+    const sku=String(r.sku||'');
+
+    const link=page6Persisted&&sku
+      ?'<a class="primary dna-product-link" href="/p/'+encodeURIComponent(sku)+'" data-sku="'+escapeHtml(sku)+'">Voir la fiche produit</a>'
+      :'<a class="locked" aria-disabled="true" tabindex="-1">Voir la fiche produit \ud83d\udd12</a>';
+
+    return '<article class="reco-card" data-sku="'+escapeHtml(sku)+'">'
+      +'<div class="reco-media" id="reco-media-'+escapeHtml(sku)+'">C</div>'
       +'<div>'
-      +'<div class="reco-name">'+escapeHtml(name||r.sku||'Cigare CitiCigars')+'</div>'
+      +'<div class="reco-name">'+escapeHtml(name||sku||'Cigare CitiCigars')+'</div>'
       +'<div class="reco-meta">'+escapeHtml(meta)+'</div>'
-      +'<div class="reco-reason">Compatibilité avec ton Cigar DNA : '+escapeHtml(r.score??'—')+'/100'+escapeHtml(confidence)+'</div>'
-      +'<div class="reco-links"><a class="locked" aria-disabled="true" tabindex="-1">Voir la fiche produit 🔒</a></div>'
+      +'<div class="reco-reason">Compatibilit\u00e9 avec ton Cigar DNA : '+escapeHtml(r.score??'\u2014')+'/100'+escapeHtml(confidence)+'</div>'
+      +'<div class="reco-links">'+link+'</div>'
       +'</div></article>';
   }).join('');
+
+  wrap.innerHTML=unlockMessage+cards;
+
+  if(page6Persisted){
+    wrap.querySelectorAll('.dna-product-link').forEach(function(link){
+      link.addEventListener('click',async function(event){
+        event.preventDefault();
+
+        const sku=link.dataset.sku;
+        const href=link.getAttribute('href');
+
+        if(
+          !sku||
+          !href||
+          !currentClientRequestId||
+          !currentCustomerId||
+          !currentDnaId
+        ){
+          console.error('DNA CLICK identifiers missing');
+          return;
+        }
+
+        if(link.dataset.clickPending==='true') return;
+
+        link.dataset.clickPending='true';
+        link.setAttribute('aria-busy','true');
+
+        try{
+          const response=await fetch('/api/dna/recommendation-click',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              clientRequestId:currentClientRequestId,
+              customerId:currentCustomerId,
+              dnaId:currentDnaId,
+              sku:sku
+            })
+          });
+
+          const body=await response.json().catch(function(){
+            return {};
+          });
+
+          if(!response.ok){
+            throw new Error(
+              body&&body.error
+                ?body.error
+                :'dna_click_http_'+response.status
+            );
+          }
+
+          window.location.assign(href);
+
+        }catch(error){
+          console.error('DNA recommendation CLICK failed',error);
+
+          alert(
+            "Nous n\u2019avons pas pu ouvrir cette fiche pour le moment. R\u00e9essaie dans un instant."
+          );
+
+          link.dataset.clickPending='false';
+          link.removeAttribute('aria-busy');
+        }
+      });
+    });
+  }
 }
 
 function renderRecommendations(items,{append=false}={}){
@@ -926,11 +1032,197 @@ async function submitContactAfterConsent(){
 }
 
 
+// ------------------------------------------------------------------
+// TASK 18 ? Persistance finale de la Page 6.
+// Bloc 1 = snapshot historique immuable.
+// Bloc 2 + Bloc 3 doivent tous les deux avoir ?t? explicitement trait?s.
+// ------------------------------------------------------------------
+
+var page6Persisted=false;
+var page6PersistInFlight=false;
+
+function page6Bloc2Treated(){
+  return bloc2.selectedIds.length>0||bloc2.noneConfirmed===true;
+}
+
+function page6Bloc3Treated(){
+  return bloc3.entries.length>0||bloc3.noneConfirmed===true;
+}
+
+function page6SyncNav(){
+  const btn=document.querySelector('.screen[data-step="6"] .next');
+  if(!btn) return;
+
+  if(page6Persisted){
+    btn.disabled=true;
+    btn.textContent='Profil enregistr?';
+    return;
+  }
+
+  btn.disabled=
+    page6PersistInFlight||
+    !page6Bloc2Treated()||
+    !page6Bloc3Treated();
+}
+
+function buildPage6Payload(){
+  const top5=
+    resolvedPool&&Array.isArray(resolvedPool.top5)
+      ?resolvedPool.top5.slice(0,5)
+      :[];
+
+  return {
+    clientRequestId:currentClientRequestId,
+    customerId:currentCustomerId,
+    dnaId:currentDnaId,
+
+    block1:{
+      sourceVersion:
+        resolvedPool&&resolvedPool.sourceVersion
+          ?resolvedPool.sourceVersion
+          :null,
+
+      sourcingSourceVersion:
+        resolvedPool&&resolvedPool.sourcingSourceVersion
+          ?resolvedPool.sourcingSourceVersion
+          :null,
+
+      recommendations:top5.map(function(r,index){
+        return {
+          cigarId:r.cigarId,
+          sku:r.sku,
+          rankPosition:index+1,
+          dnaScore:r.score,
+          priorityLevel:
+            r.priorityLevel===undefined
+              ?null
+              :r.priorityLevel,
+          packAvailable:!!(
+            r.availability&&
+            r.availability.packAvailable===true
+          ),
+          boxAvailable:!!(
+            r.availability&&
+            r.availability.boxAvailable===true
+          )
+        };
+      })
+    },
+
+    block2:{
+      treated:page6Bloc2Treated(),
+      noneConfirmed:bloc2.noneConfirmed===true,
+
+      proposals:bloc2.proposed.map(function(r){
+        return {
+          cigarId:r.cigarId,
+          sourcingClass:r.sourcingClass,
+          dnaScore:r.score,
+          interested:bloc2IsSelected(r.cigarId)
+        };
+      })
+    },
+
+    block3:{
+      treated:page6Bloc3Treated(),
+      noneConfirmed:bloc3.noneConfirmed===true,
+      entries:bloc3.entries.slice(0,5)
+    }
+  };
+}
+
+async function finalizePage6(){
+  if(page6Persisted||page6PersistInFlight) return;
+
+  if(!page6Bloc2Treated()||!page6Bloc3Treated()){
+    page6SyncNav();
+    return;
+  }
+
+  if(
+    !currentClientRequestId||
+    !currentCustomerId||
+    !currentDnaId
+  ){
+    console.error('DNA Page 6 cannot persist: CRM identifiers missing',{
+      clientRequestId:currentClientRequestId,
+      customerId:currentCustomerId,
+      dnaId:currentDnaId
+    });
+
+    alert(
+      "Ton profil n?a pas encore pu ?tre enregistr? compl?tement. R?essaie dans un instant."
+    );
+    return;
+  }
+
+  const btn=document.querySelector('.screen[data-step="6"] .next');
+
+  page6PersistInFlight=true;
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent='Enregistrement?';
+  }
+
+  try{
+    const response=await fetch('/api/dna/page6',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(buildPage6Payload())
+    });
+
+    const body=await response.json().catch(function(){
+      return {};
+    });
+
+    if(!response.ok){
+      throw new Error(
+        body&&body.error
+          ?body.error
+          :'dna_page6_http_'+response.status
+      );
+    }
+
+    page6Persisted=true;
+
+    // Task 19 : la Page 6 est maintenant finale.
+    // On rerend le Bloc 1 pour deverrouiller les fiches produit.
+    renderPage6Block1(resolvedPool&&resolvedPool.top5?resolvedPool.top5:[]);
+    hydrateRecommendationImages(resolvedPool&&resolvedPool.top5?resolvedPool.top5:[]);
+
+    if(btn){
+      btn.disabled=true;
+      btn.textContent='Profil enregistr?';
+    }
+
+    console.info('DNA Page 6 persisted',{
+      clientRequestId:currentClientRequestId,
+      dnaId:currentDnaId,
+      alreadyCompleted:body.alreadyCompleted===true,
+      counts:body.counts||null
+    });
+
+  }catch(error){
+    console.error('DNA Page 6 persistence failed',error);
+
+    alert(
+      "L?enregistrement n?a pas abouti. Tes choix sont conserv?s ? l??cran; tu peux r?essayer."
+    );
+
+  }finally{
+    page6PersistInFlight=false;
+    page6SyncNav();
+  }
+}
+
+
 // TASK16_B2_NONE_HANDLER
 document.getElementById('b2None').addEventListener('click',function(){
   bloc2.selectedIds=[];
   bloc2.noneConfirmed=true;
   renderPage6Block2(bloc2.proposed);
+  page6SyncNav();
 });
 
 // ---------------- Bloc 3 (Task 17) : cascade Marque -> Ligne -> Dimensions,
@@ -1023,9 +1315,7 @@ function b3SyncAddState(){
   document.getElementById('b3AddBtn').disabled=!b3Current||bloc3.entries.length>=5;
 }
 function b3SyncNav(){
-  const valid=bloc3.entries.length>0||bloc3.noneConfirmed===true;
-  const btn=document.querySelector('.screen[data-step="6"] .next');
-  if(btn) btn.disabled=!valid;
+  page6SyncNav();
 }
 function b3ResetPicker(){
   b3Current=null;
