@@ -11,6 +11,7 @@ import multer from "multer";
 import { parseTechnicalSheetTXT } from "./services/technical-sheet-parser";
 import { registerCrmRoutes } from "./routes.crm";
 import { registerDnaRoutes } from "./routes.dna";
+import { registerDnaResearchRoutes } from "./routes.dna-research";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
@@ -611,6 +612,7 @@ export async function registerRoutes(
   });
 
   registerDnaRoutes(app);
+  registerDnaResearchRoutes(app);
   registerCrmRoutes(app);
 
   return httpServer;

@@ -68,6 +68,39 @@ export const cigarCatalog = mysqlTable("cigar_catalog", {
   marqueLigneVitoleIdx: index("idx_cigar_catalog_mlv").on(table.marque, table.ligne, table.vitole),
 }));
 
+// --- DNA Research & Approval — Task 22 informelle ---
+export const cigarDnaReviewStatusValues = [
+  "DRAFT",
+  "RESEARCHED",
+  "REVIEW",
+  "APPROVED",
+  "REJECTED",
+] as const;
+
+export const cigarDnaReviews = mysqlTable("cigar_dna_reviews", {
+  cigarId: varchar("cigar_id", { length: 20 })
+    .primaryKey()
+    .references(() => cigarCatalog.cigarId, { onDelete: "cascade", onUpdate: "cascade" }),
+
+  status: mysqlEnum("status", cigarDnaReviewStatusValues)
+    .notNull()
+    .default("DRAFT"),
+
+  proposedProfile: json("proposed_profile"),
+  finalProfile: json("final_profile"),
+
+  memoResearch: text("memo_research"),
+  memoValidation: text("memo_validation"),
+
+  approvedBy: varchar("approved_by", { length: 100 }),
+  approvedAt: timestamp("approved_at"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  statusIdx: index("idx_cigar_dna_reviews_status").on(table.status),
+}));
+
 // --- 3. Accessoires, table séparée (décision C1) ---
 export const accessories = mysqlTable("accessories", {
   sku: varchar("sku", { length: 50 }).primaryKey().references(() => skus.sku),
@@ -215,6 +248,7 @@ export const priorisation = mysqlTable("priorisation", {
 
 // --- Zod insert schemas + types ---
 export const insertCigarCatalogSchema = createInsertSchema(cigarCatalog);
+export const insertCigarDnaReviewSchema = createInsertSchema(cigarDnaReviews).omit({ createdAt: true, updatedAt: true });
 export const insertAccessorySchema = createInsertSchema(accessories);
 export const insertPackSizeConfigSchema = createInsertSchema(packSizeConfig).pick({ sku: true, packSize: true, active: true });
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true, qtyBefore: true, qtyAfter: true });
@@ -223,6 +257,8 @@ export const insertDnaAvailabilityWatchSchema = createInsertSchema(dnaAvailabili
 
 export type Sku = typeof skus.$inferSelect;
 export type CigarCatalog = typeof cigarCatalog.$inferSelect;
+export type CigarDnaReview = typeof cigarDnaReviews.$inferSelect;
+export type InsertCigarDnaReview = z.infer<typeof insertCigarDnaReviewSchema>;
 export type InsertCigarCatalog = z.infer<typeof insertCigarCatalogSchema>;
 export type Accessory = typeof accessories.$inferSelect;
 export type InsertAccessory = z.infer<typeof insertAccessorySchema>;

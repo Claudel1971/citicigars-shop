@@ -18,6 +18,7 @@ import ConversationAnalyzer from '@/components/admin/crm/ConversationAnalyzer';
 import Followups from '@/components/admin/crm/Followups';
 import TransactionExplorer from '@/components/admin/crm/TransactionExplorer';
 import NewSale from '@/components/admin/crm/NewSale';
+import DnaResearchApproval from '@/components/admin/DnaResearchApproval';
 import { Menu } from 'lucide-react';
 import { API_URL } from '@/config';
 
@@ -182,6 +183,7 @@ const Admin = () => {
               <Route path="/admin/products" component={ProductManager} />
               <Route path="/admin/content" component={ContentManager} />
               <Route path="/admin/fiches" component={ImportFiches} />
+              <Route path="/admin/dna-research" component={DnaResearchApproval} />
               <Route path="/admin/crm" component={CrmList} />
               <Route path="/admin/crm-whatsapp" component={ConversationAnalyzer} />
               <Route path="/admin/crm-followups" component={Followups} />
