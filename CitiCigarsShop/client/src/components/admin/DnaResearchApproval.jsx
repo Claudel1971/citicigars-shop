@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { API_URL } from "@/config";
 import { CheckCircle2, ChevronLeft, ChevronRight, Plus, Save, Search } from "lucide-react";
 
@@ -21,6 +21,7 @@ const profilePayload = (values) => Object.fromEntries(FIELDS.map(([key]) => [key
 
 export default function DnaResearchApproval() {
   const [query, setQuery] = useState("");
+  const [dnaFilter, setDnaFilter] = useState("no");
   const [results, setResults] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -34,6 +35,7 @@ export default function DnaResearchApproval() {
   const [manual, setManual] = useState(false);
   const [manualValues, setManualValues] = useState({ brand: "", line: "", vitole: "", format: "", dimensions: "", note: "" });
   const [batchProgress, setBatchProgress] = useState(null);
+  const searchSequence = useRef(0);
 
   const request = async (url, options = {}) => {
     const response = await fetch(`${API_URL}${url}`, { ...options, headers: headers(Boolean(options.body)) });
@@ -42,15 +44,21 @@ export default function DnaResearchApproval() {
     return body;
   };
   const search = async (targetPage = 1) => {
+    const sequence = ++searchSequence.current;
     setLoading(true); setMessage("");
     try {
-      const params = new URLSearchParams({ q: query.trim(), page: String(targetPage), limit: "20" });
+      const params = new URLSearchParams({ q: query.trim(), dna: dnaFilter, page: String(targetPage), limit: "20" });
       const data = await request(`/api/admin/research-pool?${params}`);
-      setResults(data.rows || []); setPage(data.page); setPages(data.pages || 1);
-    } catch (error) { setMessage(`Recherche impossible : ${error.message}`); }
-    finally { setLoading(false); }
+      if (sequence === searchSequence.current) {
+        setResults(data.rows || []); setPage(data.page); setPages(data.pages || 1);
+      }
+    } catch (error) { if (sequence === searchSequence.current) setMessage(`Recherche impossible : ${error.message}`); }
+    finally { if (sequence === searchSequence.current) setLoading(false); }
   };
-  useEffect(() => { search(1); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => search(1), 300);
+    return () => window.clearTimeout(timer);
+  }, [query, dnaFilter]);
 
   const openCase = async (id) => {
     setBusy(true); setMessage("");
@@ -135,7 +143,7 @@ export default function DnaResearchApproval() {
     return <div className="max-w-7xl mx-auto space-y-5">
       <button onClick={() => { setActive(null); search(page); }} className="inline-flex items-center gap-2 font-semibold"><ChevronLeft size={18}/>Retour au Research Pool</button>
       <section className="bg-white border rounded-xl p-6 shadow-sm">
-        <div className="flex justify-between gap-4"><div><div className="text-xs text-muted-foreground">{active.pool.poolId}{active.cigarId ? ` • ${active.cigarId}` : " • Aucun CIGAR_ID"}</div>
+        <div className="flex justify-between gap-4"><div><div className="text-xs text-muted-foreground">{active.cigarId || "Aucun CIGAR_ID"}</div>
           <h1 className="text-2xl font-serif font-bold">{active.pool.brand} — {active.pool.line}</h1>
           <p>{active.pool.vitole || "—"}{active.pool.dimensions ? ` • ${active.pool.dimensions}` : ""}</p></div>
           <span className="font-semibold">{labels[active.status] || active.status}</span></div>
@@ -166,11 +174,12 @@ export default function DnaResearchApproval() {
 
   return <div className="max-w-7xl mx-auto space-y-5"><div><h1 className="text-3xl font-serif font-bold">DNA Researcher</h1><p className="text-muted-foreground">File de travail alimentée par le Research Pool cigar-only.</p></div>
     <section className="bg-white border rounded-xl p-4 shadow-sm"><div className="flex flex-col md:flex-row gap-3"><div className="relative flex-1"><Search className="absolute left-3 top-3 text-muted-foreground" size={18}/><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search(1)} placeholder="Rechercher marque, ligne, vitole, factory ou fabricant…" className="w-full border rounded pl-10 pr-3 py-2"/></div>
+      <label className="flex items-center gap-2 border rounded px-3 py-2 whitespace-nowrap"><span className="text-sm font-semibold">DNA</span><select value={dnaFilter} onChange={(e) => setDnaFilter(e.target.value)} className="bg-transparent font-medium outline-none"><option value="no">Non</option><option value="yes">Oui</option><option value="all">Tous</option></select></label>
       <button onClick={() => search(1)} className="px-4 py-2 bg-primary text-primary-foreground rounded font-semibold">Rechercher</button><button onClick={() => setManual(!manual)} className="inline-flex items-center gap-2 px-4 py-2 border rounded font-semibold"><Plus size={18}/>Ajouter un nouveau candidat</button></div></section>
     {manual && <form onSubmit={createManual} className="bg-white border rounded-xl p-5 grid md:grid-cols-3 gap-3">{["brand","line","vitole","format","dimensions","note"].map((key) => <input key={key} required={["brand","line","vitole"].includes(key)} value={manualValues[key]} onChange={(e) => setManualValues((old) => ({...old,[key]:e.target.value}))} placeholder={{brand:"Marque *",line:"Ligne *",vitole:"Vitole *",format:"Format (optionnel)",dimensions:"Dimensions (optionnel)",note:"Note/source (optionnel)"}[key]} className="border rounded px-3 py-2"/>)}<button disabled={busy} className="px-4 py-2 bg-primary text-primary-foreground rounded font-semibold">Créer sans CIGAR_ID</button></form>}
     {selectedPoolIds.length > 0 && <div className="sticky top-2 z-10 bg-primary text-primary-foreground rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"><strong>{selectedPoolIds.length} cigare(s) sélectionné(s)</strong><div className="flex gap-2"><button onClick={() => addToQueue()} disabled={busy} className="px-3 py-2 bg-white text-primary rounded font-semibold">Ajouter à la recherche DNA</button><button onClick={batchResearch} disabled={busy} className="px-3 py-2 border border-white rounded font-semibold">Lancer le batch research</button></div></div>}
     {batchProgress && <p>Progression : {batchProgress.done}/{batchProgress.total}</p>}
-    <section className="space-y-3">{loading ? <p>Chargement…</p> : results.map((row) => <article key={row.poolId} className="bg-white border rounded-xl p-4 flex gap-4 justify-between"><label className="flex gap-4 cursor-pointer"><input type="checkbox" checked={selectedPoolIds.includes(row.poolId)} onChange={() => setSelectedPoolIds((old) => old.includes(row.poolId) ? old.filter((id) => id !== row.poolId) : [...old,row.poolId])}/><span><strong>{row.brand} — {row.line}</strong><span className="block text-sm">{row.vitole || "—"}{row.format ? ` • ${row.format}` : ""}{row.dimensions ? ` • ${row.dimensions}` : ""}</span><span className="block text-xs text-muted-foreground">{row.poolId}{row.cigarId ? ` • ${row.cigarId}` : " • Aucun CIGAR_ID"} • sourcing {row.sourcingRating || "—"} • DNA {row.hasExistingDna ? "Oui" : "Non"}{row.factory || row.madeBy ? ` • ${row.factory || row.madeBy}` : ""}</span></span></label>
+    <section className="space-y-3">{loading ? <p>Chargement…</p> : results.map((row) => <article key={row.poolId} className="bg-white border rounded-xl p-4 flex gap-4 justify-between"><label className="flex gap-4 cursor-pointer"><input type="checkbox" checked={selectedPoolIds.includes(row.poolId)} onChange={() => setSelectedPoolIds((old) => old.includes(row.poolId) ? old.filter((id) => id !== row.poolId) : [...old,row.poolId])}/><span><strong>{row.brand} — {row.line}</strong><span className="block text-sm">{row.vitole || "—"}{row.format ? ` • ${row.format}` : ""}{row.dimensions ? ` • ${row.dimensions}` : ""}</span><span className="block text-xs text-muted-foreground">{row.cigarId || "Aucun CIGAR_ID"} • sourcing {row.sourcingRating || "—"} • DNA {row.hasExistingDna ? "Oui" : "Non"}{row.factory || row.madeBy ? ` • ${row.factory || row.madeBy}` : ""}</span></span></label>
         {row.activeCase && <button onClick={() => openCase(row.activeCase.caseId)} className="self-start px-3 py-2 border rounded font-semibold">Ouvrir la file</button>}</article>)}</section>
     <div className="flex justify-center items-center gap-4"><button disabled={page <= 1} onClick={() => search(page - 1)} className="p-2 border rounded disabled:opacity-30"><ChevronLeft/></button><span>Page {page} / {pages}</span><button disabled={page >= pages} onClick={() => search(page + 1)} className="p-2 border rounded disabled:opacity-30"><ChevronRight/></button></div>
     {message && <p className="bg-muted rounded p-3 text-sm font-medium">{message}</p>}

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "./db.mysql";
 import { requireAdminAuth } from "./middleware/auth";
 import { researchCigarDna } from "./services/dna-research-agent";
@@ -38,6 +38,7 @@ const referenceProfiles = new Map(
 const sourcingRatings = new Map(
   dnaReference.candidates.map((candidate) => [candidate.cigarId, candidate.sourcingClass ?? null]),
 );
+const referenceCigarIds = Array.from(referenceProfiles.keys());
 
 function isComposite(value: unknown): boolean {
   const text = String(value ?? "").normalize("NFKC").toLocaleLowerCase("fr");
@@ -92,6 +93,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     try {
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
       const brand = typeof req.query.brand === "string" ? req.query.brand.trim() : "";
+      const dna = req.query.dna === "yes" || req.query.dna === "no" ? req.query.dna : "all";
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = safeLimit(req.query.limit);
       const conditions = [];
@@ -105,9 +107,23 @@ export function registerResearchPoolRoutes(app: Express): void {
         )!);
       }
       if (brand) conditions.push(eq(cigarResearchPool.brand, brand));
+      if (dna === "yes") {
+        conditions.push(or(
+          inArray(cigarCatalog.cigarId, referenceCigarIds),
+          eq(cigarDnaReviews.status, "APPROVED"),
+        )!);
+      } else if (dna === "no") {
+        conditions.push(and(
+          or(isNull(cigarCatalog.cigarId), notInArray(cigarCatalog.cigarId, referenceCigarIds)),
+          or(isNull(cigarDnaReviews.status), ne(cigarDnaReviews.status, "APPROVED")),
+        )!);
+      }
       const where = conditions.length ? and(...conditions) : undefined;
       const [{ total }] = await db.select({ total: sql<number>`count(*)` })
-        .from(cigarResearchPool).where(where);
+        .from(cigarResearchPool)
+        .leftJoin(cigarCatalog, eq(cigarCatalog.poolId, cigarResearchPool.poolId))
+        .leftJoin(cigarDnaReviews, eq(cigarDnaReviews.cigarId, cigarCatalog.cigarId))
+        .where(where);
       const rows = await db.select({
         poolId: cigarResearchPool.poolId, cigarId: cigarCatalog.cigarId,
         brand: cigarResearchPool.brand, line: cigarResearchPool.line,
@@ -116,6 +132,7 @@ export function registerResearchPoolRoutes(app: Express): void {
         factory: cigarResearchPool.factory, madeBy: cigarResearchPool.madeBy,
       }).from(cigarResearchPool)
         .leftJoin(cigarCatalog, eq(cigarCatalog.poolId, cigarResearchPool.poolId))
+        .leftJoin(cigarDnaReviews, eq(cigarDnaReviews.cigarId, cigarCatalog.cigarId))
         .where(where).orderBy(cigarResearchPool.brand, cigarResearchPool.line, cigarResearchPool.vitole)
         .limit(limit).offset((page - 1) * limit);
 
