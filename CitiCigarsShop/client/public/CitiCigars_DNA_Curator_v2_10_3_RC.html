@@ -1233,9 +1233,10 @@ var bloc3={entries:[],noneConfirmed:false};
 var b3Current=null;
 
 async function ensureReferential(){
-  if(CIGAR_REFERENTIAL) return CIGAR_REFERENTIAL;
-  const res=await fetch('/cigar-referential-935.json');
-  CIGAR_REFERENTIAL=await res.json();
+  // Le Bloc 3 v2 est alimenté plus bas par le Research Pool server-side.
+  // Gardé pour compatibilité avec les fonctions historiques, sans charger
+  // le dropdown massif cigar-referential-935.json.
+  if(!CIGAR_REFERENTIAL) CIGAR_REFERENTIAL=[];
   return CIGAR_REFERENTIAL;
 }
 function b3UniqueSorted(arr){return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'))}
@@ -1450,15 +1451,61 @@ document.getElementById('b3NoneBtn').addEventListener('click',()=>{
   b3SyncNav();
 });
 
-setTimeout(()=>{
-  ensureReferential().then(()=>{
-    const marqueSel=document.getElementById('b3Marque');
-    b3Marques().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;marqueSel.appendChild(o)});
-  });
-},0);
+// Initialisation du picker remplacée par l'autocomplete Research Pool v2.
 b3SyncNav();
 
 syncNav();
+</script>
+<script>
+// Bloc 3 v2 : autocomplete server-side Research Pool, marque puis cigare.
+// Les nœuds sont remplacés afin de retirer les anciens listeners de cascade.
+(function initResearchPoolBloc3(){
+  const oldBrand=document.getElementById('b3Marque');
+  const oldCigar=document.getElementById('b3Ligne');
+  const dimension=document.getElementById('b3Dimension');
+  if(!oldBrand||!oldCigar||!dimension) return;
+
+  const brand=document.createElement('input');
+  brand.id='b3Marque';brand.className=oldBrand.className;brand.placeholder='Rechercher / choisir une marque';brand.setAttribute('list','b3BrandOptions');
+  const brandList=document.createElement('datalist');brandList.id='b3BrandOptions';
+  oldBrand.replaceWith(brand);brand.after(brandList);
+
+  const cigar=document.createElement('input');
+  cigar.id='b3Ligne';cigar.className=oldCigar.className;cigar.placeholder='Rechercher / choisir un cigare';cigar.disabled=true;cigar.setAttribute('list','b3CigarOptions');
+  const cigarList=document.createElement('datalist');cigarList.id='b3CigarOptions';
+  oldCigar.replaceWith(cigar);cigar.after(cigarList);
+  dimension.closest('.field-row').hidden=true;
+
+  let candidates=[];
+  let brandTimer=null;
+  let cigarTimer=null;
+  const endpoint=(suffix)=>apiEndpoint(`dna/research-pool/${suffix}`);
+  const option=(list,value)=>{const item=document.createElement('option');item.value=value;list.appendChild(item)};
+  const loadBrands=async()=>{
+    const url=endpoint(`brands?q=${encodeURIComponent(brand.value.trim())}`);if(!url)return;
+    const response=await fetch(url);if(!response.ok)return;
+    const data=await response.json();brandList.innerHTML='';(data.rows||[]).forEach(row=>option(brandList,row.brand));
+  };
+  const loadCigars=async(searchText='',reset=true)=>{
+    const selectedBrand=brand.value.trim();if(reset)cigar.value='';cigarList.innerHTML='';candidates=[];b3Current=null;b3ResetSubPanels();
+    if(!selectedBrand){cigar.disabled=true;b3SyncAddState();return}
+    const url=endpoint(`cigars?brand=${encodeURIComponent(selectedBrand)}&q=${encodeURIComponent(searchText)}`);if(!url)return;
+    const response=await fetch(url);if(!response.ok)return;
+    const data=await response.json();candidates=(data.rows||[]).map(row=>({...row,label:[row.ligne,row.vitole,row.format,row.dimension].filter(Boolean).join(' — ')}));
+    candidates.forEach(row=>option(cigarList,row.label));cigar.disabled=false;b3SyncAddState();
+  };
+  const resolveCigar=()=>{
+    const row=candidates.find(item=>item.label===cigar.value.trim());
+    b3Current=row?{row,dimensionsRaw:null,dimensionsNormalized:null}:null;
+    if(row)b3RenderResolved();else document.getElementById('b3ResolvedWrap').hidden=true;
+    b3SyncAddState();
+  };
+  brand.addEventListener('input',()=>{clearTimeout(brandTimer);brandTimer=setTimeout(loadBrands,180)});
+  brand.addEventListener('change',()=>loadCigars('',true));
+  cigar.addEventListener('input',()=>{clearTimeout(cigarTimer);cigarTimer=setTimeout(async()=>{const term=cigar.value.trim();await loadCigars(term,false);resolveCigar()},180)});
+  cigar.addEventListener('change',resolveCigar);
+  loadBrands();
+})();
 </script>
 </body>
 </html>

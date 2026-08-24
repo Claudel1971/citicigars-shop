@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 
 export type DnaResearchCigar = {
-  cigarId: string;
-  marque: string;
-  ligne: string;
+  poolId?: string;
+  cigarId?: string | null;
+  brand?: string;
+  line?: string;
+  marque?: string;
+  ligne?: string;
   vitole?: string | null;
   format?: string | null;
   dimensions?: string | null;
@@ -11,13 +14,18 @@ export type DnaResearchCigar = {
   pays?: string | null;
   sourceRef?: string | null;
   existingSourcingClass?: string | null;
+  factory?: string | null;
+  madeBy?: string | null;
+  evidenceContext?: string | null;
 };
 
 export type DnaResearchResult = {
   profile: {
+    brand: string;
+    line: string;
     vitole: string;
+    format: string;
     dimensions: string;
-    sourcingClass: string;
     puissance: string;
     famille1: string;
     famille2: string;
@@ -45,9 +53,11 @@ const DNA_SCHEMA = {
     profile: {
       type: "object",
       properties: {
+        brand: { type: "string" },
+        line: { type: "string" },
         vitole: { type: "string" },
+        format: { type: "string" },
         dimensions: { type: "string" },
-        sourcingClass: { type: "string" },
         puissance: { type: "string", enum: ["1", "2", "3", "4", "5", "ND"] },
         famille1: { type: "string", enum: ["Boisé", "Fauve", "Gourmand", "Velouté", "ND"] },
         famille2: { type: "string", enum: ["Boisé", "Fauve", "Gourmand", "Velouté", "ND"] },
@@ -61,7 +71,7 @@ const DNA_SCHEMA = {
         confidence: { type: "string", enum: ["FAIBLE", "MODÉRÉE", "HAUTE"] }
       },
       required: [
-        "vitole", "dimensions", "sourcingClass", "puissance",
+        "brand", "line", "vitole", "format", "dimensions", "puissance",
         "famille1", "famille2", "famille3", "intensite",
         "spice", "sweet", "signatures", "dureeMin", "dureeMax",
         "confidence"
@@ -112,7 +122,7 @@ La doctrine vient du fichier CitiCigars "dna_inventory":
 - pour Sweetness, rechercher des indices explicites tels que miel, mélasse, sucre brun, caramel, cacao sucré, douceur clairement décrite;
 - si Spice ou Sweetness n'est pas suffisamment documenté : retourner "ND";
 - Signatures : seulement les signatures clairement supportées (ex. Fruité, Agrumé, Malté, Caramélisé, Toasté); chaîne vide si aucune;
-- ne jamais fabriquer une précision sous prétexte de compléter les 14 champs;
+- ne jamais fabriquer une précision sous prétexte de compléter les 16 champs;
 - la confiance est HAUTE / MODÉRÉE / FAIBLE selon précision de l'identité, qualité des sources et convergence;
 - tout conflit, approximation de ligne, source voisine ou donnée insuffisante doit apparaître dans arbitrage/mémo;
 - l'identité exacte de la vitole est préférable à un profil générique de ligne;
@@ -121,10 +131,11 @@ La doctrine vient du fichier CitiCigars "dna_inventory":
 - durée : estimer prudemment à partir des dimensions, longueur et ring gauge, cohérente avec le benchmark dimensionnel CitiCigars; ne pas reprendre aveuglément une durée marketing;
 - toutes les URLs réellement utilisées doivent être retournées.
 
-RÈGLES PARTICULIÈRES DES 14 CHAMPS
+RÈGLES PARTICULIÈRES DES 16 CHAMPS
+- brand / line : conserver l'identité canonique fournie, sauf correction explicitement documentée dans le mémo.
 - vitole : nom exact si documenté; sinon conserver l'identité fournie.
+- format : format exact si documenté; sinon conserver celui fourni ou retourner une chaîne vide.
 - dimensions : dimensions exactes si documentées; sinon conserver celles fournies.
-- sourcingClass : classification INTERNE CitiCigars, pas une donnée Web. Si une valeur interne est fournie, la conserver. Sinon retourner "ND".
 - puissance : valeur numérique 1-5 selon la règle fabricant > consensus.
 - famille1/2/3 : ordre de dominance.
 - intensite : 1-5, fondée sur densité/présence aromatique décrite, pas automatiquement identique à puissance.
@@ -160,11 +171,14 @@ export async function researchCigarDna(
 
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_DNA_MODEL || "gpt-5.4";
+  const brand = cigar.brand ?? cigar.marque ?? "";
+  const line = cigar.line ?? cigar.ligne ?? "";
 
   const input = [
-    `CIGAR_ID: ${cigar.cigarId}`,
-    `Marque: ${cigar.marque}`,
-    `Ligne / Série: ${cigar.ligne}`,
+    `POOL_ID: ${cigar.poolId || "non attribué"}`,
+    `CIGAR_ID: ${cigar.cigarId || "aucun"}`,
+    `Marque: ${brand}`,
+    `Ligne / Série: ${line}`,
     `Vitole connue: ${cigar.vitole || "non renseignée"}`,
     `Format connu: ${cigar.format || "non renseigné"}`,
     `Dimensions connues: ${cigar.dimensions || "non renseignées"}`,
@@ -172,6 +186,9 @@ export async function researchCigarDna(
     `Pays connu: ${cigar.pays || "non renseigné"}`,
     `Source de référence existante: ${cigar.sourceRef || "aucune"}`,
     `Classe sourcing interne existante: ${cigar.existingSourcingClass || "aucune"}`,
+    `Factory / manufacture: ${cigar.factory || "non renseignée"}`,
+    `Fabriqué par: ${cigar.madeBy || "non renseigné"}`,
+    `Contexte documentaire Pool: ${cigar.evidenceContext || "aucun"}`,
     "",
     "Recherche ce cigare précis et produis la proposition DNA selon la doctrine CitiCigars."
   ].join("\n");

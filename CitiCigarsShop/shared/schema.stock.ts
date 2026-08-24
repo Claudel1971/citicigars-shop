@@ -50,6 +50,65 @@ export const skus = mysqlTable("skus", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Research Pool: documentaire et strictement cigar-only. Un POOL_ID ne vaut
+// jamais admission au catalogue; canonical_cigar_id reste donc nullable.
+export const cigarResearchPool = mysqlTable("cigar_research_pool", {
+  poolId: varchar("pool_id", { length: 40 }).primaryKey(),
+  sourceCigarId: varchar("source_cigar_id", { length: 20 }),
+  canonicalCigarId: varchar("canonical_cigar_id", { length: 20 }),
+  brand: varchar("brand", { length: 150 }).notNull(),
+  line: varchar("line", { length: 255 }).notNull(),
+  vitole: varchar("vitole", { length: 255 }),
+  format: varchar("format", { length: 150 }),
+  boxPressed: boolean("box_pressed"),
+  boxCount: int("box_count"),
+  length: varchar("length", { length: 50 }),
+  ring: int("ring"),
+  dimensions: varchar("dimensions", { length: 100 }),
+  strength: varchar("strength", { length: 50 }),
+  sourcingRating: varchar("sourcing_rating", { length: 20 }),
+  originCountry: varchar("origin_country", { length: 150 }),
+  owner: varchar("owner", { length: 255 }),
+  factory: varchar("factory", { length: 255 }),
+  madeBy: varchar("made_by", { length: 255 }),
+  wrapper: text("wrapper"),
+  binder: text("binder"),
+  filler: text("filler"),
+  productStatus: varchar("product_status", { length: 255 }),
+  technicalKey: varchar("technical_key", { length: 700 }).notNull(),
+  sourceType: varchar("source_type", { length: 50 }).notNull(),
+  sourceVersion: varchar("source_version", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  technicalKeyUq: uniqueIndex("uq_research_pool_technical_key").on(table.technicalKey),
+  searchIdx: index("idx_research_pool_search").on(table.brand, table.line, table.vitole),
+  factoryIdx: index("idx_research_pool_factory").on(table.factory),
+  madeByIdx: index("idx_research_pool_made_by").on(table.madeBy),
+  canonicalIdx: index("idx_research_pool_canonical").on(table.canonicalCigarId),
+}));
+
+export const cigarResearchPoolEvidence = mysqlTable("cigar_research_pool_evidence", {
+  id: varchar("id", { length: 40 }).primaryKey(),
+  poolId: varchar("pool_id", { length: 40 }).notNull()
+    .references(() => cigarResearchPool.poolId, { onDelete: "cascade", onUpdate: "cascade" }),
+  rankingSource: mysqlEnum("ranking_source", ["CA", "CJ"]).notNull(),
+  rankingYear: int("ranking_year").notNull(),
+  rankingRank: int("ranking_rank").notNull(),
+  rankingRating: int("ranking_rating"),
+  officialSourceUrl: text("official_source_url"),
+  rankingSourceUrl: text("ranking_source_url"),
+  secondarySourceUrl: text("secondary_source_url"),
+  confidence: varchar("confidence", { length: 50 }),
+  rawPayload: json("raw_payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueAppearance: uniqueIndex("uq_pool_evidence_appearance").on(
+    table.poolId, table.rankingSource, table.rankingYear, table.rankingRank,
+  ),
+  rankingIdx: index("idx_pool_evidence_ranking").on(table.rankingSource, table.rankingYear),
+}));
+
 // --- 2. Référentiel CIGAR_ID, séparé de products ---
 export const cigarCatalog = mysqlTable("cigar_catalog", {
   cigarId: varchar("cigar_id", { length: 20 }).primaryKey(), // importé du Master externe, jamais généré ici (décision A)
@@ -61,11 +120,14 @@ export const cigarCatalog = mysqlTable("cigar_catalog", {
   ringGauge: int("ring_gauge"),
   pays: varchar("pays", { length: 100 }),
   sourceRef: varchar("source_ref", { length: 255 }),
+  poolId: varchar("pool_id", { length: 40 })
+    .references(() => cigarResearchPool.poolId, { onDelete: "set null", onUpdate: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 }, (table) => ({
   // décision B : index non-unique (variations d'accents/espacement dans les données source)
   marqueLigneVitoleIdx: index("idx_cigar_catalog_mlv").on(table.marque, table.ligne, table.vitole),
+  poolIdUq: uniqueIndex("uq_cigar_catalog_pool_id").on(table.poolId),
 }));
 
 // --- DNA Research & Approval — Task 22 informelle ---
@@ -99,6 +161,30 @@ export const cigarDnaReviews = mysqlTable("cigar_dna_reviews", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 }, (table) => ({
   statusIdx: index("idx_cigar_dna_reviews_status").on(table.status),
+}));
+
+export const dnaResearchCases = mysqlTable("dna_research_cases", {
+  caseId: varchar("case_id", { length: 40 }).primaryKey(),
+  poolId: varchar("pool_id", { length: 40 })
+    .references(() => cigarResearchPool.poolId, { onDelete: "set null", onUpdate: "cascade" }),
+  cigarId: varchar("cigar_id", { length: 20 })
+    .references(() => cigarCatalog.cigarId, { onDelete: "set null", onUpdate: "cascade" }),
+  status: mysqlEnum("status", cigarDnaReviewStatusValues).notNull().default("DRAFT"),
+  caseType: mysqlEnum("case_type", ["CREATE", "UPDATE"]).notNull().default("CREATE"),
+  researchMode: mysqlEnum("research_mode", ["AGENT", "DIRECT"]),
+  currentProfileSnapshot: json("current_profile_snapshot"),
+  proposedProfile: json("proposed_profile"),
+  finalProfile: json("final_profile"),
+  memoResearch: text("memo_research"),
+  memoValidation: text("memo_validation"),
+  approvedBy: varchar("approved_by", { length: 100 }),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  poolStatusIdx: index("idx_dna_cases_pool_status").on(table.poolId, table.status),
+  cigarIdx: index("idx_dna_cases_cigar").on(table.cigarId),
+  statusIdx: index("idx_dna_cases_status").on(table.status),
 }));
 
 // --- 3. Accessoires, table séparée (décision C1) ---
@@ -248,6 +334,8 @@ export const priorisation = mysqlTable("priorisation", {
 
 // --- Zod insert schemas + types ---
 export const insertCigarCatalogSchema = createInsertSchema(cigarCatalog);
+export const insertCigarResearchPoolSchema = createInsertSchema(cigarResearchPool).omit({ createdAt: true, updatedAt: true });
+export const insertDnaResearchCaseSchema = createInsertSchema(dnaResearchCases).omit({ createdAt: true, updatedAt: true });
 export const insertCigarDnaReviewSchema = createInsertSchema(cigarDnaReviews).omit({ createdAt: true, updatedAt: true });
 export const insertAccessorySchema = createInsertSchema(accessories);
 export const insertPackSizeConfigSchema = createInsertSchema(packSizeConfig).pick({ sku: true, packSize: true, active: true });
@@ -257,6 +345,9 @@ export const insertDnaAvailabilityWatchSchema = createInsertSchema(dnaAvailabili
 
 export type Sku = typeof skus.$inferSelect;
 export type CigarCatalog = typeof cigarCatalog.$inferSelect;
+export type CigarResearchPool = typeof cigarResearchPool.$inferSelect;
+export type CigarResearchPoolEvidence = typeof cigarResearchPoolEvidence.$inferSelect;
+export type DnaResearchCase = typeof dnaResearchCases.$inferSelect;
 export type CigarDnaReview = typeof cigarDnaReviews.$inferSelect;
 export type InsertCigarDnaReview = z.infer<typeof insertCigarDnaReviewSchema>;
 export type InsertCigarCatalog = z.infer<typeof insertCigarCatalogSchema>;

@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { and, eq, isNull, like, or } from "drizzle-orm";
+import { and, eq, like, or } from "drizzle-orm";
 import { db } from "./db.mysql";
 import { requireAdminAuth } from "./middleware/auth";
 import { researchCigarDna } from "./services/dna-research-agent";
@@ -8,23 +8,11 @@ import {
   cigarDnaReviews,
   cigarDnaReviewStatusValues,
 } from "../shared/schema.stock";
+import { DNA_PROFILE_FIELDS } from "../shared/dna-profile";
 
-const DNA_PROFILE_FIELDS = [
-  "vitole",
-  "dimensions",
-  "sourcingClass",
-  "puissance",
-  "famille1",
-  "famille2",
-  "famille3",
-  "intensite",
-  "spice",
-  "sweet",
-  "signatures",
-  "dureeMin",
-  "dureeMax",
-  "confidence",
-] as const;
+const dnaReference = require("../shared/data/sourcing-pool-top25-v4.json") as {
+  candidates: Array<Record<string, unknown> & { cigarId: string }>;
+};
 
 function isValidStatus(value: unknown): value is typeof cigarDnaReviewStatusValues[number] {
   return (
@@ -51,29 +39,44 @@ function sanitizeProfile(value: unknown): Record<string, unknown> | null {
   return profile;
 }
 
+function referenceProfile(
+  candidate: Record<string, unknown>,
+): Record<string, unknown> {
+  return (
+    sanitizeProfile({
+      ...candidate,
+      brand: candidate.brand,
+      line: candidate.line,
+      dimensions: candidate.dimensions ?? candidate.dimension,
+    }) ?? {}
+  );
+}
+
+const DNA_REFERENCE_BY_ID = new Map(
+  dnaReference.candidates.map((candidate) => [
+    candidate.cigarId,
+    referenceProfile(candidate),
+  ]),
+);
+const SOURCING_REFERENCE_BY_ID = new Map(
+  dnaReference.candidates.map((candidate) => [
+    candidate.cigarId,
+    typeof candidate.sourcingClass === "string" ? candidate.sourcingClass : null,
+  ]),
+);
+
 export function registerDnaResearchRoutes(app: Express): void {
   app.get(
     "/api/admin/dna-research",
     requireAdminAuth,
     async (req: Request, res: Response) => {
       try {
-        const status = typeof req.query.status === "string" ? req.query.status : "";
-        const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+        const filter =
+          typeof req.query.status === "string" ? req.query.status : "";
+        const q =
+          typeof req.query.q === "string" ? req.query.q.trim() : "";
 
         const conditions = [];
-
-        if (status && isValidStatus(status)) {
-          if (status === "DRAFT") {
-            conditions.push(
-              or(
-                eq(cigarDnaReviews.status, "DRAFT"),
-                isNull(cigarDnaReviews.status),
-              )!,
-            );
-          } else {
-            conditions.push(eq(cigarDnaReviews.status, status));
-          }
-        }
 
         if (q) {
           const pattern = `%${q}%`;
@@ -114,18 +117,62 @@ export function registerDnaResearchRoutes(app: Express): void {
             eq(cigarCatalog.cigarId, cigarDnaReviews.cigarId),
           );
 
-        const rows =
+        const dbRows =
           conditions.length > 0
             ? await baseQuery.where(and(...conditions))
             : await baseQuery;
 
+        const enriched = dbRows.map((row) => {
+          const baselineProfile =
+            DNA_REFERENCE_BY_ID.get(row.cigarId) ?? null;
+
+          const approvedProfile =
+            row.status === "APPROVED"
+              ? ((row.finalProfile as Record<string, unknown> | null) ?? null)
+              : null;
+
+          const hasExistingDna = Boolean(
+            baselineProfile || approvedProfile,
+          );
+
+          const effectiveStatus =
+            row.status ??
+            (hasExistingDna ? "PROFILED" : "DRAFT");
+
+          return {
+            ...row,
+            status: effectiveStatus,
+            hasExistingDna,
+            baselineProfile,
+            currentProfile: approvedProfile ?? baselineProfile,
+            sourcingRating: SOURCING_REFERENCE_BY_ID.get(row.cigarId) ?? null,
+          };
+        });
+
+        const rows = enriched.filter((row) => {
+          if (!filter) return true;
+
+          if (filter === "UNPROFILED" || filter === "DRAFT") {
+            return row.status === "DRAFT";
+          }
+
+          if (filter === "PROFILED") {
+            return row.hasExistingDna;
+          }
+
+          if (isValidStatus(filter)) {
+            return row.status === filter;
+          }
+
+          return true;
+        });
+
         res.json({
           count: rows.length,
+          totalCatalog: enriched.length,
+          referenceDnaCount: DNA_REFERENCE_BY_ID.size,
           profileFields: DNA_PROFILE_FIELDS,
-          rows: rows.map((row) => ({
-            ...row,
-            status: row.status ?? "DRAFT",
-          })),
+          rows,
         });
       } catch (error) {
         console.error("DNA research list error:", error);
@@ -174,9 +221,28 @@ export function registerDnaResearchRoutes(app: Express): void {
           return res.status(404).json({ error: "cigar_not_found" });
         }
 
+        const row = rows[0];
+        const baselineProfile =
+          DNA_REFERENCE_BY_ID.get(cigarId) ?? null;
+
+        const approvedProfile =
+          row.status === "APPROVED"
+            ? ((row.finalProfile as Record<string, unknown> | null) ?? null)
+            : null;
+
+        const hasExistingDna = Boolean(
+          baselineProfile || approvedProfile,
+        );
+
         res.json({
-          ...rows[0],
-          status: rows[0].status ?? "DRAFT",
+          ...row,
+          status:
+            row.status ??
+            (hasExistingDna ? "PROFILED" : "DRAFT"),
+          hasExistingDna,
+          baselineProfile,
+          currentProfile: approvedProfile ?? baselineProfile,
+          sourcingRating: SOURCING_REFERENCE_BY_ID.get(cigarId) ?? null,
           profileFields: DNA_PROFILE_FIELDS,
         });
       } catch (error) {
@@ -233,14 +299,14 @@ export function registerDnaResearchRoutes(app: Express): void {
 
         const existingProfile =
           (existing?.finalProfile as Record<string, unknown> | null) ??
-          (existing?.proposedProfile as Record<string, unknown> | null);
+          (existing?.proposedProfile as Record<string, unknown> | null) ??
+          DNA_REFERENCE_BY_ID.get(cigarId) ??
+          null;
 
         const result = await researchCigarDna({
           ...cigars[0],
           existingSourcingClass:
-            typeof existingProfile?.sourcingClass === "string"
-              ? existingProfile.sourcingClass
-              : null,
+            SOURCING_REFERENCE_BY_ID.get(cigarId) ?? null,
         });
 
         const proposedProfile = sanitizeProfile(result.profile);
@@ -361,9 +427,15 @@ export function registerDnaResearchRoutes(app: Express): void {
           (existing?.proposedProfile as Record<string, unknown> | null) ?? null;
         const memoResearch = existing?.memoResearch ?? null;
 
+        const hasBaselineProfile = DNA_REFERENCE_BY_ID.has(cigarId);
+
         const status =
           existing?.status ??
-          (proposedProfile ? "RESEARCHED" : "DRAFT");
+          (proposedProfile
+            ? "RESEARCHED"
+            : hasBaselineProfile
+              ? "REVIEW"
+              : "DRAFT");
 
         await db
           .insert(cigarDnaReviews)

@@ -1,635 +1,178 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { API_URL } from "@/config";
-import { Search, Save, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Plus, Save, Search } from "lucide-react";
 
-const FIELD_DEFS = [
-  { key: "vitole", label: "Vitole" },
-  { key: "dimensions", label: "Dimensions" },
-  { key: "sourcingClass", label: "Classe sourcing" },
-  { key: "puissance", label: "Puissance" },
-  { key: "famille1", label: "Famille 1" },
-  { key: "famille2", label: "Famille 2" },
-  { key: "famille3", label: "Famille 3" },
-  { key: "intensite", label: "Intensité" },
-  { key: "spice", label: "Spice" },
-  { key: "sweet", label: "Sweetness" },
-  { key: "signatures", label: "Signatures" },
-  { key: "dureeMin", label: "Durée min." },
-  { key: "dureeMax", label: "Durée max." },
-  { key: "confidence", label: "Confiance" },
+const FIELDS = [
+  ["brand", "Marque"], ["line", "Ligne / Série"], ["vitole", "Vitole"],
+  ["format", "Format"], ["dimensions", "Dimensions"], ["puissance", "Puissance"],
+  ["famille1", "Famille 1"], ["famille2", "Famille 2"], ["famille3", "Famille 3"],
+  ["intensite", "Intensité"], ["spice", "Spice"], ["sweet", "Sweetness"],
+  ["signatures", "Signatures"], ["dureeMin", "Durée min."], ["dureeMax", "Durée max."],
+  ["confidence", "Confiance"],
 ];
+const labels = { DRAFT: "À rechercher", RESEARCHED: "Proposé", REVIEW: "À revoir", APPROVED: "Approuvé", REJECTED: "Rejeté" };
 
-const STATUS_LABELS = {
-  DRAFT: "À rechercher",
-  RESEARCHED: "Proposé",
-  REVIEW: "À revoir",
-  APPROVED: "Approuvé",
-  REJECTED: "Rejeté",
-};
-
-function adminHeaders(json = false) {
-  const token = sessionStorage.getItem("cms_token") || "";
-  return {
-    ...(json ? { "Content-Type": "application/json" } : {}),
-    "x-cms-token": token,
-  };
+function headers(json = false) {
+  return { ...(json ? { "Content-Type": "application/json" } : {}),
+    "x-cms-token": sessionStorage.getItem("cms_token") || "" };
 }
-
-function normalizeValue(value) {
-  if (Array.isArray(value)) return value.join(", ");
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
-
-function profileFromForm(form) {
-  const out = {};
-  for (const { key } of FIELD_DEFS) {
-    const value = form[key];
-    if (value !== undefined && value !== "") out[key] = value;
-  }
-  return out;
-}
+const display = (value) => Array.isArray(value) ? value.join(", ") : value == null ? "" : String(value);
+const profilePayload = (values) => Object.fromEntries(FIELDS.map(([key]) => [key, values[key] ?? ""]));
 
 export default function DnaResearchApproval() {
-  const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [reviewQueue, setReviewQueue] = useState([]);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const [batchResearching, setBatchResearching] = useState(false);
-  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
-  const [proposed, setProposed] = useState({});
+  const [results, setResults] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [selectedPoolIds, setSelectedPoolIds] = useState([]);
+  const [active, setActive] = useState(null);
   const [finalValues, setFinalValues] = useState({});
-  const [memoResearch, setMemoResearch] = useState("");
   const [memoValidation, setMemoValidation] = useState("");
-  const [workingStatus, setWorkingStatus] = useState("DRAFT");
-  const [saving, setSaving] = useState(false);
-  const [researching, setResearching] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [manual, setManual] = useState(false);
+  const [manualValues, setManualValues] = useState({ brand: "", line: "", vitole: "", format: "", dimensions: "", note: "" });
+  const [batchProgress, setBatchProgress] = useState(null);
 
-  const loadRows = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (query.trim()) params.set("q", query.trim());
-      if (status) params.set("status", status);
-
-      const res = await fetch(
-        `${API_URL}/api/admin/dna-research${params.toString() ? `?${params}` : ""}`,
-        { headers: adminHeaders() },
-      );
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setRows(data.rows || []);
-    } catch (err) {
-      console.error(err);
-      setMessage("Impossible de charger le référentiel DNA.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadRows();
-  }, [status]);
-
-  const openCigar = async (cigarId) => {
-    setMessage("");
-    try {
-      const res = await fetch(
-        `${API_URL}/api/admin/dna-research/${encodeURIComponent(cigarId)}`,
-        { headers: adminHeaders() },
-      );
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      setSelected(data);
-      setProposed(data.proposedProfile || {});
-      setFinalValues(data.finalProfile || data.proposedProfile || {});
-      setMemoResearch(data.memoResearch || "");
-      setMemoValidation(data.memoValidation || "");
-      setWorkingStatus(data.status || "DRAFT");
-    } catch (err) {
-      console.error(err);
-      setMessage("Impossible d'ouvrir ce cigare.");
-    }
-  };
-
-  const toggleSelected = (cigarId) => {
-    setSelectedIds((prev) =>
-      prev.includes(cigarId)
-        ? prev.filter((id) => id !== cigarId)
-        : [...prev, cigarId],
-    );
-  };
-
-  const runResearchForId = async (cigarId) => {
-    const res = await fetch(
-      `${API_URL}/api/admin/dna-research/${encodeURIComponent(cigarId)}/research`,
-      {
-        method: "POST",
-        headers: adminHeaders(true),
-      },
-    );
-
-    const body = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(body.detail || body.error || `HTTP ${res.status}`);
-    }
-
+  const request = async (url, options = {}) => {
+    const response = await fetch(`${API_URL}${url}`, { ...options, headers: headers(Boolean(options.body)) });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || body.detail || body.error || `HTTP ${response.status}`);
     return body;
   };
-
-  const researchBatch = async () => {
-    if (!selectedIds.length || batchResearching) return;
-
-    const ids = [...selectedIds];
-    setBatchResearching(true);
-    setBatchProgress({ done: 0, total: ids.length });
-    setMessage("");
-
-    const successful = [];
-    const failed = [];
-
-    let cursor = 0;
-
-    const worker = async () => {
-      while (cursor < ids.length) {
-        const cigarId = ids[cursor++];
-        try {
-          await runResearchForId(cigarId);
-          successful.push(cigarId);
-        } catch (err) {
-          console.error("DNA batch research failed", cigarId, err);
-          failed.push(cigarId);
-        } finally {
-          setBatchProgress((prev) => ({
-            ...prev,
-            done: prev.done + 1,
-          }));
-        }
-      }
-    };
-
+  const search = async (targetPage = 1) => {
+    setLoading(true); setMessage("");
     try {
-      const concurrency = Math.min(3, ids.length);
-      await Promise.all(
-        Array.from({ length: concurrency }, () => worker()),
-      );
+      const params = new URLSearchParams({ q: query.trim(), page: String(targetPage), limit: "20" });
+      const data = await request(`/api/admin/research-pool?${params}`);
+      setResults(data.rows || []); setPage(data.page); setPages(data.pages || 1);
+    } catch (error) { setMessage(`Recherche impossible : ${error.message}`); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { search(1); }, []);
 
-      await loadRows();
-
-      if (successful.length) {
-        setReviewQueue(successful);
-        setReviewIndex(0);
-        setSelectedIds([]);
-        await openCigar(successful[0]);
-
-        setMessage(
-          failed.length
-            ? `${successful.length} recherche(s) terminée(s), ${failed.length} échec(s).`
-            : `${successful.length} recherche(s) terminée(s).`,
-        );
-      } else {
-        setMessage("Aucune recherche du lot n'a abouti.");
+  const openCase = async (id) => {
+    setBusy(true); setMessage("");
+    try {
+      const data = await request(`/api/admin/dna-research-cases/${encodeURIComponent(id)}`);
+      setActive(data); setFinalValues(data.finalProfile || data.proposedProfile || data.currentProfile || {});
+      setMemoValidation(data.memoValidation || "");
+    } catch (error) { setMessage(`Ouverture impossible : ${error.message}`); }
+    finally { setBusy(false); }
+  };
+  const addToQueue = async (poolIds = selectedPoolIds) => {
+    const data = await request("/api/admin/dna-research-cases", {
+      method: "POST", body: JSON.stringify({ poolIds }),
+    });
+    setSelectedPoolIds([]);
+    if (data.cases?.length) await openCase(data.cases[0].caseId);
+    return data.cases || [];
+  };
+  const batchResearch = async () => {
+    if (!selectedPoolIds.length) return;
+    setBusy(true); setMessage("");
+    try {
+      const cases = await addToQueue(selectedPoolIds);
+      let done = 0; setBatchProgress({ done, total: cases.length });
+      const failed = [];
+      for (const item of cases) {
+        try { await request(`/api/admin/dna-research-cases/${encodeURIComponent(item.caseId)}/research`, { method: "POST" }); }
+        catch (error) { failed.push(`${item.caseId}: ${error.message}`); }
+        done += 1; setBatchProgress({ done, total: cases.length });
       }
-    } finally {
-      setBatchResearching(false);
-    }
+      if (cases.length) await openCase(cases[0].caseId);
+      setMessage(failed.length ? `${done - failed.length}/${done} recherches terminées. ${failed.join("; ")}` : `${done} recherches terminées; validation humaine requise.`);
+    } catch (error) { setMessage(`Lot impossible : ${error.message}`); }
+    finally { setBusy(false); setBatchProgress(null); }
   };
-
-  const navigateReview = async (nextIndex) => {
-    if (
-      nextIndex < 0 ||
-      nextIndex >= reviewQueue.length ||
-      nextIndex === reviewIndex
-    ) return;
-
-    setReviewIndex(nextIndex);
-    await openCigar(reviewQueue[nextIndex]);
+  const createManual = async (event) => {
+    event.preventDefault(); setBusy(true);
+    try {
+      const candidate = await request("/api/admin/research-pool", { method: "POST", body: JSON.stringify(manualValues) });
+      await addToQueue([candidate.poolId]); setManual(false);
+      setMessage("Nouveau candidat créé dans le Pool, sans CIGAR_ID et sans DNA automatique.");
+    } catch (error) { setMessage(`Création impossible : ${error.message}`); }
+    finally { setBusy(false); }
   };
-
+  const directUpdate = async () => {
+    setBusy(true);
+    try { await request(`/api/admin/dna-research-cases/${active.caseId}/update-direct`, { method: "POST" }); await openCase(active.caseId); }
+    catch (error) { setMessage(`Mise à jour impossible : ${error.message}`); }
+    finally { setBusy(false); }
+  };
   const research = async () => {
-    if (!selected || researching) return;
-
-    setResearching(true);
-    setMessage("");
-
-    try {
-      const res = await fetch(
-        `${API_URL}/api/admin/dna-research/${encodeURIComponent(selected.cigarId)}/research`,
-        {
-          method: "POST",
-          headers: adminHeaders(true),
-        },
-      );
-
-      const body = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        if (body.error === "openai_api_key_missing") {
-          throw new Error("Clé OpenAI absente du serveur staging.");
-        }
-        if (body.error === "research_already_completed") {
-          throw new Error("Une proposition de recherche existe déjà pour ce cigare.");
-        }
-        throw new Error(body.detail || body.error || `HTTP ${res.status}`);
-      }
-
-      setProposed(body.proposedProfile || {});
-      setFinalValues(body.finalProfile || body.proposedProfile || {});
-      setMemoResearch(body.memoResearch || "");
-      setWorkingStatus(body.status || "RESEARCHED");
-      setSelected((prev) =>
-        prev ? { ...prev, status: body.status || "RESEARCHED" } : prev,
-      );
-
-      setMessage(
-        "Recherche terminée. Les valeurs finales ont été initialisées avec la proposition de l’agent.",
-      );
-
-      await loadRows();
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        err instanceof Error
-          ? `Erreur de recherche : ${err.message}`
-          : "Erreur lors de la recherche DNA.",
-      );
-    } finally {
-      setResearching(false);
-    }
+    setBusy(true); setMessage("");
+    try { await request(`/api/admin/dna-research-cases/${active.caseId}/research`, { method: "POST" }); await openCase(active.caseId);
+      setMessage("Recherche terminée. La proposition agent reste immutable jusqu’à l’approbation humaine."); }
+    catch (error) { setMessage(`Recherche impossible : ${error.message}`); }
+    finally { setBusy(false); }
   };
-
   const save = async () => {
-    if (!selected) return;
-    setSaving(true);
-    setMessage("");
-
-    try {
-      const res = await fetch(
-        `${API_URL}/api/admin/dna-research/${encodeURIComponent(selected.cigarId)}`,
-        {
-          method: "PUT",
-          headers: adminHeaders(true),
-          body: JSON.stringify({
-            finalProfile: profileFromForm(finalValues),
-            memoValidation,
-          }),
-        },
-      );
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      setMessage("Valeurs finales enregistrées.");
-      await openCigar(selected.cigarId);
-      await loadRows();
-    } catch (err) {
-      console.error(err);
-      setMessage("Erreur lors de l'enregistrement.");
-    } finally {
-      setSaving(false);
-    }
+    setBusy(true);
+    try { await request(`/api/admin/dna-research-cases/${active.caseId}`, { method: "PUT",
+      body: JSON.stringify({ finalProfile: profilePayload(finalValues), memoValidation }) });
+      await openCase(active.caseId); setMessage("Valeur candidate enregistrée; profil actuel inchangé."); }
+    catch (error) { setMessage(`Enregistrement impossible : ${error.message}`); }
+    finally { setBusy(false); }
   };
-
   const approve = async () => {
-    if (!selected) return;
-    setSaving(true);
-    setMessage("");
-
-    try {
-      const res = await fetch(
-        `${API_URL}/api/admin/dna-research/${encodeURIComponent(selected.cigarId)}/approve`,
-        {
-          method: "POST",
-          headers: adminHeaders(true),
-          body: JSON.stringify({
-            finalProfile: profileFromForm(finalValues),
-            memoValidation,
-            approvedBy: "Claudel",
-          }),
-        },
-      );
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
-      }
-
-      setWorkingStatus("APPROVED");
-      setMessage("Profil DNA approuvé.");
-      await openCigar(selected.cigarId);
-      await loadRows();
-    } catch (err) {
-      console.error(err);
-      setMessage("Erreur lors de l'approbation.");
-    } finally {
-      setSaving(false);
-    }
+    setBusy(true);
+    try { await request(`/api/admin/dna-research-cases/${active.caseId}/approve`, { method: "POST",
+      body: JSON.stringify({ finalProfile: profilePayload(finalValues), memoValidation, approvedBy: "Claudel" }) });
+      await openCase(active.caseId); setMessage("Profil DNA approuvé explicitement."); }
+    catch (error) { setMessage(`Approbation impossible : ${error.message}`); }
+    finally { setBusy(false); }
+  };
+  const admit = async () => {
+    try { await request(`/api/admin/dna-research-cases/${active.caseId}/admit`, { method: "POST" }); }
+    catch (error) { setMessage(error.message); }
   };
 
-  const filteredCount = useMemo(() => rows.length, [rows]);
-
-  if (selected) {
-    return (
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <button
-            onClick={() => {
-              setSelected(null);
-              setMessage("");
-              setReviewQueue([]);
-              setReviewIndex(0);
-            }}
-            className="inline-flex items-center gap-2 text-sm font-medium hover:underline"
-          >
-            <ChevronLeft size={18} />
-            Retour à la liste
-          </button>
-
-          {reviewQueue.length > 0 && (
-            <div className="flex items-center gap-3 text-sm font-semibold">
-              <button
-                onClick={() => navigateReview(reviewIndex - 1)}
-                disabled={reviewIndex === 0 || saving || researching}
-                className="p-2 border rounded-md disabled:opacity-30"
-                aria-label="Cigare précédent"
-              >
-                <ChevronLeft size={18} />
-              </button>
-
-              <span>
-                Cigare {reviewIndex + 1} sur {reviewQueue.length}
-              </span>
-
-              <button
-                onClick={() => navigateReview(reviewIndex + 1)}
-                disabled={
-                  reviewIndex >= reviewQueue.length - 1 ||
-                  saving ||
-                  researching
-                }
-                className="p-2 border rounded-md disabled:opacity-30"
-                aria-label="Cigare suivant"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white border rounded-xl p-5 md:p-7 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-              <div className="text-sm text-muted-foreground">{selected.cigarId}</div>
-              <h1 className="text-2xl md:text-3xl font-serif font-bold text-primary">
-                {selected.marque} — {selected.ligne}
-              </h1>
-              <div className="mt-1 text-muted-foreground">
-                {selected.vitole}
-                {selected.dimensions ? ` • ${selected.dimensions}` : ""}
-                {selected.format ? ` • ${selected.format}` : ""}
-              </div>
-            </div>
-
-            <div className="shrink-0">
-              <span className="inline-flex px-3 py-1 rounded-full text-sm font-semibold bg-muted">
-                {researching ? "Recherche en cours…" : (STATUS_LABELS[workingStatus] || workingStatus)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-          <div className="p-5 md:p-6 border-b">
-            <h2 className="text-xl font-bold">Profil DNA — 14 champs</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Proposition de recherche à gauche. Valeur retenue à droite.
-            </p>
-          </div>
-
-          <div className="divide-y">
-            {FIELD_DEFS.map(({ key, label }) => (
-              <div
-                key={key}
-                className="grid grid-cols-1 md:grid-cols-[180px_1fr_1fr] gap-3 md:gap-5 p-4 md:p-5"
-              >
-                <div className="font-semibold text-sm md:pt-2">{label}</div>
-
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">
-                    Proposition
-                  </label>
-                  <input
-                    value={normalizeValue(proposed[key])}
-                    readOnly
-                    className="w-full border rounded-md px-3 py-2 bg-amber-50/40 text-muted-foreground cursor-default"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">
-                    Valeur finale
-                  </label>
-                  <input
-                    value={normalizeValue(finalValues[key])}
-                    onChange={(e) =>
-                      setFinalValues((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                    className="w-full border rounded-md px-3 py-2 bg-emerald-50/30"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-white border rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold mb-2">Mémo recherche / sources</h3>
-            <textarea
-              value={memoResearch}
-              readOnly
-              rows={7}
-              placeholder="La recherche agent et ses sources apparaîtront ici..."
-              className="w-full border rounded-md p-3 resize-y bg-muted/20 text-muted-foreground cursor-default"
-            />
-          </div>
-
-          <div className="bg-white border rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold mb-2">Mémo validation / arbitrage</h3>
-            <textarea
-              value={memoValidation}
-              onChange={(e) => setMemoValidation(e.target.value)}
-              rows={7}
-              placeholder="Décision finale, corrections apportées et raison de l'arbitrage..."
-              className="w-full border rounded-md p-3 resize-y"
-            />
-          </div>
-        </div>
-
-        <div className="bg-white border rounded-xl p-5 shadow-sm flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={research}
-              disabled={
-                researching ||
-                saving ||
-                workingStatus === "RESEARCHED" ||
-                workingStatus === "APPROVED"
-              }
-              className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground font-semibold disabled:opacity-50"
-            >
-              <Search size={18} />
-              {researching
-                ? "Recherche en cours…"
-                : workingStatus === "RESEARCHED" || workingStatus === "APPROVED"
-                  ? "Recherche effectuée"
-                  : "Lancer la recherche DNA"}
-            </button>
-
-            <button
-              onClick={save}
-              disabled={saving}
-              className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-md border font-semibold hover:bg-muted disabled:opacity-50"
-            >
-              <Save size={18} />
-              Enregistrer
-            </button>
-          </div>
-
-          <button
-            onClick={approve}
-            disabled={saving || researching || workingStatus !== "RESEARCHED"}
-            className="inline-flex justify-center items-center gap-2 px-5 py-2 rounded-md bg-primary text-primary-foreground font-bold disabled:opacity-50"
-          >
-            <CheckCircle2 size={18} />
-            Approuver le profil DNA
-          </button>
-        </div>
-
-        {message && (
-          <div className="text-sm font-medium bg-muted rounded-md px-4 py-3">
-            {message}
-          </div>
-        )}
-      </div>
-    );
+  if (active) {
+    const updateMode = active.caseType === "UPDATE" || Boolean(active.currentProfileSnapshot);
+    const left = updateMode ? (active.currentProfile || active.currentProfileSnapshot || {}) : (active.proposedProfile || {});
+    return <div className="max-w-7xl mx-auto space-y-5">
+      <button onClick={() => { setActive(null); search(page); }} className="inline-flex items-center gap-2 font-semibold"><ChevronLeft size={18}/>Retour au Research Pool</button>
+      <section className="bg-white border rounded-xl p-6 shadow-sm">
+        <div className="flex justify-between gap-4"><div><div className="text-xs text-muted-foreground">{active.pool.poolId}{active.cigarId ? ` • ${active.cigarId}` : " • Aucun CIGAR_ID"}</div>
+          <h1 className="text-2xl font-serif font-bold">{active.pool.brand} — {active.pool.line}</h1>
+          <p>{active.pool.vitole || "—"}{active.pool.dimensions ? ` • ${active.pool.dimensions}` : ""}</p></div>
+          <span className="font-semibold">{labels[active.status] || active.status}</span></div>
+        {active.hasExistingDna && active.status === "DRAFT" && <div className="mt-5 flex flex-wrap gap-3">
+          <button onClick={directUpdate} disabled={busy} className="px-4 py-2 rounded bg-primary text-primary-foreground font-semibold">Mettre à jour le profil DNA — édition directe</button>
+          <button onClick={research} disabled={busy} className="px-4 py-2 rounded border font-semibold">Mettre à jour le profil DNA — rechercher à nouveau</button>
+        </div>}
+        {!active.hasExistingDna && !active.proposedProfile && <button onClick={research} disabled={busy} className="mt-5 px-4 py-2 rounded bg-primary text-primary-foreground font-semibold">Lancer la recherche DNA</button>}
+      </section>
+      {(active.proposedProfile || updateMode) && <section className="bg-white border rounded-xl overflow-hidden shadow-sm">
+        <header className="p-5 border-b"><h2 className="text-xl font-bold">Profil DNA — 16 champs</h2>
+          <p className="text-sm text-muted-foreground">{updateMode ? "Actuel intact à gauche. Mise à jour candidate à droite." : "Proposition agent immutable à gauche. Valeur finale éditable à droite."}</p></header>
+        <div className="divide-y">{FIELDS.map(([key, label]) => <div key={key} className="grid md:grid-cols-[160px_1fr_1fr] gap-3 p-4">
+          <strong className="text-sm md:pt-2">{label}</strong><label className="text-xs text-muted-foreground">{updateMode ? "Actuel" : "Proposition"}<input readOnly value={display(left[key])} className="block mt-1 w-full border rounded px-3 py-2 bg-amber-50/40"/></label>
+          <label className="text-xs text-muted-foreground">{updateMode ? "Mise à jour" : "Valeur finale"}<input value={display(finalValues[key])} onChange={(event) => setFinalValues((old) => ({ ...old, [key]: event.target.value }))} className="block mt-1 w-full border rounded px-3 py-2 bg-emerald-50/30"/></label>
+        </div>)}</div>
+      </section>}
+      {active.evidence?.length > 0 && <section className="bg-white border rounded-xl p-5"><h2 className="font-bold mb-2">Historique CA / CJ</h2>
+        <div className="flex flex-wrap gap-2">{active.evidence.map((item) => <span key={item.id} className="px-3 py-1 bg-muted rounded-full text-sm">{item.rankingSource} {item.rankingYear} — #{item.rankingRank}{item.rankingRating ? ` (${item.rankingRating})` : ""}</span>)}</div></section>}
+      {(active.proposedProfile || updateMode) && <section className="grid lg:grid-cols-2 gap-4"><textarea readOnly rows={6} value={active.memoResearch || ""} className="border rounded p-3 bg-muted/20" placeholder="Mémo recherche / sources"/>
+        <textarea rows={6} value={memoValidation} onChange={(event) => setMemoValidation(event.target.value)} className="border rounded p-3" placeholder="Mémo validation / arbitrage"/></section>}
+      {(active.proposedProfile || updateMode) && <div className="flex flex-wrap gap-3"><button onClick={save} disabled={busy || active.status === "APPROVED"} className="inline-flex gap-2 px-4 py-2 border rounded font-semibold"><Save size={18}/>Enregistrer</button>
+        <button onClick={approve} disabled={busy || active.status === "APPROVED"} className="inline-flex gap-2 px-4 py-2 bg-primary text-primary-foreground rounded font-semibold"><CheckCircle2 size={18}/>Approuver le DNA</button>
+        {active.status === "APPROVED" && !active.cigarId && <button onClick={admit} className="px-4 py-2 border rounded font-semibold">Admettre au catalogue</button>}</div>}
+      {message && <p className="bg-muted rounded p-3 text-sm font-medium">{message}</p>}
+    </div>;
   }
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-primary">
-          DNA Research & Approval
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Recherche, revue et approbation humaine des profils DNA.
-        </p>
-      </div>
-
-      <div className="bg-white border rounded-xl p-4 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") loadRows();
-              }}
-              placeholder="CIGAR_ID, marque, ligne ou vitole..."
-              className="w-full border rounded-md pl-10 pr-3 py-2"
-            />
-          </div>
-
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          >
-            <option value="">Tous les statuts</option>
-            <option value="DRAFT">À rechercher</option>
-            <option value="RESEARCHED">Proposé</option>
-            <option value="REVIEW">À revoir</option>
-            <option value="APPROVED">Approuvé</option>
-            <option value="REJECTED">Rejeté</option>
-          </select>
-
-          <button
-            onClick={researchBatch}
-            disabled={!selectedIds.length || batchResearching}
-            className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-semibold disabled:opacity-40"
-          >
-            {batchResearching
-              ? `Recherche ${batchProgress.done}/${batchProgress.total}`
-              : selectedIds.length
-                ? `Rechercher (${selectedIds.length})`
-                : "Rechercher"}
-          </button>
-        </div>
-      </div>
-
-      <div className="text-sm text-muted-foreground">
-        {loading ? "Chargement..." : `${filteredCount} cigare(s)`}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3">
-        {rows.map((row) => (
-          <div
-            key={row.cigarId}
-            onClick={() => openCigar(row.cigarId)}
-            role="button"
-            tabIndex={0}
-            className="text-left bg-white border rounded-xl p-4 md:p-5 shadow-sm hover:border-primary/40 hover:shadow transition cursor-pointer"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div>
-                <div className="text-xs text-muted-foreground">{row.cigarId}</div>
-                <div className="font-bold text-lg">
-                  {row.marque} — {row.ligne}
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  {row.vitole}
-                  {row.dimensions ? ` • ${row.dimensions}` : ""}
-                </div>
-              </div>
-
-              <div className="self-start flex items-center gap-3">
-                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-muted">
-                  {STATUS_LABELS[row.status] || row.status}
-                </span>
-
-                {row.status === "DRAFT" && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(row.cigarId)}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => toggleSelected(row.cigarId)}
-                    className="h-5 w-5 cursor-pointer"
-                    aria-label={`Sélectionner ${row.cigarId}`}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {message && (
-        <div className="text-sm font-medium bg-muted rounded-md px-4 py-3">
-          {message}
-        </div>
-      )}
-    </div>
-  );
+  return <div className="max-w-7xl mx-auto space-y-5"><div><h1 className="text-3xl font-serif font-bold">DNA Researcher</h1><p className="text-muted-foreground">File de travail alimentée par le Research Pool cigar-only.</p></div>
+    <section className="bg-white border rounded-xl p-4 shadow-sm"><div className="flex flex-col md:flex-row gap-3"><div className="relative flex-1"><Search className="absolute left-3 top-3 text-muted-foreground" size={18}/><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search(1)} placeholder="Rechercher marque, ligne, vitole, factory ou fabricant…" className="w-full border rounded pl-10 pr-3 py-2"/></div>
+      <button onClick={() => search(1)} className="px-4 py-2 bg-primary text-primary-foreground rounded font-semibold">Rechercher</button><button onClick={() => setManual(!manual)} className="inline-flex items-center gap-2 px-4 py-2 border rounded font-semibold"><Plus size={18}/>Ajouter un nouveau candidat</button></div></section>
+    {manual && <form onSubmit={createManual} className="bg-white border rounded-xl p-5 grid md:grid-cols-3 gap-3">{["brand","line","vitole","format","dimensions","note"].map((key) => <input key={key} required={["brand","line","vitole"].includes(key)} value={manualValues[key]} onChange={(e) => setManualValues((old) => ({...old,[key]:e.target.value}))} placeholder={{brand:"Marque *",line:"Ligne *",vitole:"Vitole *",format:"Format (optionnel)",dimensions:"Dimensions (optionnel)",note:"Note/source (optionnel)"}[key]} className="border rounded px-3 py-2"/>)}<button disabled={busy} className="px-4 py-2 bg-primary text-primary-foreground rounded font-semibold">Créer sans CIGAR_ID</button></form>}
+    {selectedPoolIds.length > 0 && <div className="sticky top-2 z-10 bg-primary text-primary-foreground rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"><strong>{selectedPoolIds.length} cigare(s) sélectionné(s)</strong><div className="flex gap-2"><button onClick={() => addToQueue()} disabled={busy} className="px-3 py-2 bg-white text-primary rounded font-semibold">Ajouter à la recherche DNA</button><button onClick={batchResearch} disabled={busy} className="px-3 py-2 border border-white rounded font-semibold">Lancer le batch research</button></div></div>}
+    {batchProgress && <p>Progression : {batchProgress.done}/{batchProgress.total}</p>}
+    <section className="space-y-3">{loading ? <p>Chargement…</p> : results.map((row) => <article key={row.poolId} className="bg-white border rounded-xl p-4 flex gap-4 justify-between"><label className="flex gap-4 cursor-pointer"><input type="checkbox" checked={selectedPoolIds.includes(row.poolId)} onChange={() => setSelectedPoolIds((old) => old.includes(row.poolId) ? old.filter((id) => id !== row.poolId) : [...old,row.poolId])}/><span><strong>{row.brand} — {row.line}</strong><span className="block text-sm">{row.vitole || "—"}{row.format ? ` • ${row.format}` : ""}{row.dimensions ? ` • ${row.dimensions}` : ""}</span><span className="block text-xs text-muted-foreground">{row.poolId}{row.cigarId ? ` • ${row.cigarId}` : " • Aucun CIGAR_ID"} • sourcing {row.sourcingRating || "—"} • DNA {row.hasExistingDna ? "Oui" : "Non"}{row.factory || row.madeBy ? ` • ${row.factory || row.madeBy}` : ""}</span></span></label>
+        {row.activeCase && <button onClick={() => openCase(row.activeCase.caseId)} className="self-start px-3 py-2 border rounded font-semibold">Ouvrir la file</button>}</article>)}</section>
+    <div className="flex justify-center items-center gap-4"><button disabled={page <= 1} onClick={() => search(page - 1)} className="p-2 border rounded disabled:opacity-30"><ChevronLeft/></button><span>Page {page} / {pages}</span><button disabled={page >= pages} onClick={() => search(page + 1)} className="p-2 border rounded disabled:opacity-30"><ChevronRight/></button></div>
+    {message && <p className="bg-muted rounded p-3 text-sm font-medium">{message}</p>}
+  </div>;
 }

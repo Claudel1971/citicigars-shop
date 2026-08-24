@@ -12,6 +12,7 @@ import { parseTechnicalSheetTXT } from "./services/technical-sheet-parser";
 import { registerCrmRoutes } from "./routes.crm";
 import { registerDnaRoutes } from "./routes.dna";
 import { registerDnaResearchRoutes } from "./routes.dna-research";
+import { registerResearchPoolRoutes } from "./routes.research-pool";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
@@ -52,6 +53,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  registerResearchPoolRoutes(app);
 
   app.use('/cms-assets', express.static(CMS_ASSETS_DIR, {
     maxAge: '1d',
