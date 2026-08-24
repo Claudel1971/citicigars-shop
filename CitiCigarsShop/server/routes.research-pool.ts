@@ -129,6 +129,7 @@ export function registerResearchPoolRoutes(app: Express): void {
         brand: cigarResearchPool.brand, line: cigarResearchPool.line,
         vitole: cigarResearchPool.vitole, format: cigarResearchPool.format,
         dimensions: cigarResearchPool.dimensions, sourcingRating: cigarResearchPool.sourcingRating,
+        originCountry: cigarResearchPool.originCountry,
         factory: cigarResearchPool.factory, madeBy: cigarResearchPool.madeBy,
       }).from(cigarResearchPool)
         .leftJoin(cigarCatalog, eq(cigarCatalog.poolId, cigarResearchPool.poolId))
