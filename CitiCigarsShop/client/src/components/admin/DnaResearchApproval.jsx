@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "@/config";
-import { Search, Save, CheckCircle2, ChevronLeft } from "lucide-react";
+import { Search, Save, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 
 const FIELD_DEFS = [
   { key: "vitole", label: "Vitole" },
@@ -56,12 +56,18 @@ export default function DnaResearchApproval() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [reviewQueue, setReviewQueue] = useState([]);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [batchResearching, setBatchResearching] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
   const [proposed, setProposed] = useState({});
   const [finalValues, setFinalValues] = useState({});
   const [memoResearch, setMemoResearch] = useState("");
   const [memoValidation, setMemoValidation] = useState("");
   const [workingStatus, setWorkingStatus] = useState("DRAFT");
   const [saving, setSaving] = useState(false);
+  const [researching, setResearching] = useState(false);
   const [message, setMessage] = useState("");
 
   const loadRows = async () => {
@@ -114,6 +120,153 @@ export default function DnaResearchApproval() {
     }
   };
 
+  const toggleSelected = (cigarId) => {
+    setSelectedIds((prev) =>
+      prev.includes(cigarId)
+        ? prev.filter((id) => id !== cigarId)
+        : [...prev, cigarId],
+    );
+  };
+
+  const runResearchForId = async (cigarId) => {
+    const res = await fetch(
+      `${API_URL}/api/admin/dna-research/${encodeURIComponent(cigarId)}/research`,
+      {
+        method: "POST",
+        headers: adminHeaders(true),
+      },
+    );
+
+    const body = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(body.detail || body.error || `HTTP ${res.status}`);
+    }
+
+    return body;
+  };
+
+  const researchBatch = async () => {
+    if (!selectedIds.length || batchResearching) return;
+
+    const ids = [...selectedIds];
+    setBatchResearching(true);
+    setBatchProgress({ done: 0, total: ids.length });
+    setMessage("");
+
+    const successful = [];
+    const failed = [];
+
+    let cursor = 0;
+
+    const worker = async () => {
+      while (cursor < ids.length) {
+        const cigarId = ids[cursor++];
+        try {
+          await runResearchForId(cigarId);
+          successful.push(cigarId);
+        } catch (err) {
+          console.error("DNA batch research failed", cigarId, err);
+          failed.push(cigarId);
+        } finally {
+          setBatchProgress((prev) => ({
+            ...prev,
+            done: prev.done + 1,
+          }));
+        }
+      }
+    };
+
+    try {
+      const concurrency = Math.min(3, ids.length);
+      await Promise.all(
+        Array.from({ length: concurrency }, () => worker()),
+      );
+
+      await loadRows();
+
+      if (successful.length) {
+        setReviewQueue(successful);
+        setReviewIndex(0);
+        setSelectedIds([]);
+        await openCigar(successful[0]);
+
+        setMessage(
+          failed.length
+            ? `${successful.length} recherche(s) terminée(s), ${failed.length} échec(s).`
+            : `${successful.length} recherche(s) terminée(s).`,
+        );
+      } else {
+        setMessage("Aucune recherche du lot n'a abouti.");
+      }
+    } finally {
+      setBatchResearching(false);
+    }
+  };
+
+  const navigateReview = async (nextIndex) => {
+    if (
+      nextIndex < 0 ||
+      nextIndex >= reviewQueue.length ||
+      nextIndex === reviewIndex
+    ) return;
+
+    setReviewIndex(nextIndex);
+    await openCigar(reviewQueue[nextIndex]);
+  };
+
+  const research = async () => {
+    if (!selected || researching) return;
+
+    setResearching(true);
+    setMessage("");
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/admin/dna-research/${encodeURIComponent(selected.cigarId)}/research`,
+        {
+          method: "POST",
+          headers: adminHeaders(true),
+        },
+      );
+
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (body.error === "openai_api_key_missing") {
+          throw new Error("Clé OpenAI absente du serveur staging.");
+        }
+        if (body.error === "research_already_completed") {
+          throw new Error("Une proposition de recherche existe déjà pour ce cigare.");
+        }
+        throw new Error(body.detail || body.error || `HTTP ${res.status}`);
+      }
+
+      setProposed(body.proposedProfile || {});
+      setFinalValues(body.finalProfile || body.proposedProfile || {});
+      setMemoResearch(body.memoResearch || "");
+      setWorkingStatus(body.status || "RESEARCHED");
+      setSelected((prev) =>
+        prev ? { ...prev, status: body.status || "RESEARCHED" } : prev,
+      );
+
+      setMessage(
+        "Recherche terminée. Les valeurs finales ont été initialisées avec la proposition de l’agent.",
+      );
+
+      await loadRows();
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err instanceof Error
+          ? `Erreur de recherche : ${err.message}`
+          : "Erreur lors de la recherche DNA.",
+      );
+    } finally {
+      setResearching(false);
+    }
+  };
+
   const save = async () => {
     if (!selected) return;
     setSaving(true);
@@ -126,17 +279,16 @@ export default function DnaResearchApproval() {
           method: "PUT",
           headers: adminHeaders(true),
           body: JSON.stringify({
-            status: workingStatus,
-            proposedProfile: profileFromForm(proposed),
             finalProfile: profileFromForm(finalValues),
-            memoResearch,
             memoValidation,
           }),
         },
       );
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setMessage("Profil enregistré.");
+
+      setMessage("Valeurs finales enregistrées.");
+      await openCigar(selected.cigarId);
       await loadRows();
     } catch (err) {
       console.error(err);
@@ -187,16 +339,50 @@ export default function DnaResearchApproval() {
   if (selected) {
     return (
       <div className="max-w-7xl mx-auto space-y-6">
-        <button
-          onClick={() => {
-            setSelected(null);
-            setMessage("");
-          }}
-          className="inline-flex items-center gap-2 text-sm font-medium hover:underline"
-        >
-          <ChevronLeft size={18} />
-          Retour à la liste
-        </button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <button
+            onClick={() => {
+              setSelected(null);
+              setMessage("");
+              setReviewQueue([]);
+              setReviewIndex(0);
+            }}
+            className="inline-flex items-center gap-2 text-sm font-medium hover:underline"
+          >
+            <ChevronLeft size={18} />
+            Retour à la liste
+          </button>
+
+          {reviewQueue.length > 0 && (
+            <div className="flex items-center gap-3 text-sm font-semibold">
+              <button
+                onClick={() => navigateReview(reviewIndex - 1)}
+                disabled={reviewIndex === 0 || saving || researching}
+                className="p-2 border rounded-md disabled:opacity-30"
+                aria-label="Cigare précédent"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <span>
+                Cigare {reviewIndex + 1} sur {reviewQueue.length}
+              </span>
+
+              <button
+                onClick={() => navigateReview(reviewIndex + 1)}
+                disabled={
+                  reviewIndex >= reviewQueue.length - 1 ||
+                  saving ||
+                  researching
+                }
+                className="p-2 border rounded-md disabled:opacity-30"
+                aria-label="Cigare suivant"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="bg-white border rounded-xl p-5 md:p-7 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -214,7 +400,7 @@ export default function DnaResearchApproval() {
 
             <div className="shrink-0">
               <span className="inline-flex px-3 py-1 rounded-full text-sm font-semibold bg-muted">
-                {STATUS_LABELS[workingStatus] || workingStatus}
+                {researching ? "Recherche en cours…" : (STATUS_LABELS[workingStatus] || workingStatus)}
               </span>
             </div>
           </div>
@@ -242,10 +428,8 @@ export default function DnaResearchApproval() {
                   </label>
                   <input
                     value={normalizeValue(proposed[key])}
-                    onChange={(e) =>
-                      setProposed((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                    className="w-full border rounded-md px-3 py-2 bg-amber-50/40"
+                    readOnly
+                    className="w-full border rounded-md px-3 py-2 bg-amber-50/40 text-muted-foreground cursor-default"
                   />
                 </div>
 
@@ -271,10 +455,10 @@ export default function DnaResearchApproval() {
             <h3 className="font-bold mb-2">Mémo recherche / sources</h3>
             <textarea
               value={memoResearch}
-              onChange={(e) => setMemoResearch(e.target.value)}
+              readOnly
               rows={7}
-              placeholder="Sources consultées, justification, incertitudes, éléments à vérifier..."
-              className="w-full border rounded-md p-3 resize-y"
+              placeholder="La recherche agent et ses sources apparaîtront ici..."
+              className="w-full border rounded-md p-3 resize-y bg-muted/20 text-muted-foreground cursor-default"
             />
           </div>
 
@@ -292,18 +476,23 @@ export default function DnaResearchApproval() {
 
         <div className="bg-white border rounded-xl p-5 shadow-sm flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row gap-3">
-            <select
-              value={workingStatus}
-              onChange={(e) => setWorkingStatus(e.target.value)}
-              className="border rounded-md px-3 py-2"
-              disabled={workingStatus === "APPROVED"}
+            <button
+              onClick={research}
+              disabled={
+                researching ||
+                saving ||
+                workingStatus === "RESEARCHED" ||
+                workingStatus === "APPROVED"
+              }
+              className="inline-flex justify-center items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground font-semibold disabled:opacity-50"
             >
-              <option value="DRAFT">À rechercher</option>
-              <option value="RESEARCHED">Proposé</option>
-              <option value="REVIEW">À revoir</option>
-              <option value="REJECTED">Rejeté</option>
-              <option value="APPROVED" disabled>Approuvé</option>
-            </select>
+              <Search size={18} />
+              {researching
+                ? "Recherche en cours…"
+                : workingStatus === "RESEARCHED" || workingStatus === "APPROVED"
+                  ? "Recherche effectuée"
+                  : "Lancer la recherche DNA"}
+            </button>
 
             <button
               onClick={save}
@@ -317,7 +506,7 @@ export default function DnaResearchApproval() {
 
           <button
             onClick={approve}
-            disabled={saving || workingStatus === "APPROVED"}
+            disabled={saving || researching || workingStatus !== "RESEARCHED"}
             className="inline-flex justify-center items-center gap-2 px-5 py-2 rounded-md bg-primary text-primary-foreground font-bold disabled:opacity-50"
           >
             <CheckCircle2 size={18} />
@@ -377,10 +566,15 @@ export default function DnaResearchApproval() {
           </select>
 
           <button
-            onClick={loadRows}
-            className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-semibold"
+            onClick={researchBatch}
+            disabled={!selectedIds.length || batchResearching}
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-semibold disabled:opacity-40"
           >
-            Rechercher
+            {batchResearching
+              ? `Recherche ${batchProgress.done}/${batchProgress.total}`
+              : selectedIds.length
+                ? `Rechercher (${selectedIds.length})`
+                : "Rechercher"}
           </button>
         </div>
       </div>
@@ -391,10 +585,12 @@ export default function DnaResearchApproval() {
 
       <div className="grid grid-cols-1 gap-3">
         {rows.map((row) => (
-          <button
+          <div
             key={row.cigarId}
             onClick={() => openCigar(row.cigarId)}
-            className="text-left bg-white border rounded-xl p-4 md:p-5 shadow-sm hover:border-primary/40 hover:shadow transition"
+            role="button"
+            tabIndex={0}
+            className="text-left bg-white border rounded-xl p-4 md:p-5 shadow-sm hover:border-primary/40 hover:shadow transition cursor-pointer"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div>
@@ -408,11 +604,24 @@ export default function DnaResearchApproval() {
                 </div>
               </div>
 
-              <span className="self-start inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-muted">
-                {STATUS_LABELS[row.status] || row.status}
-              </span>
+              <div className="self-start flex items-center gap-3">
+                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-muted">
+                  {STATUS_LABELS[row.status] || row.status}
+                </span>
+
+                {row.status === "DRAFT" && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(row.cigarId)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelected(row.cigarId)}
+                    className="h-5 w-5 cursor-pointer"
+                    aria-label={`Sélectionner ${row.cigarId}`}
+                  />
+                )}
+              </div>
             </div>
-          </button>
+          </div>
         ))}
       </div>
 

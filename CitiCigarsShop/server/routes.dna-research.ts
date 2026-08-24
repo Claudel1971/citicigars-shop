@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { and, eq, isNull, like, or } from "drizzle-orm";
 import { db } from "./db.mysql";
 import { requireAdminAuth } from "./middleware/auth";
+import { researchCigarDna } from "./services/dna-research-agent";
 import {
   cigarCatalog,
   cigarDnaReviews,
@@ -185,6 +186,134 @@ export function registerDnaResearchRoutes(app: Express): void {
     },
   );
 
+  app.post(
+    "/api/admin/dna-research/:cigarId/research",
+    requireAdminAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const cigarId = req.params.cigarId.trim();
+
+        const cigars = await db
+          .select({
+            cigarId: cigarCatalog.cigarId,
+            marque: cigarCatalog.marque,
+            ligne: cigarCatalog.ligne,
+            vitole: cigarCatalog.vitole,
+            format: cigarCatalog.format,
+            dimensions: cigarCatalog.dimensions,
+            ringGauge: cigarCatalog.ringGauge,
+            pays: cigarCatalog.pays,
+            sourceRef: cigarCatalog.sourceRef,
+          })
+          .from(cigarCatalog)
+          .where(eq(cigarCatalog.cigarId, cigarId))
+          .limit(1);
+
+        if (!cigars.length) {
+          return res.status(404).json({ error: "cigar_not_found" });
+        }
+
+        const existingRows = await db
+          .select()
+          .from(cigarDnaReviews)
+          .where(eq(cigarDnaReviews.cigarId, cigarId))
+          .limit(1);
+
+        const existing = existingRows[0];
+
+        if (
+          existing?.status === "APPROVED" ||
+          existing?.status === "RESEARCHED"
+        ) {
+          return res.status(409).json({
+            error: "research_already_completed",
+            status: existing.status,
+          });
+        }
+
+        const existingProfile =
+          (existing?.finalProfile as Record<string, unknown> | null) ??
+          (existing?.proposedProfile as Record<string, unknown> | null);
+
+        const result = await researchCigarDna({
+          ...cigars[0],
+          existingSourcingClass:
+            typeof existingProfile?.sourcingClass === "string"
+              ? existingProfile.sourcingClass
+              : null,
+        });
+
+        const proposedProfile = sanitizeProfile(result.profile);
+        if (!proposedProfile) {
+          return res.status(502).json({ error: "research_profile_missing" });
+        }
+
+        // IMPORTANT: the human-review column starts as an exact snapshot
+        // of the agent proposal. Later human edits affect final_profile only.
+        const finalProfile = structuredClone(proposedProfile);
+
+        const sourceLines = result.sources.map(
+          (source, index) =>
+            `${index + 1}. [${source.type}] ${source.url} — ${source.note}`,
+        );
+
+        const memoResearch = [
+          result.memoResearch.trim(),
+          result.arbitrage.trim()
+            ? `Arbitrage : ${result.arbitrage.trim()}`
+            : "",
+          sourceLines.length
+            ? `Sources :\n${sourceLines.join("\n")}`
+            : "Sources : aucune source retournée",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+
+        await db
+          .insert(cigarDnaReviews)
+          .values({
+            cigarId,
+            status: "RESEARCHED",
+            proposedProfile,
+            finalProfile,
+            memoResearch,
+            memoValidation: existing?.memoValidation ?? null,
+            approvedBy: null,
+            approvedAt: null,
+          })
+          .onDuplicateKeyUpdate({
+            set: {
+              status: "RESEARCHED",
+              proposedProfile,
+              finalProfile,
+              memoResearch,
+              approvedBy: null,
+              approvedAt: null,
+            },
+          });
+
+        res.json({
+          success: true,
+          cigarId,
+          status: "RESEARCHED",
+          proposedProfile,
+          finalProfile,
+          memoResearch,
+        });
+      } catch (error: any) {
+        if (error instanceof Error && error.message === "OPENAI_API_KEY_MISSING") {
+          return res.status(503).json({ error: "openai_api_key_missing" });
+        }
+
+        console.error("DNA research agent error:", error);
+        res.status(502).json({
+          error: "dna_research_agent_failed",
+          detail: error instanceof Error ? error.message : "unknown_error",
+        });
+      }
+    },
+  );
+
   app.put(
     "/api/admin/dna-research/:cigarId",
     requireAdminAuth,
@@ -192,68 +321,79 @@ export function registerDnaResearchRoutes(app: Express): void {
       try {
         const cigarId = req.params.cigarId.trim();
 
-        const cigar = await db
+        const cigars = await db
           .select({ cigarId: cigarCatalog.cigarId })
           .from(cigarCatalog)
           .where(eq(cigarCatalog.cigarId, cigarId))
           .limit(1);
 
-        if (!cigar.length) {
+        if (!cigars.length) {
           return res.status(404).json({ error: "cigar_not_found" });
         }
 
-        const proposedProfile = sanitizeProfile(req.body?.proposedProfile);
-        const finalProfile = sanitizeProfile(req.body?.finalProfile);
+        const existingRows = await db
+          .select()
+          .from(cigarDnaReviews)
+          .where(eq(cigarDnaReviews.cigarId, cigarId))
+          .limit(1);
 
-        const requestedStatus = req.body?.status;
-        if (requestedStatus !== undefined && !isValidStatus(requestedStatus)) {
-          return res.status(400).json({ error: "invalid_status" });
+        const existing = existingRows[0];
+
+        if (existing?.status === "APPROVED") {
+          return res.status(409).json({ error: "approved_profile_locked" });
         }
 
-        if (requestedStatus === "APPROVED") {
-          return res.status(400).json({ error: "approval_endpoint_required" });
-        }
+        const finalProfile = Object.prototype.hasOwnProperty.call(
+          req.body ?? {},
+          "finalProfile",
+        )
+          ? sanitizeProfile(req.body?.finalProfile)
+          : ((existing?.finalProfile as Record<string, unknown> | null) ?? null);
+
+        const memoValidation =
+          typeof req.body?.memoValidation === "string"
+            ? req.body.memoValidation
+            : (existing?.memoValidation ?? null);
+
+        // Agent evidence is immutable from the human-edit endpoint.
+        // Only the /research endpoint may create proposed_profile/memo_research.
+        const proposedProfile =
+          (existing?.proposedProfile as Record<string, unknown> | null) ?? null;
+        const memoResearch = existing?.memoResearch ?? null;
 
         const status =
-          requestedStatus ??
+          existing?.status ??
           (proposedProfile ? "RESEARCHED" : "DRAFT");
 
-        const values = {
+        await db
+          .insert(cigarDnaReviews)
+          .values({
+            cigarId,
+            status,
+            proposedProfile,
+            finalProfile,
+            memoResearch,
+            memoValidation,
+          })
+          .onDuplicateKeyUpdate({
+            set: {
+              finalProfile,
+              memoValidation,
+            },
+          });
+
+        res.json({
+          success: true,
           cigarId,
           status,
           proposedProfile,
           finalProfile,
-          memoResearch:
-            typeof req.body?.memoResearch === "string"
-              ? req.body.memoResearch
-              : null,
-          memoValidation:
-            typeof req.body?.memoValidation === "string"
-              ? req.body.memoValidation
-              : null,
-        };
-
-        await db
-          .insert(cigarDnaReviews)
-          .values(values)
-          .onDuplicateKeyUpdate({
-            set: {
-              status: values.status,
-              proposedProfile: values.proposedProfile,
-              finalProfile: values.finalProfile,
-              memoResearch: values.memoResearch,
-              memoValidation: values.memoValidation,
-            },
-          });
-
-        res.json({ success: true, cigarId, status });
-      } catch (error: any) {
-        if (error instanceof Error && error.message === "INVALID_PROFILE") {
-          return res.status(400).json({ error: "invalid_profile" });
-        }
-
-        console.error("DNA research save error:", error);
-        res.status(500).json({ error: "dna_research_save_failed" });
+          memoResearch,
+          memoValidation,
+        });
+      } catch (error) {
+        console.error("DNA review save error:", error);
+        res.status(500).json({ error: "dna_review_save_failed" });
       }
     },
   );
