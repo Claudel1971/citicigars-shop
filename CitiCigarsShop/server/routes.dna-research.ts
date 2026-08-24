@@ -1,5 +1,5 @@
-﻿import type { Express, Request, Response } from "express";
-import { and, eq, like, or } from "drizzle-orm";
+import type { Express, Request, Response } from "express";
+import { and, eq, isNull, like, or } from "drizzle-orm";
 import { db } from "./db.mysql";
 import { requireAdminAuth } from "./middleware/auth";
 import {
@@ -62,7 +62,16 @@ export function registerDnaResearchRoutes(app: Express): void {
         const conditions = [];
 
         if (status && isValidStatus(status)) {
-          conditions.push(eq(cigarDnaReviews.status, status));
+          if (status === "DRAFT") {
+            conditions.push(
+              or(
+                eq(cigarDnaReviews.status, "DRAFT"),
+                isNull(cigarDnaReviews.status),
+              )!,
+            );
+          } else {
+            conditions.push(eq(cigarDnaReviews.status, status));
+          }
         }
 
         if (q) {
@@ -199,6 +208,10 @@ export function registerDnaResearchRoutes(app: Express): void {
         const requestedStatus = req.body?.status;
         if (requestedStatus !== undefined && !isValidStatus(requestedStatus)) {
           return res.status(400).json({ error: "invalid_status" });
+        }
+
+        if (requestedStatus === "APPROVED") {
+          return res.status(400).json({ error: "approval_endpoint_required" });
         }
 
         const status =

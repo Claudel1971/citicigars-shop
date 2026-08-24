@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "@/config";
 import { Search, Save, CheckCircle2, ChevronLeft } from "lucide-react";
 
@@ -302,7 +302,7 @@ export default function DnaResearchApproval() {
               <option value="RESEARCHED">Proposé</option>
               <option value="REVIEW">À revoir</option>
               <option value="REJECTED">Rejeté</option>
-              <option value="APPROVED">Approuvé</option>
+              <option value="APPROVED" disabled>Approuvé</option>
             </select>
 
             <button
