@@ -1263,26 +1263,6 @@
       "confidence": "FAIBLE"
     },
     {
-      "cigarId": "CTG000569",
-      "sourcingClass": "A2-R",
-      "brand": "Rocky Patel",
-      "line": "Royale",
-      "vitole": null,
-      "format": "Belicoso",
-      "dimension": "6½ × 54",
-      "puissance": 5,
-      "famille1": "Gourmand",
-      "famille2": "Fauve",
-      "famille3": "Boisé",
-      "intensite": 4,
-      "spice": 4,
-      "sweet": 2,
-      "signatures": [],
-      "dureeMin": 60,
-      "dureeMax": 80,
-      "confidence": "MODÉRÉE"
-    },
-    {
       "cigarId": "CTG000570",
       "sourcingClass": "A2-R",
       "brand": "Perdomo",
