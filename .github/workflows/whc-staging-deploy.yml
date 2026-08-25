@@ -50,7 +50,7 @@ jobs:
             window.CITICIGARS_RUNTIME_CONFIG = {
               ...(window.CITICIGARS_RUNTIME_CONFIG || {}),
               API_BASE: "${VITE_API_URL}/api",
-              DNA_PILOT_MODE: true,
+              DNA_PILOT_MODE: false,
             };
           })(window);
           EOF
@@ -79,7 +79,7 @@ jobs:
             <(sed '/<base href="\/">/d' dist/public/dna/index.html) \
             dist/public/CitiCigars_DNA_Curator_v2_10_3_RC.html
           grep -Fq 'https://citicigars-api-staging.onrender.com/api' dist/public/dna-runtime-config.js
-          grep -Fq 'DNA_PILOT_MODE: true' dist/public/dna-runtime-config.js
+          grep -Fq 'DNA_PILOT_MODE: false' dist/public/dna-runtime-config.js
           if grep -Fq 'https://citicigars-api.onrender.com' dist/public/dna-runtime-config.js; then
             echo "SECURITY ERROR: production API found in DNA staging runtime"
             exit 1
