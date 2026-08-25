@@ -144,6 +144,45 @@ button,input,select{font:inherit} button{cursor:pointer} [hidden]{display:none!i
   .b2-card{padding:18px}
 }
 
+
+/* PAGE6_CONVERSION_GATE_V1 */
+.dna-lock-note{
+  background:var(--redbg);
+  border-color:var(--red);
+  color:#f0c0ba;
+}
+.dna-unlock-note{
+  background:#172318;
+  border-color:var(--green);
+  color:#d8ead3;
+}
+.page6-skip-check{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:max-content;
+  max-width:100%;
+  margin:12px 0 4px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.4;
+  cursor:pointer;
+  user-select:none;
+}
+.page6-skip-check input{
+  width:18px;
+  height:18px;
+  margin:0;
+  flex:0 0 auto;
+  accent-color:var(--gold);
+  cursor:pointer;
+}
+.page6-add-next{
+  width:164px;
+  min-width:164px;
+  text-align:center;
+}
+
 </style>
 <script src="/dna-runtime-config.js"></script>
 <script src="/dimension-formatter.js"></script>
@@ -368,9 +407,16 @@ button,input,select{font:inherit} button{cursor:pointer} [hidden]{display:none!i
     </div>
   </div>
 
-  <button class="skip" id="b3NoneBtn" type="button">Je ne souhaite pas en indiquer</button>
+  <label class="page6-skip-check" id="b3NoneWrap" for="b3NoneCheck">
+    <input id="b3NoneCheck" type="checkbox" />
+    <span>Tu pr?f?res ne pas r?pondre ?</span>
+  </label>
 
-  <div class="nav"><button class="back">Retour</button><div class="spacer"></div><button class="next" disabled>Suivant</button></div>
+  <div class="nav">
+    <button class="gold-btn page6-add-next" id="page6B3Next" type="button">Suivant</button>
+    <div class="spacer"></div>
+    <button class="next" id="page6Finish" type="button">Terminer</button>
+  </div>
 </div></section>
 
 </div></main>
@@ -445,6 +491,8 @@ document.querySelectorAll('.next').forEach(b=>{
   b.addEventListener('click',async()=>{
     if(step===6){
       await finalizePage6();
+      page6RefreshBlock1();
+      page6ScrollToBlock1();
       return;
     }
     showStep(step+1);
@@ -730,6 +778,7 @@ function bloc2Toggle(cigarId){
   }
 
   renderPage6Block2(bloc2.proposed);
+  page6RefreshBlock1();
   page6SyncNav();
 }
 
@@ -787,9 +836,9 @@ function renderPage6Block1(items){
     return;
   }
 
-  const unlockMessage=page6Persisted
+  const unlockMessage=page6Bloc2Treated()
     ?'<div class="system-note dna-unlock-note">Ton profil est compl\u00e9t\u00e9. Tu peux maintenant cliquer sur l\u2019un des cigares disponibles pour d\u00e9couvrir sa fiche d\u00e9taill\u00e9e.</div>'
-    :'';
+    :'<div class="system-note dna-lock-note">Ton profil n\\u2019est pas encore compl\\u00e9t\\u00e9. Pour acc\\u00e9der aux fiches des cigares s\\u00e9lectionn\\u00e9s pour ton DNA, indique-nous d\\u2019abord ce qui t\\u2019int\\u00e9resse parmi les propositions ci-dessous.</div>';
 
   const cards=top5.map(function(r){
     const name=[r.brand,r.line].filter(Boolean).join(' \u2014 ');
@@ -798,7 +847,7 @@ function renderPage6Block1(items){
 
     const sku=String(r.sku||'');
 
-    const link=page6Persisted&&sku
+    const link=page6Bloc2Treated()&&sku
       ?'<a class="primary dna-product-link" href="/p/'+encodeURIComponent(sku)+'" data-sku="'+escapeHtml(sku)+'">Voir la fiche produit</a>'
       :'<a class="locked" aria-disabled="true" tabindex="-1">Voir la fiche produit \ud83d\udd12</a>';
 
@@ -814,7 +863,7 @@ function renderPage6Block1(items){
 
   wrap.innerHTML=unlockMessage+cards;
 
-  if(page6Persisted){
+  if(page6Bloc2Treated()){
     wrap.querySelectorAll('.dna-product-link').forEach(function(link){
       link.addEventListener('click',async function(event){
         event.preventDefault();
@@ -1050,19 +1099,26 @@ function page6Bloc3Treated(){
 }
 
 function page6SyncNav(){
-  const btn=document.querySelector('.screen[data-step="6"] .next');
+  const btn=document.getElementById('page6Finish')||document.querySelector('.screen[data-step="6"] .next');
   if(!btn) return;
+  btn.disabled=false;
+  btn.textContent='Terminer';
+  btn.setAttribute('aria-busy',page6PersistInFlight?'true':'false');
+}
 
-  if(page6Persisted){
-    btn.disabled=true;
-    btn.textContent='Profil enregistr?';
-    return;
+function page6RefreshBlock1(){
+  const items=resolvedPool&&Array.isArray(resolvedPool.top5)?resolvedPool.top5:[];
+  renderPage6Block1(items);
+  hydrateRecommendationImages(items);
+}
+
+function page6ScrollToBlock1(){
+  const target=document.getElementById('page6Block1');
+  if(target){
+    target.scrollIntoView({behavior:'smooth',block:'start'});
+  }else{
+    window.scrollTo({top:0,behavior:'smooth'});
   }
-
-  btn.disabled=
-    page6PersistInFlight||
-    !page6Bloc2Treated()||
-    !page6Bloc3Treated();
 }
 
 function buildPage6Payload(){
@@ -1222,6 +1278,7 @@ document.getElementById('b2None').addEventListener('click',function(){
   bloc2.selectedIds=[];
   bloc2.noneConfirmed=true;
   renderPage6Block2(bloc2.proposed);
+  page6RefreshBlock1();
   page6SyncNav();
 });
 
@@ -1350,7 +1407,8 @@ function b3RenderEntries(){
     wrap.appendChild(span);
   });
   document.getElementById('bloc3Picker').hidden=bloc3.entries.length>=5;
-  document.getElementById('b3NoneBtn').hidden=bloc3.entries.length>0;
+  const b3NoneWrap=document.getElementById('b3NoneWrap');
+  if(b3NoneWrap) b3NoneWrap.hidden=bloc3.entries.length>0;
 }
 
 document.getElementById('b3Marque').addEventListener('change',()=>{
@@ -1445,9 +1503,27 @@ document.getElementById('b3AddBtn').addEventListener('click',()=>{
   b3SyncNav();
 });
 
-document.getElementById('b3NoneBtn').addEventListener('click',()=>{
-  bloc3.noneConfirmed=true;
+document.getElementById('page6B3Next').addEventListener('click',()=>{
+  const addBtn=document.getElementById('b3AddBtn');
+
+  if(addBtn&&!addBtn.disabled){
+    addBtn.click();
+    return;
+  }
+
+  const picker=document.getElementById('bloc3Picker');
+  if(picker) picker.scrollIntoView({behavior:'smooth',block:'center'});
+});
+
+document.getElementById('b3NoneCheck').addEventListener('change',async function(){
+  bloc3.noneConfirmed=this.checked;
   b3SyncNav();
+
+  if(this.checked){
+    await finalizePage6();
+    page6RefreshBlock1();
+    page6ScrollToBlock1();
+  }
 });
 
 setTimeout(()=>{
