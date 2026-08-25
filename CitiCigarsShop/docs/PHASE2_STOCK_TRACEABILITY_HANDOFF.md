@@ -54,6 +54,9 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `migrations-mysql/0018_stock_provenance_lots.sql` — added suppliers, receipts, immutable receipt items, provenance lots, lot/location balances, append-only movement/lot allocations, explicit legacy lot seed, and backfill.
 - `server/storage.stock.ts` — now maintains aggregate, location, and legacy-lot projections plus lot allocation ledger rows atomically.
 - Stock rehearsal scripts — extended again for provenance reconciliation, allocation rollback/counting, and allocation immutability.
+- `migrations-mysql/0015_research_pool.sql` — added the missing Drizzle statement breakpoints so a fresh journal-driven MariaDB migration run executes its multiple DDL statements correctly.
+- `migrations-mysql/0019_crm_customer_blacklist_repair.sql` — added a guarded forward repair for the historical `0007_crm_customer_blacklist.sql` migration, which exists on disk but was never entered in the Drizzle journal.
+- `migrations-mysql/meta/_journal.json` — added journal index 18 for the guarded `0019` repair.
 
 ## 6. Migrations created
 
@@ -63,13 +66,23 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migration `0017` backfills one header from the earliest detail row in each historical group while leaving historical source/destination locations `NULL`; it then enforces matching `(group_id, movement_type)` and makes headers append-only.
 - `migrations-mysql/0018_stock_provenance_lots.sql` with journal entry index 17.
 - Migration `0018` creates one explicit `LEGACY_UNKNOWN` provenance lot with every unsupported historical fact (`supplier`, `receipt`, source reference, receipt date) left `NULL`, backfills current location positions into it, and creates no historical movement/lot allocations.
+- `migrations-mysql/0019_crm_customer_blacklist_repair.sql` with journal entry index 18.
+- Migration `0019` conditionally creates the three blacklist columns and their index. It is safe both for a fresh database, where the unjournaled historical migration was skipped, and for a database where that historical SQL was applied manually.
 
 ## 7. Migration application status
 
-- No Phase 2 migration has been applied anywhere.
-- Production was not accessed.
-- The disposable MariaDB endpoint `127.0.0.1:3399` was checked and returned `ECONNREFUSED`; therefore no DB migration/rehearsal was attempted.
-- Any future application must target a disposable/local or staging database explicitly and be recorded here.
+- Applied only to a disposable local MariaDB 12.3.2 instance at `127.0.0.1:3399`, database `citicigars_rehearsal`.
+- Disposable data directory: `C:/Users/claud/AppData/Local/Temp/citicigars-phase2-mariadb-3399/`.
+- Server configuration used for the gate: `utf8mb4`, `utf8mb4_unicode_ci`, local TCP only, grant tables disabled for the disposable process.
+- The database was rebuilt from zero after the migration fixes. The baseline helper marked `0000` as already represented, then the real `drizzle-kit migrate --config=drizzle.config.mysql.ts` command applied the complete remaining journal in one successful pass.
+- The first fresh-chain attempt stopped at `0015_research_pool.sql`: that multi-statement migration lacked Drizzle statement breakpoints. Adding the missing breakpoints fixed the real migration runner failure.
+- The first backend rehearsal then stopped in the CRM/DNA portion because `customers.is_blacklisted` was absent. The historical `0007_crm_customer_blacklist.sql` file had never been journaled, so the guarded forward migration `0019` was added. After both fixes, the database was rebuilt from zero and the complete gate passed. No Milestone 4 work was started.
+- Phase 2 journal evidence from the final fresh run:
+  - id 16, `0016_stock_locations_foundation`, hash prefix `4db94bc39ec7`, timestamp `1787623200000`;
+  - id 17, `0017_stock_movement_groups`, hash prefix `ec36860e3dc4`, timestamp `1787626800000`;
+  - id 18, `0018_stock_provenance_lots`, hash prefix `8d15ca349d30`, timestamp `1787630400000`;
+  - id 19, `0019_crm_customer_blacklist_repair`, hash prefix `949fc0fcc5a8`, timestamp `1787634000000`.
+- No staging or production database was accessed or modified.
 
 ## 8. Tests executed and exact results
 
@@ -79,7 +92,13 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `npm.cmd run build`: PASS — client built 1,937 modules and server bundle `dist/index.cjs`; only the pre-existing Vite chunk-size warning was emitted.
 - `node --check` for `rehearsal-verify-stock-central-backend.mjs`, `rehearsal-verify-0005-immutability.mjs`, and `rehearsal-verify-seed-atomicity.mjs`: PASS.
 - `git diff --check`: PASS (line-ending conversion warnings only).
-- MariaDB integration rehearsal: NOT RUN because the documented disposable instance at `127.0.0.1:3399` is not running (`ECONNREFUSED`).
+- Fresh disposable migration chain: PASS — migrations through `0019` applied successfully in one real Drizzle run.
+- Extended Stock Central backend rehearsal (`npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs`): PASS — 45 OK, 0 FAIL.
+- Seed atomicity rehearsal (`npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs`): PASS — 8 OK, 0 FAIL. The injected failure occurred at operation 141/257 and rolled back every seed-written stock, group, allocation, and projection row. A clean retry produced 59 movements, 54 groups, 59 allocations, and 45 rows in each projection.
+- Append-only/immutability rehearsal (`node scripts/rehearsal-verify-0005-immutability.mjs`): PASS — UPDATE and DELETE were rejected for movement details, group headers, and lot allocations; all attempted records remained intact.
+- Projection reconciliation queried directly in MariaDB after the rehearsals: PASS — 45 aggregate rows, 0 aggregate/location mismatches; 45 location rows, 0 location/lot mismatches.
+- Rollback behavior against real MariaDB: PASS — failed reservation left aggregate, location, lot, movement, group, and allocation state unchanged; the injected seed failure also rolled back atomically.
+- Concurrency behavior against real MariaDB: PASS — exactly one of two simultaneous reservations against one available unit succeeded, the other failed cleanly, and the final reserved quantity was 1.
 
 ## 9. Commits created
 
@@ -89,6 +108,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `1e01687 stock: add movement group traceability`
 - `368a076 docs: checkpoint phase 2 movement groups`
 - `bb76d13 stock: add receipt and provenance lot foundation`
+- `b86b3d6 docs: checkpoint phase 2 provenance foundation`
+- `9802f2f db: repair disposable migration chain`
 
 ## 10. Current status
 
@@ -96,19 +117,20 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Milestone 1 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Milestone 2 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Milestone 3 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
-- Migration `0016` is intentionally not applied. The live disposable DB rehearsal remains pending until `127.0.0.1:3399` is available.
-- Migration `0017` is also intentionally not applied anywhere.
-- Migration `0018` is also intentionally not applied anywhere.
+- The real disposable MariaDB gate is complete for Milestones 1–3.
+- Migrations `0016`, `0017`, `0018`, and the necessary forward repair `0019` were applied only to the local disposable rehearsal database.
+- All required database, rollback, concurrency, projection, immutability, type-check, focused unit-test, build, and diff checks pass.
+- Milestone 4 has not begun.
 
 ## 11. Unresolved risks/questions
 
-- Migrations `0016`–`0018` and real transactional location/group/lot behavior still require execution against the documented disposable MariaDB instance before any staging application.
 - Existing untracked repository artifacts are extensive. Always use path-specific staging and confirm the staged diff before committing.
 - The Milestone 3 schema can preserve multiple receipt lots, but the current writer intentionally supports only `LEGACY_UNKNOWN`; multi-lot locking/allocation policy and real location IDs must be implemented together in Milestone 4. The current reconciliation guard fails closed if another lot is introduced prematurely.
+- The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
 
 ## 12. NEXT EXACT ACTION
 
-Commit this handoff update and push the coherent Milestone 3 checkpoint to the remote `phase2-stock-traceability` branch, then begin Milestone 4 location-aware operations and multi-lot allocation. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0018`, and run the extended Stock Central, seed atomicity, and immutability rehearsals.
+Begin Milestone 4: implement explicit multi-location operations and deterministic multi-lot allocation, preserving aggregate/location/lot reconciliation and stable lock ordering. Keep all validation disposable/local until a separate staging authorization is given.
 
 ## 13. Commands required to resume safely
 
@@ -120,12 +142,12 @@ git fetch origin phase2-stock-traceability:refs/remotes/origin/phase2-stock-trac
 git merge-base HEAD origin/phase2-stock-traceability
 git status --short
 Set-Location .\CitiCigarsShop
-npm.cmd exec vitest run server/services/stock-movement-processor.test.ts
+npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts
 npm.cmd run check
 npm.cmd run build
-node --check scripts/rehearsal-verify-stock-central-backend.mjs
-node --check scripts/rehearsal-verify-0005-immutability.mjs
-node --check scripts/rehearsal-verify-seed-atomicity.mjs
+npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
+npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
+node scripts/rehearsal-verify-0005-immutability.mjs
 git diff --check
 ```
 
