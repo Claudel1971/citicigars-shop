@@ -73,12 +73,12 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
-- Milestone 1 implementation commit: pending at the time of this handoff update.
+- `7aa3139 stock: add physical location foundation`
 
 ## 10. Current status
 
 - Milestone 0 architecture audit is complete and committed.
-- Milestone 1 implementation is complete in the worktree and passes focused tests, TypeScript, build, syntax, and diff checks.
+- Milestone 1 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Migration `0016` is intentionally not applied. The live disposable DB rehearsal remains pending until `127.0.0.1:3399` is available.
 
 ## 11. Unresolved risks/questions
@@ -89,7 +89,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 
 ## 12. NEXT EXACT ACTION
 
-Commit the coherent Milestone 1 checkpoint with path-specific staging, push `codex/phase2-stock-traceability` to the remote Phase 2 branch if allowed, then begin Milestone 2 movement-group traceability. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0016`, and run the extended Stock Central rehearsal.
+Push the committed Milestone 0/1 checkpoints from `codex/phase2-stock-traceability` to the remote `phase2-stock-traceability` branch, then begin Milestone 2 movement-group traceability. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0016`, and run the extended Stock Central rehearsal.
 
 ## 13. Commands required to resume safely
 
