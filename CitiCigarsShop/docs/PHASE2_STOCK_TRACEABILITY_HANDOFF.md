@@ -88,14 +88,14 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `73c30d5 docs: checkpoint phase 2 location foundation`
 - `1e01687 stock: add movement group traceability`
 - `368a076 docs: checkpoint phase 2 movement groups`
-- Milestone 3 implementation commit: pending at the time of this handoff update.
+- `bb76d13 stock: add receipt and provenance lot foundation`
 
 ## 10. Current status
 
 - Milestone 0 architecture audit is complete and committed.
 - Milestone 1 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Milestone 2 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
-- Milestone 3 implementation is complete in the worktree and passes focused tests, TypeScript, build, syntax, and diff checks.
+- Milestone 3 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Migration `0016` is intentionally not applied. The live disposable DB rehearsal remains pending until `127.0.0.1:3399` is available.
 - Migration `0017` is also intentionally not applied anywhere.
 - Migration `0018` is also intentionally not applied anywhere.
@@ -108,7 +108,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 
 ## 12. NEXT EXACT ACTION
 
-Commit and push the coherent Milestone 3 checkpoint to the remote `phase2-stock-traceability` branch, then begin Milestone 4 location-aware operations and multi-lot allocation. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0018`, and run the extended Stock Central, seed atomicity, and immutability rehearsals.
+Commit this handoff update and push the coherent Milestone 3 checkpoint to the remote `phase2-stock-traceability` branch, then begin Milestone 4 location-aware operations and multi-lot allocation. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0018`, and run the extended Stock Central, seed atomicity, and immutability rehearsals.
 
 ## 13. Commands required to resume safely
 
