@@ -18,6 +18,7 @@ import {
   skus,
   cigarCatalog,
   stockBalances,
+  stockLocationBalances,
   stockMovements,
   packSizeConfig,
   dnaLeads,
@@ -28,6 +29,7 @@ import {
   type ReferenceType,
   type DnaLead,
   type DnaAvailabilityWatch,
+  LEGACY_UNKNOWN_LOCATION_ID,
 } from "../shared/schema.stock";
 import { products } from "../shared/schema.mysql";
 import {
@@ -56,6 +58,7 @@ import {
   effectsForOuvertureBoiteDestination,
   assertPackSizeSentinel,
   assertLooseNeverInTransit,
+  assertLocationProjectionMatches,
 } from "./services/stock-movement-processor";
 import { capturedAtStepForMode, isCommerciallyAvailable } from "./services/dna-availability";
 
@@ -72,7 +75,9 @@ function lockOrder(a: { type: StockType; packSize: number }, b: { type: StockTyp
   return a.packSize - b.packSize;
 }
 
-function rowToBalance(row: typeof stockBalances.$inferSelect | undefined): Balance {
+type BalanceProjectionRow = typeof stockBalances.$inferSelect | typeof stockLocationBalances.$inferSelect;
+
+function rowToBalance(row: BalanceProjectionRow | undefined): Balance {
   if (!row) return { ...ZERO_BALANCE };
   return {
     onHand: row.onHandQty,
@@ -82,6 +87,25 @@ function rowToBalance(row: typeof stockBalances.$inferSelect | undefined): Balan
     deposit: row.depositQty,
     transit: row.transitQty,
   };
+}
+
+async function lockOrCreateLocationBalanceRow(tx: Tx, locationId: string, sku: string, type: StockType, packSize: number) {
+  assertPackSizeSentinel(type, packSize);
+  await tx
+    .insert(stockLocationBalances)
+    .values({ locationId, sku, type, packSize })
+    .onDuplicateKeyUpdate({ set: { locationId: sql`location_id` } });
+  const [row] = await tx
+    .select()
+    .from(stockLocationBalances)
+    .where(and(
+      eq(stockLocationBalances.locationId, locationId),
+      eq(stockLocationBalances.sku, sku),
+      eq(stockLocationBalances.type, type),
+      eq(stockLocationBalances.packSize, packSize),
+    ))
+    .for("update");
+  return row;
 }
 
 /** Garantit qu'une ligne (sku,type,packSize) existe (upsert no-op si déjà présente) PUIS la verrouille FOR UPDATE. */
@@ -112,6 +136,34 @@ async function writeBalanceRow(tx: Tx, sku: string, type: StockType, packSize: n
       lastMovementGroupId: groupId,
     })
     .where(and(eq(stockBalances.sku, sku), eq(stockBalances.type, type), eq(stockBalances.packSize, packSize)));
+}
+
+async function writeLocationBalanceRow(
+  tx: Tx,
+  locationId: string,
+  sku: string,
+  type: StockType,
+  packSize: number,
+  balance: Balance,
+  groupId: string,
+) {
+  await tx
+    .update(stockLocationBalances)
+    .set({
+      onHandQty: balance.onHand,
+      reservedClientQty: balance.reservedClient,
+      reservedEventQty: balance.reservedEvent,
+      atEventQty: balance.atEvent,
+      depositQty: balance.deposit,
+      transitQty: balance.transit,
+      lastMovementGroupId: groupId,
+    })
+    .where(and(
+      eq(stockLocationBalances.locationId, locationId),
+      eq(stockLocationBalances.sku, sku),
+      eq(stockLocationBalances.type, type),
+      eq(stockLocationBalances.packSize, packSize),
+    ));
 }
 
 interface MovementMeta {
@@ -259,7 +311,16 @@ export class StockStorage {
     assertPackSizeSentinel(input.type, input.packSize);
     const run = async (t: Tx): Promise<ApplyMovementResult> => {
       const row = await lockOrCreateBalanceRow(t, input.sku, input.type, input.packSize);
+      const locationRow = await lockOrCreateLocationBalanceRow(
+        t,
+        LEGACY_UNKNOWN_LOCATION_ID,
+        input.sku,
+        input.type,
+        input.packSize,
+      );
       const before = rowToBalance(row);
+      const locationBefore = rowToBalance(locationRow);
+      assertLocationProjectionMatches(before, [locationBefore]);
       const effects = computeSimpleEffects(input, before);
       for (const effect of effects) assertLooseNeverInTransit(input.type, effect.balanceField, effect.delta);
 
@@ -275,6 +336,7 @@ export class StockStorage {
       }
 
       await writeBalanceRow(t, input.sku, input.type, input.packSize, current, groupId);
+      await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, input.type, input.packSize, current, groupId);
       if (movementRows.length) await t.insert(stockMovements).values(movementRows);
 
       return { groupId, balanceBefore: before, balanceAfter: current };
@@ -314,9 +376,31 @@ export class StockStorage {
         lockedByKey.set(`${r.type}|${r.packSize}`, row);
       }
 
+      // Global order is aggregate rows first, then location rows, with the same
+      // stable identity ordering inside each projection. Simple movements use
+      // the same aggregate-before-location order.
+      const locationLockedByKey = new Map<string, typeof stockLocationBalances.$inferSelect>();
+      for (const r of rowsToLock) {
+        const row = await lockOrCreateLocationBalanceRow(
+          t,
+          LEGACY_UNKNOWN_LOCATION_ID,
+          input.sku,
+          r.type,
+          r.packSize,
+        );
+        locationLockedByKey.set(`${r.type}|${r.packSize}`, row);
+      }
+
+      for (const r of rowsToLock) {
+        assertLocationProjectionMatches(
+          rowToBalance(lockedByKey.get(`${r.type}|${r.packSize}`)),
+          [rowToBalance(locationLockedByKey.get(`${r.type}|${r.packSize}`))],
+        );
+      }
+
       const sourceRow = lockedByKey.get("Box|0")!;
       const sourceBalance = rowToBalance(sourceRow);
-      const looseRow = lockedByKey.get("Loose|0");
+      const looseRow = locationLockedByKey.get("Loose|0");
       const currentLooseTotalInSourceBucket = looseRow ? looseRow[`${input.sourceBalanceField}Qty` as "onHandQty" | "atEventQty"] : 0;
 
       // Validation pure (planOuvertureBoite lève StockRuleViolation si incohérent,
@@ -345,6 +429,7 @@ export class StockStorage {
         sourceCurrent = next;
       }
       await writeBalanceRow(t, input.sku, "Box", 0, sourceCurrent, groupId);
+      await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Box", 0, sourceCurrent, groupId);
 
       // planOuvertureBoite garantit désormais packQty>0 pour chaque entrée
       // (point 2 audit) : plus besoin de filtrer les entrées nulles ici.
@@ -359,6 +444,7 @@ export class StockStorage {
           current = next;
         }
         await writeBalanceRow(t, input.sku, "Pack", d.packSize, current, groupId);
+        await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Pack", d.packSize, current, groupId);
       }
 
       if (input.looseQty > 0) {
@@ -372,6 +458,7 @@ export class StockStorage {
           current = next;
         }
         await writeBalanceRow(t, input.sku, "Loose", 0, current, groupId);
+        await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Loose", 0, current, groupId);
       }
 
       if (movementRows.length) await t.insert(stockMovements).values(movementRows);

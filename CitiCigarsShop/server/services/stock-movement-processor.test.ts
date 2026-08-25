@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   ZERO_BALANCE,
   Balance,
+  sumBalances,
+  assertLocationProjectionMatches,
   computeAvailability,
   looseTotal,
   assertLooseNeverInTransit,
@@ -29,6 +31,32 @@ import {
 function b(partial: Partial<Balance>): Balance {
   return { ...ZERO_BALANCE, ...partial };
 }
+
+describe("location projection reconciliation (Phase 2)", () => {
+  it("sums every lifecycle bucket across physical locations", () => {
+    expect(sumBalances([
+      b({ onHand: 3, reservedClient: 1 }),
+      b({ onHand: 2, reservedEvent: 2, atEvent: 1, deposit: 4, transit: 5 }),
+    ])).toEqual(b({ onHand: 5, reservedClient: 1, reservedEvent: 2, atEvent: 1, deposit: 4, transit: 5 }));
+  });
+
+  it("accepts an aggregate equal to the sum of its location projections", () => {
+    const locations = [b({ onHand: 3, reservedClient: 1 }), b({ onHand: 2, reservedEvent: 2 })];
+    expect(() => assertLocationProjectionMatches(b({ onHand: 5, reservedClient: 1, reservedEvent: 2 }), locations)).not.toThrow();
+  });
+
+  it("rejects drift in any bucket instead of silently accepting two truths", () => {
+    expect(() => assertLocationProjectionMatches(b({ onHand: 5 }), [b({ onHand: 4 })]))
+      .toThrowError(expect.objectContaining({ code: "location_projection_mismatch" }));
+  });
+
+  it("keeps a reservation at its physical source location", () => {
+    const sourceBefore = b({ onHand: 5 });
+    const sourceAfter = applyEffects(sourceBefore, effectsForReservationClient(2, sourceBefore));
+    expect(sourceAfter).toEqual(b({ onHand: 5, reservedClient: 2 }));
+    expect(sourceAfter.onHand).toBe(sourceBefore.onHand);
+  });
+});
 
 describe("computeAvailability (amendement 3 : plafonné à 0, déficit séparé)", () => {
   it("cas normal, pas de réservation", () => {

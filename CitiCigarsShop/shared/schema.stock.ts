@@ -16,6 +16,14 @@ export type StockType = (typeof STOCK_TYPES)[number];
 export const BALANCE_FIELDS = ["onHand", "reservedClient", "reservedEvent", "atEvent", "deposit", "transit"] as const;
 export type BalanceField = (typeof BALANCE_FIELDS)[number];
 
+export const STOCK_LOCATION_CATEGORIES = ["CITI_STORAGE", "PARTNER", "EVENT", "TRANSIT", "OTHER"] as const;
+export type StockLocationCategory = (typeof STOCK_LOCATION_CATEGORIES)[number];
+
+// Stable system identity used only when no evidenced physical location exists.
+// It is deliberately not a synonym for Douala or any other known site.
+export const LEGACY_UNKNOWN_LOCATION_ID = "00000000-0000-0000-0000-000000000000";
+export const LEGACY_UNKNOWN_LOCATION_CODE = "LEGACY_UNKNOWN";
+
 // 19 mouvements exacts — 15 P0 + 4 P1 (mission V6 section 1.1)
 export const MOVEMENT_TYPES = [
   "RECEPTION",
@@ -240,6 +248,43 @@ export const stockBalances = mysqlTable("stock_balances", {
 //   availableNow       = GREATEST(0, onHandQty - reservedClientQty - reservedEventQty)
 //   reservationDeficit = GREATEST(0, reservedClientQty + reservedEventQty - onHandQty)
 
+// --- 5b. Physical-location projection (Phase 2) ---
+// stock_balances remains the aggregate compatibility projection. These rows are
+// maintained atomically by the same storage transaction and must reconcile to it.
+export const stockLocations = mysqlTable("stock_locations", {
+  locationId: varchar("location_id", { length: 36 }).primaryKey(),
+  code: varchar("code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 150 }).notNull(),
+  category: mysqlEnum("category", STOCK_LOCATION_CATEGORIES).notNull(),
+  active: boolean("active").notNull().default(true),
+  isSystem: boolean("is_system").notNull().default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  codeUq: uniqueIndex("uq_stock_locations_code").on(table.code),
+  categoryIdx: index("idx_stock_locations_category").on(table.category),
+}));
+
+export const stockLocationBalances = mysqlTable("stock_location_balances", {
+  locationId: varchar("location_id", { length: 36 }).notNull()
+    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  type: mysqlEnum("type", STOCK_TYPES).notNull(),
+  packSize: int("pack_size").notNull().default(0),
+  onHandQty: int("on_hand_qty", { unsigned: true }).notNull().default(0),
+  reservedClientQty: int("reserved_client_qty", { unsigned: true }).notNull().default(0),
+  reservedEventQty: int("reserved_event_qty", { unsigned: true }).notNull().default(0),
+  atEventQty: int("at_event_qty", { unsigned: true }).notNull().default(0),
+  depositQty: int("deposit_qty", { unsigned: true }).notNull().default(0),
+  transitQty: int("transit_qty", { unsigned: true }).notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  lastMovementGroupId: varchar("last_movement_group_id", { length: 36 }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.locationId, table.sku, table.type, table.packSize] }),
+  stockIdentityIdx: index("idx_stock_location_balances_identity").on(table.sku, table.type, table.packSize),
+}));
+
 // --- 6. Ledger de mouvements, append-only, une ligne par (mouvement x bucket) ---
 export const stockMovements = mysqlTable("stock_movements", {
   id: int("id").primaryKey().autoincrement(),
@@ -339,6 +384,7 @@ export const insertDnaResearchCaseSchema = createInsertSchema(dnaResearchCases).
 export const insertCigarDnaReviewSchema = createInsertSchema(cigarDnaReviews).omit({ createdAt: true, updatedAt: true });
 export const insertAccessorySchema = createInsertSchema(accessories);
 export const insertPackSizeConfigSchema = createInsertSchema(packSizeConfig).pick({ sku: true, packSize: true, active: true });
+export const insertStockLocationSchema = createInsertSchema(stockLocations).omit({ createdAt: true, updatedAt: true });
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true, qtyBefore: true, qtyAfter: true });
 export const insertDnaLeadSchema = createInsertSchema(dnaLeads).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDnaAvailabilityWatchSchema = createInsertSchema(dnaAvailabilityWatch).omit({ id: true, createdAt: true, triggeredAt: true, closedAt: true });
@@ -355,6 +401,9 @@ export type Accessory = typeof accessories.$inferSelect;
 export type InsertAccessory = z.infer<typeof insertAccessorySchema>;
 export type PackSizeConfig = typeof packSizeConfig.$inferSelect;
 export type StockBalance = typeof stockBalances.$inferSelect;
+export type StockLocation = typeof stockLocations.$inferSelect;
+export type InsertStockLocation = z.infer<typeof insertStockLocationSchema>;
+export type StockLocationBalance = typeof stockLocationBalances.$inferSelect;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type DnaLead = typeof dnaLeads.$inferSelect;

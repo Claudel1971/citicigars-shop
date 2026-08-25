@@ -16,6 +16,29 @@ export const ZERO_BALANCE: Balance = {
   transit: 0,
 };
 
+export function sumBalances(balances: readonly Balance[]): Balance {
+  return balances.reduce<Balance>((sum, balance) => ({
+    onHand: sum.onHand + balance.onHand,
+    reservedClient: sum.reservedClient + balance.reservedClient,
+    reservedEvent: sum.reservedEvent + balance.reservedEvent,
+    atEvent: sum.atEvent + balance.atEvent,
+    deposit: sum.deposit + balance.deposit,
+    transit: sum.transit + balance.transit,
+  }), { ...ZERO_BALANCE });
+}
+
+export function assertLocationProjectionMatches(aggregate: Balance, locationBalances: readonly Balance[]): void {
+  const projected = sumBalances(locationBalances);
+  for (const field of Object.keys(ZERO_BALANCE) as BalanceField[]) {
+    if (projected[field] !== aggregate[field]) {
+      throw new StockRuleViolation(
+        "location_projection_mismatch",
+        `${field}: aggregate=${aggregate[field]}, locations=${projected[field]}`,
+      );
+    }
+  }
+}
+
 export class StockRuleViolation extends Error {
   code: string;
   constructor(code: string, message?: string) {

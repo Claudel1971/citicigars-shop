@@ -32,50 +32,64 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 1. Preserve `stock_balances` as the aggregate compatibility projection.
 2. Add `stock_locations` plus `stock_location_balances`, keyed by `(location_id, sku, type, pack_size)`, with the same six buckets. This avoids changing DNA and other aggregate consumers.
 3. Use a single explicit system location with code `LEGACY_UNKNOWN` for existing balances and for legacy callers that cannot yet supply a location. No Douala, supplier, address, or provenance fact will be fabricated.
-4. Backfill the location projection from aggregate balances into `LEGACY_UNKNOWN` once. Make the migration reject an already-populated location projection whose totals disagree, rather than silently overwriting it.
+4. Backfill the newly created location projection from aggregate balances into `LEGACY_UNKNOWN` once. Migration `0016` is forward-only like the existing project migrations and fails on conflicting pre-existing objects rather than overwriting them.
 5. Starting in Milestone 1, the existing storage writer must lock and update both aggregate and legacy-unknown location rows inside the same transaction. This prevents two independent sources of truth during the transition to explicit locations.
 6. Reservations remain at the same physical location: location projections carry reservation buckets, but reservation movements do not relocate quantities.
 7. Explicit source/destination locations, movement group metadata, receipts/lots, APIs, CRM integration, and admin UX remain later sequential milestones.
 
 ## 5. Files changed
 
-- `docs/PHASE2_STOCK_TRACEABILITY_HANDOFF.md` — created at Milestone 0.
+- `docs/PHASE2_STOCK_TRACEABILITY_HANDOFF.md` — created and updated at each checkpoint.
+- `shared/schema.stock.ts` — added location constants, `stock_locations`, and `stock_location_balances`.
+- `server/services/stock-movement-processor.ts` — added pure location projection summing/reconciliation guard.
+- `server/services/stock-movement-processor.test.ts` — added location reconciliation and reservation-location tests.
+- `server/storage.stock.ts` — locks, validates, and writes aggregate plus legacy-unknown location projections in one transaction; multi-row opening preserves stable projection/identity lock order.
+- `scripts/rehearsal-verify-stock-central-backend.mjs` — extended disposable-DB rehearsal assertions for location projection and rollback.
+- `migrations-mysql/0016_stock_locations_foundation.sql` — created physical location tables, explicit unknown seed, aggregate backfill, FKs, indexes, and portable balance-rule triggers.
+- `migrations-mysql/meta/_journal.json` — added journal index 15 for migration `0016`.
 
 ## 6. Migrations created
 
-- None yet. Planned next: `migrations-mysql/0016_stock_locations_foundation.sql` and journal entry index 15.
+- `migrations-mysql/0016_stock_locations_foundation.sql` with journal entry index 15.
+- The migration preserves `stock_balances`, creates `LEGACY_UNKNOWN`, copies every aggregate row and all six buckets into that explicit unknown location, and adds location-balance insert/update guards matching the existing aggregate rules.
 
 ## 7. Migration application status
 
 - No Phase 2 migration has been applied anywhere.
 - Production was not accessed.
+- The disposable MariaDB endpoint `127.0.0.1:3399` was checked and returned `ECONNREFUSED`; therefore no DB migration/rehearsal was attempted.
 - Any future application must target a disposable/local or staging database explicitly and be recorded here.
 
 ## 8. Tests executed and exact results
 
-- No code tests yet at this audit-only checkpoint.
-- Branch/base/status safety checks: passed, except the remote ref initially needed to be fetched; after fetch, the required merge-base matched exactly.
+- Branch/base/status safety checks: passed. The remote ref initially needed to be fetched; afterward `HEAD`, `origin/phase2-stock-traceability`, and merge-base all equalled `228fb8af04a1b93980fe5454e68d9e77cfe3dace`.
+- `npm.cmd exec vitest run server/services/stock-movement-processor.test.ts`: PASS — 1 file, 50 tests passed.
+- `npm.cmd run check`: PASS — `tsc` exited 0.
+- `npm.cmd run build`: PASS — client built 1,937 modules and server bundle `dist/index.cjs`; only the pre-existing Vite chunk-size warning was emitted.
+- `node --check scripts/rehearsal-verify-stock-central-backend.mjs`: PASS.
+- `git diff --check`: PASS (line-ending conversion warnings only).
+- MariaDB integration rehearsal: NOT RUN because the documented disposable instance at `127.0.0.1:3399` is not running (`ECONNREFUSED`).
 
 ## 9. Commits created
 
-- None yet.
+- `345133d docs: define phase 2 stock traceability architecture`
+- Milestone 1 implementation commit: pending at the time of this handoff update.
 
 ## 10. Current status
 
-- Milestone 0 architecture audit is complete.
-- Handoff infrastructure is established.
-- Milestone 1 design is decided and ready for implementation.
+- Milestone 0 architecture audit is complete and committed.
+- Milestone 1 implementation is complete in the worktree and passes focused tests, TypeScript, build, syntax, and diff checks.
+- Migration `0016` is intentionally not applied. The live disposable DB rehearsal remains pending until `127.0.0.1:3399` is available.
 
 ## 11. Unresolved risks/questions
 
-- Location-level Loose maximum must be enforced consistently while retaining the existing aggregate maximum. The application will apply the same balance rules to both projections; portable DB triggers should mirror the existing aggregate trigger rules.
+- Migration `0016` and real transactional dual-projection behavior still require execution against the documented disposable MariaDB instance before any staging application.
 - Existing untracked repository artifacts are extensive. Always use path-specific staging and confirm the staged diff before committing.
-- The local MariaDB rehearsal environment may not be running and has not been inspected or modified in this session.
 - Provenance allocation across mixed lots is intentionally unresolved until Milestone 3; Milestone 1 must not encode a supplier shortcut.
 
 ## 12. NEXT EXACT ACTION
 
-Implement Milestone 1: add schema and migration `0016` for `stock_locations` and `stock_location_balances`, add projection/reconciliation helpers and tests, then update `server/storage.stock.ts` so current operations maintain the aggregate and `LEGACY_UNKNOWN` location projections atomically with stable lock ordering.
+Commit the coherent Milestone 1 checkpoint with path-specific staging, push `codex/phase2-stock-traceability` to the remote Phase 2 branch if allowed, then begin Milestone 2 movement-group traceability. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0016`, and run the extended Stock Central rehearsal.
 
 ## 13. Commands required to resume safely
 
@@ -90,6 +104,7 @@ Set-Location .\CitiCigarsShop
 npm.cmd exec vitest run server/services/stock-movement-processor.test.ts
 npm.cmd run check
 npm.cmd run build
+node --check scripts/rehearsal-verify-stock-central-backend.mjs
 git diff --check
 ```
 

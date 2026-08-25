@@ -6,7 +6,7 @@
 // Express minimale montée juste pour ce test.
 //
 // Pré-requis : la DB 127.0.0.1:3399/citicigars_rehearsal doit déjà être
-// baselinée + migrée (0000-0005) — voir scripts/rehearsal-baseline-and-migrate.mjs
+// baselinée + migrée (0000-0016) — voir scripts/rehearsal-baseline-and-migrate.mjs
 // puis `drizzle-kit migrate`. Ce script réinitialise seulement les données
 // (TRUNCATE) avant de commencer, pas le schéma.
 
@@ -32,7 +32,7 @@ async function expectThrow(fn, label) {
 const raw = await mysql.createConnection({ host: "127.0.0.1", port: 3399, database: "citicigars_rehearsal", multipleStatements: true });
 console.log("=== Réinitialisation des données (schéma déjà migré, on vide juste les tables) ===");
 await raw.query("SET FOREIGN_KEY_CHECKS=0");
-for (const t of ["stock_movements", "stock_balances", "pack_size_config", "dna_availability_watch", "dna_leads", "bundle_items", "bundles", "products", "accessories", "cigar_catalog", "skus"]) {
+for (const t of ["stock_movements", "stock_location_balances", "stock_balances", "pack_size_config", "dna_availability_watch", "dna_leads", "bundle_items", "bundles", "products", "accessories", "cigar_catalog", "skus"]) {
   await raw.query(`TRUNCATE TABLE \`${t}\``);
 }
 await raw.query("SET FOREIGN_KEY_CHECKS=1");
@@ -48,7 +48,7 @@ const { stockStorage } = await import("../server/storage.stock.ts");
 const { db } = await import("../server/db.mysql.ts");
 const { registerDnaRoutes } = await import("../server/routes.dna.ts");
 const { sql, eq, and } = await import("drizzle-orm");
-const { stockBalances, stockMovements, dnaLeads, dnaAvailabilityWatch } = await import("../shared/schema.stock.ts");
+const { stockBalances, stockLocationBalances, stockMovements, dnaLeads, dnaAvailabilityWatch, LEGACY_UNKNOWN_LOCATION_ID } = await import("../shared/schema.stock.ts");
 const { customers, customerDna } = await import("../shared/schema.crm.ts");
 const { normalizePhone } = await import("../server/services/phone.ts");
 
@@ -57,11 +57,29 @@ async function getBalance(sku, type, packSize) {
   return row;
 }
 
+async function getLegacyLocationBalance(sku, type, packSize) {
+  const [row] = await db.select().from(stockLocationBalances).where(and(
+    eq(stockLocationBalances.locationId, LEGACY_UNKNOWN_LOCATION_ID),
+    eq(stockLocationBalances.sku, sku),
+    eq(stockLocationBalances.type, type),
+    eq(stockLocationBalances.packSize, packSize),
+  ));
+  return row;
+}
+
+function sameBuckets(aggregate, location) {
+  return ["onHandQty", "reservedClientQty", "reservedEventQty", "atEventQty", "depositQty", "transitQty"]
+    .every((field) => aggregate?.[field] === location?.[field]);
+}
+
 console.log("\n--- 1. Mouvement simple + ledger atomiques ---");
 {
   const res = await stockStorage.applyMovement({ sku: "CTGTEST01", type: "Box", packSize: 0, movementType: "RECEPTION", qty: 10, author: "test" });
   const bal = await getBalance("CTGTEST01", "Box", 0);
+  const locationBal = await getLegacyLocationBalance("CTGTEST01", "Box", 0);
   if (bal.onHandQty === 10) ok("RECEPTION: onHand=10 après réception"); else bad(`RECEPTION: onHand attendu=10, obtenu=${bal.onHandQty}`);
+  if (sameBuckets(bal, locationBal)) ok("RECEPTION: projection LEGACY_UNKNOWN identique au solde agrégé");
+  else bad(`RECEPTION: projection de localisation non réconciliée: aggregate=${JSON.stringify(bal)} location=${JSON.stringify(locationBal)}`);
   const movements = await db.select().from(stockMovements).where(eq(stockMovements.groupId, res.groupId));
   if (movements.length === 1 && movements[0].qtyBefore === 0 && movements[0].qtyAfter === 10) {
     ok("RECEPTION: 1 ligne ledger, qtyBefore=0/qtyAfter=10, groupId cohérent");
@@ -72,17 +90,21 @@ console.log("\n--- 2. Rollback intégral sur violation ---");
 {
   // RESERVATION_CLIENT de 999 sur availableNow=10 doit échouer ET ne rien écrire.
   const before = await getBalance("CTGTEST01", "Box", 0);
+  const locationBefore = await getLegacyLocationBalance("CTGTEST01", "Box", 0);
   const movementsBefore = (await db.select().from(stockMovements)).length;
   await expectThrow(
     () => stockStorage.applyMovement({ sku: "CTGTEST01", type: "Box", packSize: 0, movementType: "RESERVATION_CLIENT", qty: 999, author: "test" }),
     "RESERVATION_CLIENT qty=999 sur availableNow=10",
   );
   const after = await getBalance("CTGTEST01", "Box", 0);
+  const locationAfter = await getLegacyLocationBalance("CTGTEST01", "Box", 0);
   const movementsAfter = (await db.select().from(stockMovements)).length;
   if (JSON.stringify(before) === JSON.stringify(after)) ok("Rollback: stock_balances inchangé après l'échec");
   else bad(`Rollback: stock_balances a changé malgré l'échec: avant=${JSON.stringify(before)} après=${JSON.stringify(after)}`);
   if (movementsBefore === movementsAfter) ok("Rollback: aucune ligne stock_movements ajoutée après l'échec");
   else bad(`Rollback: le nombre de lignes stock_movements a changé (${movementsBefore} -> ${movementsAfter})`);
+  if (JSON.stringify(locationBefore) === JSON.stringify(locationAfter)) ok("Rollback: stock_location_balances inchangé après l'échec");
+  else bad(`Rollback: projection de localisation modifiée malgré l'échec: avant=${JSON.stringify(locationBefore)} après=${JSON.stringify(locationAfter)}`);
 }
 
 console.log("\n--- 3. VENTE avec réservation (ne doit jamais juger sur availableNow) ---");
