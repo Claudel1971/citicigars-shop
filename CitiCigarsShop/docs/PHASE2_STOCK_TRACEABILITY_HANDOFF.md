@@ -51,6 +51,9 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `migrations-mysql/meta/_journal.json` — subsequently added journal index 16 for migration `0017`.
 - `scripts/rehearsal-verify-0005-immutability.mjs` — extended append-only proof to movement groups.
 - `scripts/rehearsal-verify-seed-atomicity.mjs` — extended reset/rollback/final-count checks to both Phase 2 projections and movement groups.
+- `migrations-mysql/0018_stock_provenance_lots.sql` — added suppliers, receipts, immutable receipt items, provenance lots, lot/location balances, append-only movement/lot allocations, explicit legacy lot seed, and backfill.
+- `server/storage.stock.ts` — now maintains aggregate, location, and legacy-lot projections plus lot allocation ledger rows atomically.
+- Stock rehearsal scripts — extended again for provenance reconciliation, allocation rollback/counting, and allocation immutability.
 
 ## 6. Migrations created
 
@@ -58,6 +61,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The migration preserves `stock_balances`, creates `LEGACY_UNKNOWN`, copies every aggregate row and all six buckets into that explicit unknown location, and adds location-balance insert/update guards matching the existing aggregate rules.
 - `migrations-mysql/0017_stock_movement_groups.sql` with journal entry index 16.
 - Migration `0017` backfills one header from the earliest detail row in each historical group while leaving historical source/destination locations `NULL`; it then enforces matching `(group_id, movement_type)` and makes headers append-only.
+- `migrations-mysql/0018_stock_provenance_lots.sql` with journal entry index 17.
+- Migration `0018` creates one explicit `LEGACY_UNKNOWN` provenance lot with every unsupported historical fact (`supplier`, `receipt`, source reference, receipt date) left `NULL`, backfills current location positions into it, and creates no historical movement/lot allocations.
 
 ## 7. Migration application status
 
@@ -82,24 +87,28 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `7aa3139 stock: add physical location foundation`
 - `73c30d5 docs: checkpoint phase 2 location foundation`
 - `1e01687 stock: add movement group traceability`
+- `368a076 docs: checkpoint phase 2 movement groups`
+- Milestone 3 implementation commit: pending at the time of this handoff update.
 
 ## 10. Current status
 
 - Milestone 0 architecture audit is complete and committed.
 - Milestone 1 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Milestone 2 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
+- Milestone 3 implementation is complete in the worktree and passes focused tests, TypeScript, build, syntax, and diff checks.
 - Migration `0016` is intentionally not applied. The live disposable DB rehearsal remains pending until `127.0.0.1:3399` is available.
 - Migration `0017` is also intentionally not applied anywhere.
+- Migration `0018` is also intentionally not applied anywhere.
 
 ## 11. Unresolved risks/questions
 
-- Migrations `0016`/`0017` and real transactional location/group behavior still require execution against the documented disposable MariaDB instance before any staging application.
+- Migrations `0016`–`0018` and real transactional location/group/lot behavior still require execution against the documented disposable MariaDB instance before any staging application.
 - Existing untracked repository artifacts are extensive. Always use path-specific staging and confirm the staged diff before committing.
-- Provenance allocation across mixed lots is intentionally unresolved until Milestone 3; Milestone 1 must not encode a supplier shortcut.
+- The Milestone 3 schema can preserve multiple receipt lots, but the current writer intentionally supports only `LEGACY_UNKNOWN`; multi-lot locking/allocation policy and real location IDs must be implemented together in Milestone 4. The current reconciliation guard fails closed if another lot is introduced prematurely.
 
 ## 12. NEXT EXACT ACTION
 
-Commit this handoff update and push the coherent Milestone 2 checkpoint to the remote `phase2-stock-traceability` branch, then begin Milestone 3 provenance/receipts/lots. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0017`, and run the extended Stock Central, seed atomicity, and immutability rehearsals.
+Commit and push the coherent Milestone 3 checkpoint to the remote `phase2-stock-traceability` branch, then begin Milestone 4 location-aware operations and multi-lot allocation. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0018`, and run the extended Stock Central, seed atomicity, and immutability rehearsals.
 
 ## 13. Commands required to resume safely
 

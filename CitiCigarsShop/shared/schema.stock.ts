@@ -24,6 +24,11 @@ export type StockLocationCategory = (typeof STOCK_LOCATION_CATEGORIES)[number];
 export const LEGACY_UNKNOWN_LOCATION_ID = "00000000-0000-0000-0000-000000000000";
 export const LEGACY_UNKNOWN_LOCATION_CODE = "LEGACY_UNKNOWN";
 
+export const PROVENANCE_ORIGIN_KINDS = ["LEGACY_UNKNOWN", "RECEIPT", "OTHER"] as const;
+export type ProvenanceOriginKind = (typeof PROVENANCE_ORIGIN_KINDS)[number];
+export const LEGACY_UNKNOWN_LOT_ID = "00000000-0000-0000-0000-000000000000";
+export const LEGACY_UNKNOWN_LOT_CODE = "LEGACY_UNKNOWN";
+
 // 19 mouvements exacts — 15 P0 + 4 P1 (mission V6 section 1.1)
 export const MOVEMENT_TYPES = [
   "RECEPTION",
@@ -342,6 +347,115 @@ export const stockMovements = mysqlTable("stock_movements", {
   }).onDelete("restrict").onUpdate("cascade"),
 }));
 
+// --- 6b. Receipt and lot provenance foundation (Phase 2) ---
+export const stockSuppliers = mysqlTable("stock_suppliers", {
+  supplierId: varchar("supplier_id", { length: 36 }).primaryKey(),
+  code: varchar("code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 150 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  codeUq: uniqueIndex("uq_stock_suppliers_code").on(table.code),
+  nameIdx: index("idx_stock_suppliers_name").on(table.name),
+}));
+
+export const stockReceipts = mysqlTable("stock_receipts", {
+  receiptId: varchar("receipt_id", { length: 36 }).primaryKey(),
+  receiptCode: varchar("receipt_code", { length: 50 }).notNull(),
+  supplierId: varchar("supplier_id", { length: 36 })
+    .references(() => stockSuppliers.supplierId, { onDelete: "restrict", onUpdate: "cascade" }),
+  destinationLocationId: varchar("destination_location_id", { length: 36 }).notNull()
+    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  purchaseReference: varchar("purchase_reference", { length: 100 }),
+  invoiceReference: varchar("invoice_reference", { length: 100 }),
+  receivedAt: timestamp("received_at").notNull(),
+  author: varchar("author", { length: 100 }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeUq: uniqueIndex("uq_stock_receipts_code").on(table.receiptCode),
+  supplierDateIdx: index("idx_stock_receipts_supplier_date").on(table.supplierId, table.receivedAt),
+  locationDateIdx: index("idx_stock_receipts_location_date").on(table.destinationLocationId, table.receivedAt),
+}));
+
+export const stockProvenanceLots = mysqlTable("stock_provenance_lots", {
+  lotId: varchar("lot_id", { length: 36 }).primaryKey(),
+  lotCode: varchar("lot_code", { length: 50 }).notNull(),
+  originKind: mysqlEnum("origin_kind", PROVENANCE_ORIGIN_KINDS).notNull(),
+  receiptId: varchar("receipt_id", { length: 36 })
+    .references(() => stockReceipts.receiptId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sourceReference: varchar("source_reference", { length: 255 }),
+  isSystem: boolean("is_system").notNull().default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeUq: uniqueIndex("uq_stock_provenance_lots_code").on(table.lotCode),
+  receiptIdx: index("idx_stock_provenance_lots_receipt").on(table.receiptId),
+  originIdx: index("idx_stock_provenance_lots_origin").on(table.originKind),
+}));
+
+export const stockReceiptItems = mysqlTable("stock_receipt_items", {
+  receiptItemId: varchar("receipt_item_id", { length: 36 }).primaryKey(),
+  receiptId: varchar("receipt_id", { length: 36 }).notNull()
+    .references(() => stockReceipts.receiptId, { onDelete: "restrict", onUpdate: "cascade" }),
+  lotId: varchar("lot_id", { length: 36 }).notNull()
+    .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  type: mysqlEnum("type", STOCK_TYPES).notNull(),
+  packSize: int("pack_size").notNull().default(0),
+  quantity: int("quantity", { unsigned: true }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  lotUq: uniqueIndex("uq_stock_receipt_items_lot").on(table.lotId),
+  receiptIdx: index("idx_stock_receipt_items_receipt").on(table.receiptId),
+  identityIdx: index("idx_stock_receipt_items_identity").on(table.sku, table.type, table.packSize),
+}));
+
+export const stockLotLocationBalances = mysqlTable("stock_lot_location_balances", {
+  lotId: varchar("lot_id", { length: 36 }).notNull()
+    .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
+  locationId: varchar("location_id", { length: 36 }).notNull()
+    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  type: mysqlEnum("type", STOCK_TYPES).notNull(),
+  packSize: int("pack_size").notNull().default(0),
+  onHandQty: int("on_hand_qty", { unsigned: true }).notNull().default(0),
+  reservedClientQty: int("reserved_client_qty", { unsigned: true }).notNull().default(0),
+  reservedEventQty: int("reserved_event_qty", { unsigned: true }).notNull().default(0),
+  atEventQty: int("at_event_qty", { unsigned: true }).notNull().default(0),
+  depositQty: int("deposit_qty", { unsigned: true }).notNull().default(0),
+  transitQty: int("transit_qty", { unsigned: true }).notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  lastMovementGroupId: varchar("last_movement_group_id", { length: 36 }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.lotId, table.locationId, table.sku, table.type, table.packSize] }),
+  positionIdx: index("idx_stock_lot_location_position").on(table.locationId, table.sku, table.type, table.packSize),
+}));
+
+export const stockMovementLotAllocations = mysqlTable("stock_movement_lot_allocations", {
+  id: int("id").primaryKey().autoincrement(),
+  groupId: varchar("group_id", { length: 36 }).notNull()
+    .references(() => stockMovementGroups.groupId, { onDelete: "restrict", onUpdate: "cascade" }),
+  lotId: varchar("lot_id", { length: 36 }).notNull()
+    .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
+  locationId: varchar("location_id", { length: 36 }).notNull()
+    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  type: mysqlEnum("type", STOCK_TYPES).notNull(),
+  packSize: int("pack_size").notNull().default(0),
+  balanceField: mysqlEnum("balance_field", BALANCE_FIELDS).notNull(),
+  qtyDelta: int("qty_delta").notNull(),
+  qtyBefore: int("qty_before", { unsigned: true }).notNull(),
+  qtyAfter: int("qty_after", { unsigned: true }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  groupIdx: index("idx_stock_movement_lot_group").on(table.groupId),
+  lotHistoryIdx: index("idx_stock_movement_lot_history").on(table.lotId, table.locationId, table.createdAt),
+  identityIdx: index("idx_stock_movement_lot_identity").on(table.sku, table.type, table.packSize, table.createdAt),
+}));
+
 // --- 7. dna_leads (amendements 4b, 6) ---
 export const dnaLeads = mysqlTable("dna_leads", {
   id: int("id").primaryKey().autoincrement(),
@@ -417,6 +531,10 @@ export const insertAccessorySchema = createInsertSchema(accessories);
 export const insertPackSizeConfigSchema = createInsertSchema(packSizeConfig).pick({ sku: true, packSize: true, active: true });
 export const insertStockLocationSchema = createInsertSchema(stockLocations).omit({ createdAt: true, updatedAt: true });
 export const insertStockMovementGroupSchema = createInsertSchema(stockMovementGroups).omit({ createdAt: true });
+export const insertStockSupplierSchema = createInsertSchema(stockSuppliers).omit({ createdAt: true, updatedAt: true });
+export const insertStockReceiptSchema = createInsertSchema(stockReceipts).omit({ createdAt: true });
+export const insertStockProvenanceLotSchema = createInsertSchema(stockProvenanceLots).omit({ createdAt: true });
+export const insertStockReceiptItemSchema = createInsertSchema(stockReceiptItems).omit({ createdAt: true });
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true, qtyBefore: true, qtyAfter: true });
 export const insertDnaLeadSchema = createInsertSchema(dnaLeads).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDnaAvailabilityWatchSchema = createInsertSchema(dnaAvailabilityWatch).omit({ id: true, createdAt: true, triggeredAt: true, closedAt: true });
@@ -438,6 +556,16 @@ export type InsertStockLocation = z.infer<typeof insertStockLocationSchema>;
 export type StockLocationBalance = typeof stockLocationBalances.$inferSelect;
 export type StockMovementGroup = typeof stockMovementGroups.$inferSelect;
 export type InsertStockMovementGroup = z.infer<typeof insertStockMovementGroupSchema>;
+export type StockSupplier = typeof stockSuppliers.$inferSelect;
+export type InsertStockSupplier = z.infer<typeof insertStockSupplierSchema>;
+export type StockReceipt = typeof stockReceipts.$inferSelect;
+export type InsertStockReceipt = z.infer<typeof insertStockReceiptSchema>;
+export type StockProvenanceLot = typeof stockProvenanceLots.$inferSelect;
+export type InsertStockProvenanceLot = z.infer<typeof insertStockProvenanceLotSchema>;
+export type StockReceiptItem = typeof stockReceiptItems.$inferSelect;
+export type InsertStockReceiptItem = z.infer<typeof insertStockReceiptItemSchema>;
+export type StockLotLocationBalance = typeof stockLotLocationBalances.$inferSelect;
+export type StockMovementLotAllocation = typeof stockMovementLotAllocations.$inferSelect;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type DnaLead = typeof dnaLeads.$inferSelect;

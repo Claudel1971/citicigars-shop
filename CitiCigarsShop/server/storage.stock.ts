@@ -19,7 +19,9 @@ import {
   cigarCatalog,
   stockBalances,
   stockLocationBalances,
+  stockLotLocationBalances,
   stockMovementGroups,
+  stockMovementLotAllocations,
   stockMovements,
   packSizeConfig,
   dnaLeads,
@@ -31,6 +33,7 @@ import {
   type DnaLead,
   type DnaAvailabilityWatch,
   LEGACY_UNKNOWN_LOCATION_ID,
+  LEGACY_UNKNOWN_LOT_ID,
 } from "../shared/schema.stock";
 import { products } from "../shared/schema.mysql";
 import {
@@ -77,7 +80,10 @@ function lockOrder(a: { type: StockType; packSize: number }, b: { type: StockTyp
   return a.packSize - b.packSize;
 }
 
-type BalanceProjectionRow = typeof stockBalances.$inferSelect | typeof stockLocationBalances.$inferSelect;
+type BalanceProjectionRow =
+  | typeof stockBalances.$inferSelect
+  | typeof stockLocationBalances.$inferSelect
+  | typeof stockLotLocationBalances.$inferSelect;
 
 function rowToBalance(row: BalanceProjectionRow | undefined): Balance {
   if (!row) return { ...ZERO_BALANCE };
@@ -105,6 +111,33 @@ async function lockOrCreateLocationBalanceRow(tx: Tx, locationId: string, sku: s
       eq(stockLocationBalances.sku, sku),
       eq(stockLocationBalances.type, type),
       eq(stockLocationBalances.packSize, packSize),
+    ))
+    .for("update");
+  return row;
+}
+
+async function lockOrCreateLotLocationBalanceRow(
+  tx: Tx,
+  lotId: string,
+  locationId: string,
+  sku: string,
+  type: StockType,
+  packSize: number,
+) {
+  assertPackSizeSentinel(type, packSize);
+  await tx
+    .insert(stockLotLocationBalances)
+    .values({ lotId, locationId, sku, type, packSize })
+    .onDuplicateKeyUpdate({ set: { lotId: sql`lot_id` } });
+  const [row] = await tx
+    .select()
+    .from(stockLotLocationBalances)
+    .where(and(
+      eq(stockLotLocationBalances.lotId, lotId),
+      eq(stockLotLocationBalances.locationId, locationId),
+      eq(stockLotLocationBalances.sku, sku),
+      eq(stockLotLocationBalances.type, type),
+      eq(stockLotLocationBalances.packSize, packSize),
     ))
     .for("update");
   return row;
@@ -168,6 +201,36 @@ async function writeLocationBalanceRow(
     ));
 }
 
+async function writeLotLocationBalanceRow(
+  tx: Tx,
+  lotId: string,
+  locationId: string,
+  sku: string,
+  type: StockType,
+  packSize: number,
+  balance: Balance,
+  groupId: string,
+) {
+  await tx
+    .update(stockLotLocationBalances)
+    .set({
+      onHandQty: balance.onHand,
+      reservedClientQty: balance.reservedClient,
+      reservedEventQty: balance.reservedEvent,
+      atEventQty: balance.atEvent,
+      depositQty: balance.deposit,
+      transitQty: balance.transit,
+      lastMovementGroupId: groupId,
+    })
+    .where(and(
+      eq(stockLotLocationBalances.lotId, lotId),
+      eq(stockLotLocationBalances.locationId, locationId),
+      eq(stockLotLocationBalances.sku, sku),
+      eq(stockLotLocationBalances.type, type),
+      eq(stockLotLocationBalances.packSize, packSize),
+    ));
+}
+
 interface MovementMeta {
   author: string;
   referenceType?: ReferenceType;
@@ -221,6 +284,31 @@ function buildMovementRow(
     comment: meta.comment,
     author: meta.author,
     movementDate: meta.movementDate,
+  };
+}
+
+function buildLotAllocationRow(
+  groupId: string,
+  lotId: string,
+  locationId: string,
+  sku: string,
+  type: StockType,
+  packSize: number,
+  effect: Effect,
+  qtyBefore: number,
+  qtyAfter: number,
+) {
+  return {
+    groupId,
+    lotId,
+    locationId,
+    sku,
+    type,
+    packSize,
+    balanceField: effect.balanceField as BalanceField,
+    qtyDelta: effect.delta,
+    qtyBefore,
+    qtyAfter,
   };
 }
 
@@ -335,27 +423,60 @@ export class StockStorage {
         input.type,
         input.packSize,
       );
+      const lotRow = await lockOrCreateLotLocationBalanceRow(
+        t,
+        LEGACY_UNKNOWN_LOT_ID,
+        LEGACY_UNKNOWN_LOCATION_ID,
+        input.sku,
+        input.type,
+        input.packSize,
+      );
       const before = rowToBalance(row);
       const locationBefore = rowToBalance(locationRow);
+      const lotBefore = rowToBalance(lotRow);
       assertLocationProjectionMatches(before, [locationBefore]);
+      assertLocationProjectionMatches(locationBefore, [lotBefore]);
       const effects = computeSimpleEffects(input, before);
       for (const effect of effects) assertLooseNeverInTransit(input.type, effect.balanceField, effect.delta);
 
       const groupId = randomUUID();
       let current = before;
       const movementRows = [];
+      const lotAllocationRows = [];
       for (const effect of effects) {
         const { balance: next, qtyBefore, qtyAfter } = applyEffect(current, effect);
         movementRows.push(
           buildMovementRow(groupId, input.sku, input.type, input.packSize, input.movementType, effect, qtyBefore, qtyAfter, input),
         );
+        lotAllocationRows.push(buildLotAllocationRow(
+          groupId,
+          LEGACY_UNKNOWN_LOT_ID,
+          LEGACY_UNKNOWN_LOCATION_ID,
+          input.sku,
+          input.type,
+          input.packSize,
+          effect,
+          qtyBefore,
+          qtyAfter,
+        ));
         current = next;
       }
 
       await t.insert(stockMovementGroups).values(buildMovementGroupRow(groupId, input.movementType, input));
       await writeBalanceRow(t, input.sku, input.type, input.packSize, current, groupId);
       await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, input.type, input.packSize, current, groupId);
+      await writeLotLocationBalanceRow(
+        t,
+        LEGACY_UNKNOWN_LOT_ID,
+        LEGACY_UNKNOWN_LOCATION_ID,
+        input.sku,
+        input.type,
+        input.packSize,
+        current,
+        groupId,
+      );
       if (movementRows.length) await t.insert(stockMovements).values(movementRows);
+      if (lotAllocationRows.length) await t.insert(stockMovementLotAllocations).values(lotAllocationRows);
 
       return { groupId, balanceBefore: before, balanceAfter: current };
     };
@@ -409,11 +530,27 @@ export class StockStorage {
         locationLockedByKey.set(`${r.type}|${r.packSize}`, row);
       }
 
+      const lotLockedByKey = new Map<string, typeof stockLotLocationBalances.$inferSelect>();
       for (const r of rowsToLock) {
-        assertLocationProjectionMatches(
-          rowToBalance(lockedByKey.get(`${r.type}|${r.packSize}`)),
-          [rowToBalance(locationLockedByKey.get(`${r.type}|${r.packSize}`))],
+        const row = await lockOrCreateLotLocationBalanceRow(
+          t,
+          LEGACY_UNKNOWN_LOT_ID,
+          LEGACY_UNKNOWN_LOCATION_ID,
+          input.sku,
+          r.type,
+          r.packSize,
         );
+        lotLockedByKey.set(`${r.type}|${r.packSize}`, row);
+      }
+
+      for (const r of rowsToLock) {
+        const aggregate = rowToBalance(lockedByKey.get(`${r.type}|${r.packSize}`));
+        const location = rowToBalance(locationLockedByKey.get(`${r.type}|${r.packSize}`));
+        assertLocationProjectionMatches(
+          aggregate,
+          [location],
+        );
+        assertLocationProjectionMatches(location, [rowToBalance(lotLockedByKey.get(`${r.type}|${r.packSize}`))]);
       }
 
       const sourceRow = lockedByKey.get("Box|0")!;
@@ -436,6 +573,7 @@ export class StockStorage {
 
       const groupId = randomUUID();
       const movementRows = [];
+      const lotAllocationRows = [];
       await t.insert(stockMovementGroups).values(buildMovementGroupRow(groupId, "OUVERTURE_BOITE", input));
 
       // Box source : -1 boîte (une seule boîte ouverte par appel — le plan pur
@@ -445,10 +583,12 @@ export class StockStorage {
       for (const effect of sourceEffects) {
         const { balance: next, qtyBefore, qtyAfter } = applyEffect(sourceCurrent, effect);
         movementRows.push(buildMovementRow(groupId, input.sku, "Box", 0, "OUVERTURE_BOITE", effect, qtyBefore, qtyAfter, input));
+        lotAllocationRows.push(buildLotAllocationRow(groupId, LEGACY_UNKNOWN_LOT_ID, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Box", 0, effect, qtyBefore, qtyAfter));
         sourceCurrent = next;
       }
       await writeBalanceRow(t, input.sku, "Box", 0, sourceCurrent, groupId);
       await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Box", 0, sourceCurrent, groupId);
+      await writeLotLocationBalanceRow(t, LEGACY_UNKNOWN_LOT_ID, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Box", 0, sourceCurrent, groupId);
 
       // planOuvertureBoite garantit désormais packQty>0 pour chaque entrée
       // (point 2 audit) : plus besoin de filtrer les entrées nulles ici.
@@ -460,10 +600,12 @@ export class StockStorage {
         for (const effect of destEffects) {
           const { balance: next, qtyBefore, qtyAfter } = applyEffect(current, effect);
           movementRows.push(buildMovementRow(groupId, input.sku, "Pack", d.packSize, "OUVERTURE_BOITE", effect, qtyBefore, qtyAfter, input));
+          lotAllocationRows.push(buildLotAllocationRow(groupId, LEGACY_UNKNOWN_LOT_ID, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Pack", d.packSize, effect, qtyBefore, qtyAfter));
           current = next;
         }
         await writeBalanceRow(t, input.sku, "Pack", d.packSize, current, groupId);
         await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Pack", d.packSize, current, groupId);
+        await writeLotLocationBalanceRow(t, LEGACY_UNKNOWN_LOT_ID, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Pack", d.packSize, current, groupId);
       }
 
       if (input.looseQty > 0) {
@@ -474,13 +616,16 @@ export class StockStorage {
         for (const effect of destEffects) {
           const { balance: next, qtyBefore, qtyAfter } = applyEffect(current, effect);
           movementRows.push(buildMovementRow(groupId, input.sku, "Loose", 0, "OUVERTURE_BOITE", effect, qtyBefore, qtyAfter, input));
+          lotAllocationRows.push(buildLotAllocationRow(groupId, LEGACY_UNKNOWN_LOT_ID, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Loose", 0, effect, qtyBefore, qtyAfter));
           current = next;
         }
         await writeBalanceRow(t, input.sku, "Loose", 0, current, groupId);
         await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Loose", 0, current, groupId);
+        await writeLotLocationBalanceRow(t, LEGACY_UNKNOWN_LOT_ID, LEGACY_UNKNOWN_LOCATION_ID, input.sku, "Loose", 0, current, groupId);
       }
 
       if (movementRows.length) await t.insert(stockMovements).values(movementRows);
+      if (lotAllocationRows.length) await t.insert(stockMovementLotAllocations).values(lotAllocationRows);
 
       return { groupId, cigarsPerBox };
     };
