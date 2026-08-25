@@ -2,6 +2,8 @@
 // Aucune dépendance DB ici volontairement : ces fonctions sont testables sans MySQL,
 // et server/storage.stock.ts les enveloppe dans de vraies transactions Drizzle.
 
+import type { MovementType } from "../../shared/schema.stock";
+
 export type BalanceField = "onHand" | "reservedClient" | "reservedEvent" | "atEvent" | "deposit" | "transit";
 export type StockType = "Box" | "Pack" | "Loose" | "Accessory";
 
@@ -37,6 +39,16 @@ export function assertLocationProjectionMatches(aggregate: Balance, locationBala
       );
     }
   }
+}
+
+export function legacyUnknownEndpointsForMovement(movementType: MovementType, unknownLocationId: string) {
+  if (movementType === "RECEPTION" || movementType === "ENTREE_TRANSIT") {
+    return { sourceLocationId: null, destinationLocationId: unknownLocationId };
+  }
+  if (["VENTE", "CADEAU", "ECHANTILLON", "PERTE_CASSE"].includes(movementType)) {
+    return { sourceLocationId: unknownLocationId, destinationLocationId: null };
+  }
+  return { sourceLocationId: unknownLocationId, destinationLocationId: unknownLocationId };
 }
 
 export class StockRuleViolation extends Error {

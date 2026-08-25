@@ -4,6 +4,7 @@ import {
   Balance,
   sumBalances,
   assertLocationProjectionMatches,
+  legacyUnknownEndpointsForMovement,
   computeAvailability,
   looseTotal,
   assertLooseNeverInTransit,
@@ -55,6 +56,27 @@ describe("location projection reconciliation (Phase 2)", () => {
     const sourceAfter = applyEffects(sourceBefore, effectsForReservationClient(2, sourceBefore));
     expect(sourceAfter).toEqual(b({ onHand: 5, reservedClient: 2 }));
     expect(sourceAfter.onHand).toBe(sourceBefore.onHand);
+  });
+});
+
+describe("legacy movement group endpoints (Phase 2)", () => {
+  const unknown = "LEGACY_UNKNOWN_ID";
+
+  it("records an inbound reception without fabricating an external source", () => {
+    expect(legacyUnknownEndpointsForMovement("RECEPTION", unknown))
+      .toEqual({ sourceLocationId: null, destinationLocationId: unknown });
+  });
+
+  it("records an ownership outflow without fabricating a customer location", () => {
+    expect(legacyUnknownEndpointsForMovement("VENTE", unknown))
+      .toEqual({ sourceLocationId: unknown, destinationLocationId: null });
+  });
+
+  it("does not relocate reservations or box openings", () => {
+    expect(legacyUnknownEndpointsForMovement("RESERVATION_CLIENT", unknown))
+      .toEqual({ sourceLocationId: unknown, destinationLocationId: unknown });
+    expect(legacyUnknownEndpointsForMovement("OUVERTURE_BOITE", unknown))
+      .toEqual({ sourceLocationId: unknown, destinationLocationId: unknown });
   });
 });
 

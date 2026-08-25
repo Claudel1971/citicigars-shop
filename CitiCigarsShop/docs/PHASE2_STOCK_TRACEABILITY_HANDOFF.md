@@ -47,11 +47,17 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `scripts/rehearsal-verify-stock-central-backend.mjs` — extended disposable-DB rehearsal assertions for location projection and rollback.
 - `migrations-mysql/0016_stock_locations_foundation.sql` — created physical location tables, explicit unknown seed, aggregate backfill, FKs, indexes, and portable balance-rule triggers.
 - `migrations-mysql/meta/_journal.json` — added journal index 15 for migration `0016`.
+- `migrations-mysql/0017_stock_movement_groups.sql` — added append-only business-operation headers, non-fabricating historical backfill, group/type FK, and immutability triggers.
+- `migrations-mysql/meta/_journal.json` — subsequently added journal index 16 for migration `0017`.
+- `scripts/rehearsal-verify-0005-immutability.mjs` — extended append-only proof to movement groups.
+- `scripts/rehearsal-verify-seed-atomicity.mjs` — extended reset/rollback/final-count checks to both Phase 2 projections and movement groups.
 
 ## 6. Migrations created
 
 - `migrations-mysql/0016_stock_locations_foundation.sql` with journal entry index 15.
 - The migration preserves `stock_balances`, creates `LEGACY_UNKNOWN`, copies every aggregate row and all six buckets into that explicit unknown location, and adds location-balance insert/update guards matching the existing aggregate rules.
+- `migrations-mysql/0017_stock_movement_groups.sql` with journal entry index 16.
+- Migration `0017` backfills one header from the earliest detail row in each historical group while leaving historical source/destination locations `NULL`; it then enforces matching `(group_id, movement_type)` and makes headers append-only.
 
 ## 7. Migration application status
 
@@ -63,10 +69,10 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 ## 8. Tests executed and exact results
 
 - Branch/base/status safety checks: passed. The remote ref initially needed to be fetched; afterward `HEAD`, `origin/phase2-stock-traceability`, and merge-base all equalled `228fb8af04a1b93980fe5454e68d9e77cfe3dace`.
-- `npm.cmd exec vitest run server/services/stock-movement-processor.test.ts`: PASS — 1 file, 50 tests passed.
+- `npm.cmd exec vitest run server/services/stock-movement-processor.test.ts`: PASS — latest run 1 file, 53 tests passed (Milestone 1 run was 50/50).
 - `npm.cmd run check`: PASS — `tsc` exited 0.
 - `npm.cmd run build`: PASS — client built 1,937 modules and server bundle `dist/index.cjs`; only the pre-existing Vite chunk-size warning was emitted.
-- `node --check scripts/rehearsal-verify-stock-central-backend.mjs`: PASS.
+- `node --check` for `rehearsal-verify-stock-central-backend.mjs`, `rehearsal-verify-0005-immutability.mjs`, and `rehearsal-verify-seed-atomicity.mjs`: PASS.
 - `git diff --check`: PASS (line-ending conversion warnings only).
 - MariaDB integration rehearsal: NOT RUN because the documented disposable instance at `127.0.0.1:3399` is not running (`ECONNREFUSED`).
 
@@ -74,22 +80,26 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 
 - `345133d docs: define phase 2 stock traceability architecture`
 - `7aa3139 stock: add physical location foundation`
+- `73c30d5 docs: checkpoint phase 2 location foundation`
+- Milestone 2 implementation commit: pending at the time of this handoff update.
 
 ## 10. Current status
 
 - Milestone 0 architecture audit is complete and committed.
 - Milestone 1 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
+- Milestone 2 implementation is complete in the worktree and passes focused tests, TypeScript, build, syntax, and diff checks.
 - Migration `0016` is intentionally not applied. The live disposable DB rehearsal remains pending until `127.0.0.1:3399` is available.
+- Migration `0017` is also intentionally not applied anywhere.
 
 ## 11. Unresolved risks/questions
 
-- Migration `0016` and real transactional dual-projection behavior still require execution against the documented disposable MariaDB instance before any staging application.
+- Migrations `0016`/`0017` and real transactional location/group behavior still require execution against the documented disposable MariaDB instance before any staging application.
 - Existing untracked repository artifacts are extensive. Always use path-specific staging and confirm the staged diff before committing.
 - Provenance allocation across mixed lots is intentionally unresolved until Milestone 3; Milestone 1 must not encode a supplier shortcut.
 
 ## 12. NEXT EXACT ACTION
 
-Push the committed Milestone 0/1 checkpoints from `codex/phase2-stock-traceability` to the remote `phase2-stock-traceability` branch, then begin Milestone 2 movement-group traceability. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0016`, and run the extended Stock Central rehearsal.
+Commit and push the coherent Milestone 2 checkpoint to the remote `phase2-stock-traceability` branch, then begin Milestone 3 provenance/receipts/lots. Before staging DB use, start the disposable MariaDB rehearsal instance, apply through `0017`, and run the extended Stock Central, seed atomicity, and immutability rehearsals.
 
 ## 13. Commands required to resume safely
 
@@ -105,6 +115,8 @@ npm.cmd exec vitest run server/services/stock-movement-processor.test.ts
 npm.cmd run check
 npm.cmd run build
 node --check scripts/rehearsal-verify-stock-central-backend.mjs
+node --check scripts/rehearsal-verify-0005-immutability.mjs
+node --check scripts/rehearsal-verify-seed-atomicity.mjs
 git diff --check
 ```
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, varchar, int, text, boolean, json, timestamp, date, mysqlEnum, primaryKey, index, uniqueIndex } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, int, text, boolean, json, timestamp, date, mysqlEnum, primaryKey, index, uniqueIndex, foreignKey } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -285,6 +285,32 @@ export const stockLocationBalances = mysqlTable("stock_location_balances", {
   stockIdentityIdx: index("idx_stock_location_balances_identity").on(table.sku, table.type, table.packSize),
 }));
 
+// --- 5c. One header per business operation (Phase 2) ---
+// Detail rows retain their existing metadata for backward compatibility. The
+// group header is the coherent source for operation-level traceability.
+export const stockMovementGroups = mysqlTable("stock_movement_groups", {
+  groupId: varchar("group_id", { length: 36 }).primaryKey(),
+  movementType: mysqlEnum("movement_type", MOVEMENT_TYPES).notNull(),
+  sourceLocationId: varchar("source_location_id", { length: 36 })
+    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  destinationLocationId: varchar("destination_location_id", { length: 36 })
+    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  referenceType: mysqlEnum("reference_type", REFERENCE_TYPES),
+  referenceLabel: varchar("reference_label", { length: 255 }),
+  referenceId: varchar("reference_id", { length: 100 }),
+  motif: text("motif"),
+  comment: text("comment"),
+  author: varchar("author", { length: 100 }).notNull(),
+  movementDate: timestamp("movement_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  groupTypeUq: uniqueIndex("uq_stock_movement_groups_group_type").on(table.groupId, table.movementType),
+  sourceLocationIdx: index("idx_stock_movement_groups_source").on(table.sourceLocationId, table.createdAt),
+  destinationLocationIdx: index("idx_stock_movement_groups_destination").on(table.destinationLocationId, table.createdAt),
+  typeDateIdx: index("idx_stock_movement_groups_type_date").on(table.movementType, table.createdAt),
+  referenceIdx: index("idx_stock_movement_groups_reference").on(table.referenceType, table.referenceId),
+}));
+
 // --- 6. Ledger de mouvements, append-only, une ligne par (mouvement x bucket) ---
 export const stockMovements = mysqlTable("stock_movements", {
   id: int("id").primaryKey().autoincrement(),
@@ -309,6 +335,11 @@ export const stockMovements = mysqlTable("stock_movements", {
   historyIdx: index("idx_stock_movements_history").on(table.sku, table.type, table.balanceField, table.createdAt),
   groupIdx: index("idx_stock_movements_group").on(table.groupId),
   typeDateIdx: index("idx_stock_movements_type_date").on(table.movementType, table.createdAt),
+  groupTypeFk: foreignKey({
+    columns: [table.groupId, table.movementType],
+    foreignColumns: [stockMovementGroups.groupId, stockMovementGroups.movementType],
+    name: "fk_stock_movements_group_type",
+  }).onDelete("restrict").onUpdate("cascade"),
 }));
 
 // --- 7. dna_leads (amendements 4b, 6) ---
@@ -385,6 +416,7 @@ export const insertCigarDnaReviewSchema = createInsertSchema(cigarDnaReviews).om
 export const insertAccessorySchema = createInsertSchema(accessories);
 export const insertPackSizeConfigSchema = createInsertSchema(packSizeConfig).pick({ sku: true, packSize: true, active: true });
 export const insertStockLocationSchema = createInsertSchema(stockLocations).omit({ createdAt: true, updatedAt: true });
+export const insertStockMovementGroupSchema = createInsertSchema(stockMovementGroups).omit({ createdAt: true });
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true, qtyBefore: true, qtyAfter: true });
 export const insertDnaLeadSchema = createInsertSchema(dnaLeads).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDnaAvailabilityWatchSchema = createInsertSchema(dnaAvailabilityWatch).omit({ id: true, createdAt: true, triggeredAt: true, closedAt: true });
@@ -404,6 +436,8 @@ export type StockBalance = typeof stockBalances.$inferSelect;
 export type StockLocation = typeof stockLocations.$inferSelect;
 export type InsertStockLocation = z.infer<typeof insertStockLocationSchema>;
 export type StockLocationBalance = typeof stockLocationBalances.$inferSelect;
+export type StockMovementGroup = typeof stockMovementGroups.$inferSelect;
+export type InsertStockMovementGroup = z.infer<typeof insertStockMovementGroupSchema>;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type DnaLead = typeof dnaLeads.$inferSelect;

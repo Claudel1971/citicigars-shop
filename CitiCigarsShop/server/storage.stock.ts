@@ -6,9 +6,9 @@
 // toute erreur (StockRuleViolation ou autre).
 //
 // Défense en profondeur (audit, point 4) : ce fichier n'exécute JAMAIS
-// d'UPDATE ni de DELETE sur stock_movements — uniquement des INSERT. Les
-// triggers trg_stock_movements_bu/bd (migration 0005) l'empêcheraient de
-// toute façon, mais l'application ne tente même pas l'opération.
+// d'UPDATE ni de DELETE sur stock_movements ou stock_movement_groups — uniquement
+// des INSERT. Les triggers d'immutabilité (migrations 0005/0017) l'empêcheraient
+// de toute façon, mais l'application ne tente même pas l'opération.
 
 import { randomUUID } from "crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -19,6 +19,7 @@ import {
   cigarCatalog,
   stockBalances,
   stockLocationBalances,
+  stockMovementGroups,
   stockMovements,
   packSizeConfig,
   dnaLeads,
@@ -59,6 +60,7 @@ import {
   assertPackSizeSentinel,
   assertLooseNeverInTransit,
   assertLocationProjectionMatches,
+  legacyUnknownEndpointsForMovement,
 } from "./services/stock-movement-processor";
 import { capturedAtStepForMode, isCommerciallyAvailable } from "./services/dna-availability";
 
@@ -174,6 +176,21 @@ interface MovementMeta {
   motif?: string;
   comment?: string;
   movementDate?: Date;
+}
+
+function buildMovementGroupRow(groupId: string, movementType: MovementType, meta: MovementMeta) {
+  return {
+    groupId,
+    movementType,
+    ...legacyUnknownEndpointsForMovement(movementType, LEGACY_UNKNOWN_LOCATION_ID),
+    referenceType: meta.referenceType,
+    referenceLabel: meta.referenceLabel,
+    referenceId: meta.referenceId,
+    motif: meta.motif,
+    comment: meta.comment,
+    author: meta.author,
+    movementDate: meta.movementDate,
+  };
 }
 
 function buildMovementRow(
@@ -335,6 +352,7 @@ export class StockStorage {
         current = next;
       }
 
+      await t.insert(stockMovementGroups).values(buildMovementGroupRow(groupId, input.movementType, input));
       await writeBalanceRow(t, input.sku, input.type, input.packSize, current, groupId);
       await writeLocationBalanceRow(t, LEGACY_UNKNOWN_LOCATION_ID, input.sku, input.type, input.packSize, current, groupId);
       if (movementRows.length) await t.insert(stockMovements).values(movementRows);
@@ -418,6 +436,7 @@ export class StockStorage {
 
       const groupId = randomUUID();
       const movementRows = [];
+      await t.insert(stockMovementGroups).values(buildMovementGroupRow(groupId, "OUVERTURE_BOITE", input));
 
       // Box source : -1 boîte (une seule boîte ouverte par appel — le plan pur
       // ne valide qu'une distribution pour UN cigarsPerBox à la fois).

@@ -32,7 +32,7 @@ async function expectThrow(fn, label) {
 const raw = await mysql.createConnection({ host: "127.0.0.1", port: 3399, database: "citicigars_rehearsal", multipleStatements: true });
 console.log("=== Réinitialisation des données (schéma déjà migré, on vide juste les tables) ===");
 await raw.query("SET FOREIGN_KEY_CHECKS=0");
-for (const t of ["stock_movements", "stock_location_balances", "stock_balances", "pack_size_config", "dna_availability_watch", "dna_leads", "bundle_items", "bundles", "products", "accessories", "cigar_catalog", "skus"]) {
+for (const t of ["stock_movements", "stock_movement_groups", "stock_location_balances", "stock_balances", "pack_size_config", "dna_availability_watch", "dna_leads", "bundle_items", "bundles", "products", "accessories", "cigar_catalog", "skus"]) {
   await raw.query(`TRUNCATE TABLE \`${t}\``);
 }
 await raw.query("SET FOREIGN_KEY_CHECKS=1");
@@ -48,7 +48,7 @@ const { stockStorage } = await import("../server/storage.stock.ts");
 const { db } = await import("../server/db.mysql.ts");
 const { registerDnaRoutes } = await import("../server/routes.dna.ts");
 const { sql, eq, and } = await import("drizzle-orm");
-const { stockBalances, stockLocationBalances, stockMovements, dnaLeads, dnaAvailabilityWatch, LEGACY_UNKNOWN_LOCATION_ID } = await import("../shared/schema.stock.ts");
+const { stockBalances, stockLocationBalances, stockMovementGroups, stockMovements, dnaLeads, dnaAvailabilityWatch, LEGACY_UNKNOWN_LOCATION_ID } = await import("../shared/schema.stock.ts");
 const { customers, customerDna } = await import("../shared/schema.crm.ts");
 const { normalizePhone } = await import("../server/services/phone.ts");
 
@@ -81,9 +81,13 @@ console.log("\n--- 1. Mouvement simple + ledger atomiques ---");
   if (sameBuckets(bal, locationBal)) ok("RECEPTION: projection LEGACY_UNKNOWN identique au solde agrégé");
   else bad(`RECEPTION: projection de localisation non réconciliée: aggregate=${JSON.stringify(bal)} location=${JSON.stringify(locationBal)}`);
   const movements = await db.select().from(stockMovements).where(eq(stockMovements.groupId, res.groupId));
+  const [group] = await db.select().from(stockMovementGroups).where(eq(stockMovementGroups.groupId, res.groupId));
   if (movements.length === 1 && movements[0].qtyBefore === 0 && movements[0].qtyAfter === 10) {
     ok("RECEPTION: 1 ligne ledger, qtyBefore=0/qtyAfter=10, groupId cohérent");
   } else bad(`RECEPTION: ledger inattendu: ${JSON.stringify(movements)}`);
+  if (group?.movementType === "RECEPTION" && group.sourceLocationId === null && group.destinationLocationId === LEGACY_UNKNOWN_LOCATION_ID) {
+    ok("RECEPTION: en-tête de groupe atomique, entrée externe vers LEGACY_UNKNOWN");
+  } else bad(`RECEPTION: en-tête de groupe inattendu: ${JSON.stringify(group)}`);
 }
 
 console.log("\n--- 2. Rollback intégral sur violation ---");
@@ -92,6 +96,7 @@ console.log("\n--- 2. Rollback intégral sur violation ---");
   const before = await getBalance("CTGTEST01", "Box", 0);
   const locationBefore = await getLegacyLocationBalance("CTGTEST01", "Box", 0);
   const movementsBefore = (await db.select().from(stockMovements)).length;
+  const groupsBefore = (await db.select().from(stockMovementGroups)).length;
   await expectThrow(
     () => stockStorage.applyMovement({ sku: "CTGTEST01", type: "Box", packSize: 0, movementType: "RESERVATION_CLIENT", qty: 999, author: "test" }),
     "RESERVATION_CLIENT qty=999 sur availableNow=10",
@@ -99,10 +104,13 @@ console.log("\n--- 2. Rollback intégral sur violation ---");
   const after = await getBalance("CTGTEST01", "Box", 0);
   const locationAfter = await getLegacyLocationBalance("CTGTEST01", "Box", 0);
   const movementsAfter = (await db.select().from(stockMovements)).length;
+  const groupsAfter = (await db.select().from(stockMovementGroups)).length;
   if (JSON.stringify(before) === JSON.stringify(after)) ok("Rollback: stock_balances inchangé après l'échec");
   else bad(`Rollback: stock_balances a changé malgré l'échec: avant=${JSON.stringify(before)} après=${JSON.stringify(after)}`);
   if (movementsBefore === movementsAfter) ok("Rollback: aucune ligne stock_movements ajoutée après l'échec");
   else bad(`Rollback: le nombre de lignes stock_movements a changé (${movementsBefore} -> ${movementsAfter})`);
+  if (groupsBefore === groupsAfter) ok("Rollback: aucun stock_movement_group orphelin ajouté après l'échec");
+  else bad(`Rollback: le nombre de groupes a changé (${groupsBefore} -> ${groupsAfter})`);
   if (JSON.stringify(locationBefore) === JSON.stringify(locationAfter)) ok("Rollback: stock_location_balances inchangé après l'échec");
   else bad(`Rollback: projection de localisation modifiée malgré l'échec: avant=${JSON.stringify(locationBefore)} après=${JSON.stringify(locationAfter)}`);
 }
@@ -235,14 +243,18 @@ console.log("\n--- 7. Deux mouvements concurrents sur le même solde proche de z
   }
 }
 
-console.log("\n--- 8. Défense en profondeur applicative : ce module ne fait jamais UPDATE/DELETE sur stock_movements ---");
+console.log("\n--- 8. Défense en profondeur applicative : aucun UPDATE/DELETE des ledgers append-only ---");
 {
   const fs = await import("fs");
   const src = fs.readFileSync(new URL("../server/storage.stock.ts", import.meta.url), "utf-8");
   const hasUpdateOnMovements = /\.update\(stockMovements\)/.test(src);
   const hasDeleteOnMovements = /\.delete\(stockMovements\)/.test(src);
+  const hasUpdateOnGroups = /\.update\(stockMovementGroups\)/.test(src);
+  const hasDeleteOnGroups = /\.delete\(stockMovementGroups\)/.test(src);
   if (!hasUpdateOnMovements && !hasDeleteOnMovements) ok("storage.stock.ts ne contient aucun .update(stockMovements) ni .delete(stockMovements)");
   else bad("storage.stock.ts contient un UPDATE ou DELETE sur stockMovements — violation de l'append-only");
+  if (!hasUpdateOnGroups && !hasDeleteOnGroups) ok("storage.stock.ts ne contient aucun .update(stockMovementGroups) ni .delete(stockMovementGroups)");
+  else bad("storage.stock.ts contient un UPDATE ou DELETE sur stockMovementGroups — violation de l'append-only");
 }
 
 console.log("\n=== Endpoints HTTP DNA (Express minimal, mêmes routes réelles, même DB) ===");
