@@ -127,6 +127,13 @@
       "when": 1787630400000,
       "tag": "0018_stock_provenance_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1787634000000,
+      "tag": "0019_crm_customer_blacklist_repair",
+      "breakpoints": true
     }
   ]
 }
