@@ -35,7 +35,13 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 4. Backfill the newly created location projection from aggregate balances into `LEGACY_UNKNOWN` once. Migration `0016` is forward-only like the existing project migrations and fails on conflicting pre-existing objects rather than overwriting them.
 5. Starting in Milestone 1, the existing storage writer must lock and update both aggregate and legacy-unknown location rows inside the same transaction. This prevents two independent sources of truth during the transition to explicit locations.
 6. Reservations remain at the same physical location: location projections carry reservation buckets, but reservation movements do not relocate quantities.
-7. Explicit source/destination locations, movement group metadata, receipts/lots, APIs, CRM integration, and admin UX remain later sequential milestones.
+7. Movement group metadata and receipt/lot foundations were completed in Milestones 2–3; explicit location operations are completed in Milestone 4. Read APIs, CRM integration, and admin UX remain later sequential milestones.
+8. Milestone 4 adds `applyLocationMovement` beside the legacy writer. Its TypeScript input union and runtime guards require the physical source for decrements, the destination for inbound stock, and both distinct endpoints for true transfers.
+9. The allocation policy is evidenced FIFO: receipt lots sort by `received_at`, then other evidenced lots by creation time; `LEGACY_UNKNOWN` sorts last because its real age is unknowable. Creation time and `lot_id` are deterministic tie-breakers.
+10. The global lock order is aggregate identity first, affected locations by lexical `location_id`, then lot positions in the deterministic allocation order. All affected rows are locked before projection mutations.
+11. Reservations and releases retain identical source/destination metadata and alter reservation overlays at one location only. Physical transfers carry the same lot identity from source to destination.
+12. Location-aware inbound operations accept an evidenced lot only when its receipt item identity and receipt destination match. Omitting a lot explicitly records unknown provenance; no provenance or location fact is inferred.
+13. The aggregate projection and DNA read path are unchanged. The location-aware writer reconciles aggregate-to-location and location-to-lot inside its transaction before immutable ledger insertion.
 
 ## 5. Files changed
 
@@ -57,6 +63,10 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `migrations-mysql/0015_research_pool.sql` — added the missing Drizzle statement breakpoints so a fresh journal-driven MariaDB migration run executes its multiple DDL statements correctly.
 - `migrations-mysql/0019_crm_customer_blacklist_repair.sql` — added a guarded forward repair for the historical `0007_crm_customer_blacklist.sql` migration, which exists on disk but was never entered in the Drizzle journal.
 - `migrations-mysql/meta/_journal.json` — added journal index 18 for the guarded `0019` repair.
+- `server/services/stock-movement-processor.ts` — added location endpoint rules plus the deterministic evidenced-FIFO lot allocation planner.
+- `server/services/stock-movement-processor.test.ts` — added focused endpoint, transfer, reservation-locality, FIFO, tie-breaker, and insufficient-allocation coverage.
+- `server/storage.stock.ts` — added the location-aware transactional writer with explicit endpoints, stable aggregate/location/lot locking, same-lot transfers, atomic reconciliation, and append-only multi-lot allocations while preserving the legacy writer.
+- `scripts/rehearsal-verify-stock-central-m4.mjs` — added the dedicated real-MariaDB Milestone 4 gate.
 
 ## 6. Migrations created
 
@@ -99,6 +109,13 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Projection reconciliation queried directly in MariaDB after the rehearsals: PASS — 45 aggregate rows, 0 aggregate/location mismatches; 45 location rows, 0 location/lot mismatches.
 - Rollback behavior against real MariaDB: PASS — failed reservation left aggregate, location, lot, movement, group, and allocation state unchanged; the injected seed failure also rolled back atomically.
 - Concurrency behavior against real MariaDB: PASS — exactly one of two simultaneous reservations against one available unit succeeded, the other failed cleanly, and the final reserved quantity was 1.
+- Milestone 4 focused Vitest (`npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts`): PASS — 1 file, 58 tests passed.
+- Milestone 4 real-MariaDB rehearsal (`npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs`): PASS — 16 OK, 0 FAIL. It covers required endpoints, two physical locations plus an event location, multiple receipt lots, evidenced FIFO, DNA aggregate compatibility, insufficient-stock rollback, reservation without relocation, deposit/return, event sortie/return, location-specific correction, concurrent consumption of the same lots, transfer metadata, and allocation arithmetic.
+- Final fresh-chain legacy backend rehearsal remained PASS — 45 OK, 0 FAIL.
+- Final fresh-chain seed atomicity remained PASS — 8 OK, 0 FAIL.
+- Final append-only trigger rehearsal remained PASS — detail, group, and allocation UPDATE/DELETE attempts all rejected.
+- Final direct SQL reconciliation after the complete gate: 47 aggregate rows with 0 aggregate/location mismatches; 49 location rows with 0 location/lot mismatches.
+- Final `npm.cmd run check`: PASS. Final production build: PASS — 1,937 client modules and `dist/index.cjs`; only the existing chunk-size warning. Final `git diff --check`: PASS.
 
 ## 9. Commits created
 
@@ -110,6 +127,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `bb76d13 stock: add receipt and provenance lot foundation`
 - `b86b3d6 docs: checkpoint phase 2 provenance foundation`
 - `9802f2f db: repair disposable migration chain`
+- `67fd4ca stock: add deterministic multi-location lot allocation`
 
 ## 10. Current status
 
@@ -117,20 +135,22 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Milestone 1 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Milestone 2 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
 - Milestone 3 implementation is complete and committed; it passes focused tests, TypeScript, build, syntax, and diff checks.
-- The real disposable MariaDB gate is complete for Milestones 1–3.
+- The real disposable MariaDB gate is complete for Milestones 1–4.
 - Migrations `0016`, `0017`, `0018`, and the necessary forward repair `0019` were applied only to the local disposable rehearsal database.
 - All required database, rollback, concurrency, projection, immutability, type-check, focused unit-test, build, and diff checks pass.
-- Milestone 4 has not begun.
+- Milestone 4 implementation and its full disposable MariaDB gate are complete.
+- No CRM sale-to-stock integration, read API, admin UX, staging access, or production access was included.
 
 ## 11. Unresolved risks/questions
 
 - Existing untracked repository artifacts are extensive. Always use path-specific staging and confirm the staged diff before committing.
-- The Milestone 3 schema can preserve multiple receipt lots, but the current writer intentionally supports only `LEGACY_UNKNOWN`; multi-lot locking/allocation policy and real location IDs must be implemented together in Milestone 4. The current reconciliation guard fails closed if another lot is introduced prematurely.
+- The legacy writer intentionally remains scoped to `LEGACY_UNKNOWN`; evidenced physical operations must use `applyLocationMovement` and must never silently fall back to an invented real location or receipt lot.
 - The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
+- Milestone 5 must remain a minimal operational read/API surface. It must not become analytics/BI, CRM sale integration, or admin UX.
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 4: implement explicit multi-location operations and deterministic multi-lot allocation, preserving aggregate/location/lot reconciliation and stable lock ordering. Keep all validation disposable/local until a separate staging authorization is given.
+Begin Milestone 5 — Read/API traceability. Add minimal backend reads for current stock by SKU and location, movement history, known provenance, current/destination location history, and movement-group detail. Keep response formats suitable for a future admin UI, but do not build analytics/BI, CRM sale-to-stock integration, or admin UX.
 
 ## 13. Commands required to resume safely
 
@@ -146,6 +166,7 @@ npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-proc
 npm.cmd run check
 npm.cmd run build
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
+npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
 node scripts/rehearsal-verify-0005-immutability.mjs
 git diff --check
