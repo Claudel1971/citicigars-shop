@@ -138,12 +138,19 @@
     {
       "idx": 19,
       "version": "5",
+      "when": 1787670000000,
+      "tag": "0019a_order_items_default_charset_compatibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
       "when": 1787716800000,
       "tag": "0020_crm_sale_stock_contract",
       "breakpoints": true
     },
     {
-      "idx": 20,
+      "idx": 21,
       "version": "5",
       "when": 1787803200000,
       "tag": "0021_purchasing_receiving",

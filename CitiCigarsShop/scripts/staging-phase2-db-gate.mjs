@@ -27,7 +27,13 @@ if (!['mysql:', 'mariadb:'].includes(parsedUrl.protocol)) {
   throw new Error("The staging database URL must use mysql:// or mariadb://");
 }
 
-const connection = await mysql.createConnection(databaseUrl);
+const connection = await mysql.createConnection({
+  uri: databaseUrl,
+  // A logical dump must preserve JSON as JSON text. mysql2 otherwise parses
+  // JSON columns into objects and its generic SQL escaper emits assignment
+  // expressions instead of a restorable scalar value.
+  jsonStrings: true,
+});
 
 function quoteIdentifier(identifier) {
   return `\`${identifier.replaceAll("`", "``")}\``;
