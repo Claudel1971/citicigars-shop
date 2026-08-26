@@ -306,6 +306,40 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Final decision: **M10 PASS — PHASE 2 ACCEPTED** for the delivered M4–M9 scope. The system proves what is held, its exact identity, evidenced origin when known, current/previous location, immutable movements, FIFO consumption, CRM linkage and operational monitoring without fabricated provenance.
 - No staging or production database, deployment, real supplier order, historical backfill, unrelated tracked DNA file, or pre-existing untracked artifact was accessed or modified.
 
+### Phase 2 — Staging Deployment & Acceptance
+
+- Date: 2026-08-26 (America/Toronto).
+- Local accepted source: `phase2-stock-traceability` / `6e872c5e1318484073b0025e58a05a3edd97c943`; local M10 remains accepted and unchanged.
+- Verified staging topology before the gate:
+  - frontend: `https://staging.citicigars.com`, deployed by `.github/workflows/whc-staging-deploy.yml` from `staging-crm-dna-integration`;
+  - backend: Render service `citicigars-api-staging` (`srv-da15590u01pc739gdjrg`), `https://citicigars-api-staging.onrender.com`, auto-deploy on commit from `staging-crm-dna-integration`;
+  - staging commit before/after this attempt: `103cd561ddd108ab293b5ca54b99deb61a01e49b` (unchanged; Phase 2 was not merged or deployed);
+  - database configured by that exact backend service: MariaDB `10.6.27-MariaDB-cll-lve`, host `srv18.swhc.ca:3306`, database `bwljrj22_citicigars_staging`.
+- Pre-migration backup: **PASS**. Complete logical gzip created outside Git/OneDrive at `C:\Users\claud\AppData\Local\Temp\CitiCigars-Staging-PrePhase2-20260826T1534Z.sql.gz`; 332,175 compressed bytes / 2,290,438 verified restored bytes; SHA-256 `6ee5526344b8d401ea9fe56a72ec9cbf3791a5350a8fcc76ebc9313f7e95978d`. The dump contains all 32 pre-gate base tables, data, the Drizzle journal and all 7 triggers. It was decompressed and checked for required schema/footer markers. It is not tracked by Git.
+- Baseline before mutation:
+  - 32 base tables, 7 triggers;
+  - journal ended at id 14 / `0014_dna_research_approval`;
+  - `0015_research_pool` objects already existed outside the journal. Repo history and exact `SHOW CREATE TABLE` comparison proved that its tables, columns, indexes, collations and foreign keys matched the accepted 0015 semantics (MariaDB JSON/type normalization only). Existing volumes were 873 pool rows, 925 evidence rows and 1 research case;
+  - `customers` already contained the historical 0007 blacklist columns and index, so guarded 0019 was expected to be a no-op;
+  - structural counts: products 76, SKUs 164, aggregate balances 45, movements 59, orders 16, order items 59, customers 18, customer DNA 18, DNA recommendations 5 and availability watches 3.
+- Migration attempt and exact result:
+  - existing versioned baseline helper marked only the already-proven 0015 hash `89f277636b1f...` at timestamp `1787531040000`; its SQL was not rerun;
+  - real `drizzle-kit migrate --config=drizzle.config.mysql.ts` applied and journaled 0016, 0017, 0018 and guarded 0019;
+  - 0020 failed atomically with MariaDB `ER_CANT_CREATE_TABLE` / errno 150 while adding the `order_items` foreign keys;
+  - exact cause: historical `order_items` and its varchar columns use `latin1_swedish_ci`, while `stock_locations.location_id` and `stock_movement_groups.group_id` use `utf8mb4_unicode_ci`. MariaDB rejects those foreign keys because the referencing and referenced varchar collations differ;
+  - none of the six 0020 columns, its indexes or its foreign keys exists after the failed ALTER; 0020 is not journaled; 0021 was not attempted.
+- Safe post-failure state:
+  - journal ends at id 19 / `0019_crm_customer_blacklist_repair`;
+  - 41 base tables and 19 triggers; 0016–0019 objects remain because MariaDB DDL commits implicitly;
+  - 45 aggregate rows = 45 location rows = 45 lot/location rows;
+  - 0 aggregate/location mismatches, 0 location/lot mismatches and 0 negative buckets;
+  - exactly one system `LEGACY_UNKNOWN` location and one system `LEGACY_UNKNOWN` lot;
+  - commercial/DNA counts listed above remained unchanged; no supplier, PO, receipt, sale, movement or demo fixture was created by this gate.
+- Deployment status: backend Phase 2 **NOT DEPLOYED**; frontend Phase 2 **NOT DEPLOYED**; historical smoke suite not run against Phase 2 staging; no staging admin write was attempted.
+- Visual Acceptance — parcours pour Claudel: **BLOCKED / NOT READY**. The current frontend still serves `103cd561`, so `/admin/stock`, `/admin/stock/monitoring`, `/admin/purchasing` and the stock-aware CRM sale must not be represented as a Phase 2 staging review. No `STG-DEMO-*` fixture was created. Menu navigation and owner-visible workflows remain to be verified only after the DB blocker is resolved and the accepted code is deployed.
+- Correction applied: none. Accepted migrations were not edited, no manual ALTER was used, no historical fact was inferred, and the migration runner was not bypassed.
+- Final staging decision: **STAGING NOT ACCEPTED**. The stop condition is an uncovered legacy charset/collation incompatibility before 0020. Production was not accessed or modified.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -342,6 +376,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migration `0021` was applied and journaled only on disposable/local MariaDB; no staging or production access was included.
 - Milestone 9 read-only management/monitoring and its complete disposable MariaDB gate are complete and committed; no M9 migration was required.
 - Milestone 10 final acceptance is complete: M10 PASS and PHASE 2 ACCEPTED for the explicitly delivered scope.
+- The 2026-08-26 staging gate is **NOT ACCEPTED**. The staging DB is safely reconciled through journal id 19, but accepted migration 0020 cannot create its foreign keys against the historical latin1 `order_items` table. No Phase 2 staging deployment occurred.
 
 ## 11. Unresolved risks/questions
 
@@ -353,7 +388,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 
 ## 12. NEXT EXACT ACTION
 
-Phase 2 is accepted and closed at the M10 checkpoint. Do not deploy or access staging/production without a new explicit rollout authorization and environment-specific readiness plan. Treat generic transfer, bundle decomposition and CRM compensating reversal as separate future scopes.
+Keep local Phase 2/M10 accepted, but do not rerun migrations and do not merge/deploy Phase 2 to staging. Obtain explicit authorization for a separately reviewed forward-only charset/collation compatibility strategy that can run before 0020 without editing accepted migrations or converting historical text on assumption. Rehearse that strategy from the verified pre-gate backup on disposable MariaDB, prove every affected FK/text column and data value, take a new staging backup, then resume the real Drizzle chain at 0020. Only after 0020 and 0021 pass and all projections reconcile may backend/frontend deployment, `STG-DEMO-*` fixtures and Claudel's visual acceptance path begin. Production remains out of scope.
 
 ## 13. Commands required to resume safely
 
