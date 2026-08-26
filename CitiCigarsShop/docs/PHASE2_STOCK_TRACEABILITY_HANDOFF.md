@@ -265,6 +265,29 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - PO editing/cancellation/approval and supplier accounting are outside this minimal receiving workflow.
 - Generic location transfer, bundle component decomposition, and compensating reversal for stock-linked sales remain the previously documented open debts.
 
+### Milestone 9 Stock Management / Monitoring
+
+- Architecture: one read-only consolidated service, `GET /api/admin/stock/monitoring`, protected by `requireAdminAuth`, plus `/admin/stock/monitoring` in the existing Stock Admin shell. It reads current aggregate/location/lot projections, bounded append-only movement details, M8 PO/receipt facts, supplier/receipt provenance, and existing product catalogue status. It exposes no mutation endpoint and required no migration; disposable schema remains through `0021`.
+- Reliable indicators: exact active/zero identities; mixed stock-unit totals explicitly labelled as units rather than cigars; all six buckets and `availableNow`; reconciliation failures; explicit `LEGACY_UNKNOWN`; location positions; evidenced lot age; PO ordered/received/outstanding/overdue; latest movement; and observed VENTE quantities over 30/60/90 days. Financial value, demand forecasts, purchase recommendations, expiry, and days-of-cover are intentionally absent.
+- Centralized defaults, returned to the UI and overridable per read: low stock `availableNow <= 2`, dormant period 90 days, old receipt lot 180 days, overdue PO grace 0 days. No threshold persistence or configuration migration was justified for this read-only milestone.
+- Reconciliation policy: every identity is checked aggregate-to-location and each location-to-lot across all six buckets. An inconsistent identity creates a CRITICAL alert, is counted globally, and is excluded from trusted totals and management conclusions; it is never silently omitted or auto-corrected.
+- Dormant definition: `availableNow > 0`, identity ledger observation begins at least 90 days ago, and no M4 `VENTE` is observed in the period. If observed history begins later, the UI says “Historique insuffisant” and never claims the item was never sold. Lot age is separately `generatedAt - receivedAt`; unknown receipt dates remain unknown and “old” never means expired.
+- Attention categories: CRITICAL `RECONCILIATION_ERROR`; ATTENTION `OUT_OF_STOCK`, `FULLY_RESERVED`, `OVERDUE_PO`; WATCH `LOW_STOCK`, `DORMANT`, `LEGACY_UNKNOWN_EXPOSURE`. The commercial view includes only catalogue-sellable product identities and surfaces current availability, reservation state, latest movement, and attention state.
+- Performance: projection and grouped movement/PO queries are batched, with no per-row trace calls or N+1 reads. Movements use SQL filters plus deterministic descending date/id order; movements, alerts, commercial, dormant, lots, and purchasing outputs are bounded with default 25 and hard maximum 100. Search, location, alert, movement type, reference type, supplier, and PO status filters are parsed fail-closed.
+- UI includes executive snapshot, exception queue, sellable stock, dormant/insufficient-history view, locations, provenance age, outstanding purchasing, filtered recent movements, generated-at timestamp, explicit refresh, and threshold/unit/history disclosures. It performs no optimistic assumptions.
+- Focused final M4–M9 Vitest: PASS — 12 files, 113 tests. M9-only: 3 files, 14 tests covering summary arithmetic, zero/low/full reservation, inconsistency, legacy exposure, dormancy/history sufficiency, PO lateness, lot/movement semantics, pagination/filter validation, auth and UI warnings/freshness semantics.
+- Real disposable M9 rehearsal: PASS — 13 OK, 0 FAIL. Controlled facts included healthy, zero, low, fully reserved, sufficiently dormant, insufficient-history and legacy identities; an old evidenced receipt lot; future open and overdue partially received POs; recent sale; client/event reservations; event sortie/return; and deposit. Every checked indicator matched direct SQL or the reconciled M4–M8 facts.
+- Cross-flow proof: evidenced PO receipt → sale → client reservation → event reservation/sortie/return → deposit updated the commercial view and movement feed immediately; exact `onHand`, reservation, deposit and `availableNow` matched direct SQL, and no controlled identity diverged.
+- Full regression: M4 16/16; M5 20/20; M6 36/36; M7 18/18; M8 26/26 with 0 global projection mismatches; historical backend 45/45; seed atomicity 8/8; append-only group/detail/allocation UPDATE/DELETE rejected. TypeScript, production build, and `git diff --check` PASS; build produced 1,941 frontend modules and `dist/index.cjs`, with only the existing chunk warning.
+- Environment remained disposable MariaDB `12.3.2-MariaDB`, `127.0.0.1:3399`, database `citicigars_rehearsal`, journal id 21. No staging/production access, deployment, schema migration, stock correction, historical fabrication, automated alert delivery, recommendation, forecasting, transfer, bundle, or reversal work occurred.
+
+### Milestone 9 remaining limitations
+
+- Thresholds are centralized explicit read parameters, not persistent per-SKU configuration.
+- Available Phase 2 ledger history may be short; M9 reports insufficiency rather than estimating velocity or coverage with false precision.
+- CSV export was not added because the bounded operational tables and correctness gate took priority; no Excel/PDF reporting is included.
+- Generic transfer, bundle decomposition, and CRM compensating reversal remain outside M9 and must be addressed explicitly before final acceptance if M10 requires them.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -280,6 +303,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `194f42e stock: add operational admin back-office`
 - `0420e15 crm: consume exact stock for confirmed sales`
 - `1faf2ed stock: add atomic purchasing and receiving`
+- `b702f7f stock: add read-only operational monitoring`
 
 ## 10. Current status
 
@@ -297,6 +321,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migration `0020` was applied only to disposable/local MariaDB; no staging or production access was included.
 - Milestone 8 purchasing/receiving and its full disposable MariaDB gate are complete and committed.
 - Migration `0021` was applied and journaled only on disposable/local MariaDB; no staging or production access was included.
+- Milestone 9 read-only management/monitoring and its complete disposable MariaDB gate are complete and committed; no M9 migration was required.
 
 ## 11. Unresolved risks/questions
 
@@ -304,11 +329,11 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The legacy writer intentionally remains scoped to `LEGACY_UNKNOWN`; evidenced physical operations must use `applyLocationMovement` and must never silently fall back to an invented real location or receipt lot.
 - The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
 - New purchasing receipts must continue to require exact PO, supplier, identity, quantity, destination, date, operator, receipt item, and non-legacy provenance evidence; nullable historical columns are not permission to fabricate missing facts.
-- Milestone 9 must consume reconciled operational read models and must not mutate ledger/projections, infer missing evidence, or silently mask projection inconsistencies.
+- Milestone 10 must treat M9 as observation only and prove every lifecycle step against ledger, projections, allocations, provenance, CRM links and monitoring outputs without masking known unsupported flows.
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 9 — Stock Management / Monitoring / Operational Indicators, only after explicit authorization. Keep monitoring read-only over reconciled M4–M8 facts; do not infer missing provenance, begin production deployment, or absorb the remaining transfer/bundle/reversal debts without explicit scope.
+Begin Milestone 10 — Grand End-to-End Stock Evolution Test / Final Phase-2 Acceptance, only after explicit authorization. Do not deploy or access staging/production; explicitly account for the known generic-transfer, bundle and CRM-reversal limitations rather than inventing support.
 
 ## 13. Commands required to resume safely
 
@@ -329,6 +354,7 @@ npx.cmd tsx scripts/rehearsal-verify-stock-traceability-m5.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-admin-m6.mjs
 npx.cmd tsx scripts/rehearsal-verify-crm-stock-m7.mjs
 npx.cmd tsx scripts/rehearsal-verify-purchasing-m8.mjs
+npx.cmd tsx scripts/rehearsal-verify-stock-monitoring-m9.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
