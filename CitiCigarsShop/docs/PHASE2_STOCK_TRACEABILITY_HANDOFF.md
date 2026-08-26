@@ -75,6 +75,16 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `server/routes.ts` — registered the Milestone 5 route module.
 - `scripts/rehearsal-verify-stock-traceability-m5.mjs` — controlled real-MariaDB/HTTP stock-life rehearsal for the operational read layer.
 
+- `client/src/components/admin/StockAdmin.tsx` — operational list/search, exact-identity detail, location/provenance views, reconciliation warning, immutable history, movement-group detail, confirmation, and post-write M5 refresh.
+- `client/src/components/admin/stock-admin-model.ts` — UI operation definitions, validation, error mapping, unknown-location labels, and write-then-refresh sequencing.
+- `client/src/components/admin/StockAdmin.test.tsx` — focused component/model coverage.
+- `client/src/components/admin/AdminSidebar.jsx` and `client/src/pages/Admin.jsx` — protected `/admin/stock` navigation and screen.
+- `server/routes.stock-admin.ts` — minimal authenticated stock list/location/reception-lot reads and generic M4-backed movement POST.
+- `server/routes.stock-admin.test.ts` — route auth, payload, delegation, domain-error, and concurrency-error tests.
+- `server/services/stock-traceability.ts` — searchable stock positions, explicit no-position rows, active locations, and eligible evidenced reception lots.
+- `scripts/rehearsal-verify-stock-admin-m6.mjs` — real-MariaDB HTTP operational lifecycle rehearsal.
+- `vitest.config.ts` — focused frontend test inclusion and frontend alias.
+
 ## 6. Migrations created
 
 - `migrations-mysql/0016_stock_locations_foundation.sql` with journal entry index 15.
@@ -153,6 +163,29 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Projection mismatch fails with HTTP 409 `stock_traceability_inconsistent`.
 - Accepted M5 limitation: bounded offset pagination. Reporting, mutations, UI, CRM integration, purchasing, and dashboards remain out of scope.
 
+### Milestone 6 final gate
+
+- Admin screen: `/admin/stock`, inside the existing authenticated admin shell.
+- New protected reads: `GET /api/admin/stock?search=`, `GET /api/admin/stock/locations`, and `GET /api/admin/stock/reception-lots`.
+- New protected write: `POST /api/admin/stock/movements`. It parses, checks the SKU, delegates exactly once to `stockStorage.applyLocationMovement`, and returns the immutable `groupId`; it has no stock-effect or allocation logic.
+- Exact M4 forms: `RECEPTION`, `MISE_EN_DEPOT`, `RETOUR_DE_DEPOT`, `RESERVATION_CLIENT`, `LIBERATION_RESERVATION_CLIENT`, `RESERVATION_EVENEMENT`, `SORTIE_EVENEMENT`, `RETOUR_EVENEMENT`, and counted-target `CORRECTION_INVENTAIRE` with mandatory reason.
+- Outbound allocation stays automatic evidenced FIFO in M4. Reception offers only existing receipt lots matching identity/destination, plus explicit `Legacy / provenance inconnue`; M6 creates no evidence.
+- Locations use code/name/category selectors, never operator-entered UUIDs. `LEGACY_UNKNOWN` remains explicit.
+- Writes require confirmation, perform no optimistic update, show the group ID, then refresh M5 state and history.
+- Stable actionable errors are surfaced; expected stock/concurrency conflicts use 409, invalid requests use 400/404, raw SQL is hidden, and traceability 409 is a visible blocking warning.
+- Focused final suite: PASS — 4 files, 82 tests (8 frontend, 5 admin route, 11 M5 model, 58 M4 processor).
+- M6 HTTP/MariaDB: PASS — 36 OK, 0 FAIL. Two receptions, client reserve/release, deposit transfer/return, event reserve/sortie/partial return, and correction ran through the admin POST with M5 proof after every operation.
+- M5: 20/20; M4: 16/16; backend: 45/45; seed atomicity: 8/8; append-only triggers: PASS.
+- Final SQL: 45 aggregate rows and 45 location rows; zero projection mismatches.
+- TypeScript, production build, and diff checks: PASS. Build: 1,939 frontend modules plus server `dist/index.cjs`; existing chunk warning only.
+- Environment: disposable/local MariaDB 12.3.2, `127.0.0.1:3399`, `citicigars_rehearsal`. No M6 migration; schema remained through `0019`.
+
+### Milestone 6 limitations
+
+- M4 has no generic business movement for arbitrary same-bucket `onHand → onHand`. M6 does not invent `TRANSFER`; it exposes typed deposit and event transfers that preserve lot identity.
+- Evidence creation is absent. A new evidenced reception requires existing receipt/lot evidence; otherwise provenance must explicitly remain unknown. Purchasing/receiving is later scope.
+- Search is bounded to 100 rows and includes no analytics/dashboard layer.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -165,6 +198,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `9802f2f db: repair disposable migration chain`
 - `67fd4ca stock: add deterministic multi-location lot allocation`
 - `71bc6a5 stock: add operational traceability reads`
+- `194f42e stock: add operational admin back-office`
 
 ## 10. Current status
 
@@ -177,7 +211,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - All required database, rollback, concurrency, projection, immutability, type-check, focused unit-test, build, and diff checks pass.
 - Milestone 4 implementation and its full disposable MariaDB gate are complete.
 - Milestone 5 read/traceability API and its full disposable MariaDB gate are complete.
-- No CRM sale-to-stock integration, admin UX, staging access, or production access was included.
+- Milestone 6 operational Stock Admin and its full disposable MariaDB gate are complete.
+- No CRM sale-to-stock integration, staging access, or production access was included.
 
 ## 11. Unresolved risks/questions
 
@@ -186,10 +221,11 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
 - Milestone 5 must remain a minimal operational read/API surface. It must not become analytics/BI, CRM sale integration, or admin UX.
 - Milestone 6 may consume the protected M5 contracts but must preserve exact identity, explicit unknown, ordering, and fail-closed reconciliation semantics.
+- Milestone 7 must not infer type, pack size, source location, or provenance from incomplete CRM order data.
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 6 — Operational Stock Admin / back-office. Build the smallest operational admin experience on the protected Milestone 5 read contracts and existing Milestone 4 write service. Do not begin CRM sale-to-stock integration, purchasing, dashboards, or production deployment without separate authorization.
+Begin Milestone 7 — CRM → Stock integration. Define and implement the explicit sale-to-stock identity and source-location contract without guessing stock type, pack size, physical source, or provenance. Do not begin purchasing, dashboards, forecasting, or production deployment without separate authorization.
 
 ## 13. Commands required to resume safely
 
@@ -206,6 +242,7 @@ npx.cmd vitest run --config vitest.config.ts server/services/stock-traceability-
 npm.cmd run check
 npm.cmd run build
 npx.cmd tsx scripts/rehearsal-verify-stock-traceability-m5.mjs
+npx.cmd tsx scripts/rehearsal-verify-stock-admin-m6.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
