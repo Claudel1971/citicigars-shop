@@ -85,6 +85,15 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `scripts/rehearsal-verify-stock-admin-m6.mjs` — real-MariaDB HTTP operational lifecycle rehearsal.
 - `vitest.config.ts` — focused frontend test inclusion and frontend alias.
 
+- `shared/schema.sales.ts` — added the nullable historical-compatible M7 stock contract and unique movement-group link on `order_items`.
+- `server/services/manual-sale.ts` — validates every line before mutation, persists durable request/line idempotency, creates the CRM order and all M4 `VENTE` groups in one transaction, applies stable cross-line lock ordering, and blocks destructive deletion after stock consumption.
+- `server/services/manual-sale.test.ts` — focused exact identity, sentinel, source, non-stock, bundle, and zero-revenue fail-closed coverage.
+- `server/routes.crm.ts` — returns 201 for a new sale and 200 for a durable idempotent replay.
+- `client/src/components/admin/crm/NewSale.jsx` and `NewSale.d.ts` — require operator, exact type/pack size, and source location by code/name/category; retain the retry key after failure; exclude ambiguous bundle entry; label automatic M4 FIFO explicitly.
+- `client/src/components/admin/crm/NewSale.test.tsx` — focused physical and `NON_STOCK` rendering coverage.
+- `scripts/rehearsal-verify-crm-stock-m7.mjs` — controlled real-MariaDB Box+Pack, FIFO, retry, projection, reference, and insufficient-second-line rollback proof.
+- `migrations-mysql/0020_crm_sale_stock_contract.sql` and journal index 19 — forward-only M7 line contract; no historical row is backfilled or inferred.
+
 ## 6. Migrations created
 
 - `migrations-mysql/0016_stock_locations_foundation.sql` with journal entry index 15.
@@ -95,6 +104,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migration `0018` creates one explicit `LEGACY_UNKNOWN` provenance lot with every unsupported historical fact (`supplier`, `receipt`, source reference, receipt date) left `NULL`, backfills current location positions into it, and creates no historical movement/lot allocations.
 - `migrations-mysql/0019_crm_customer_blacklist_repair.sql` with journal entry index 18.
 - Migration `0019` conditionally creates the three blacklist columns and their index. It is safe both for a fresh database, where the unjournaled historical migration was skipped, and for a database where that historical SQL was applied manually.
+- `migrations-mysql/0020_crm_sale_stock_contract.sql` with journal entry index 19.
+- Migration `0020` adds nullable `stock_disposition`, `stock_type`, `stock_pack_size`, `stock_source_location_id`, `stock_movement_group_id`, and `stock_non_consumption_reason` columns to `order_items`, plus source/group foreign keys and a unique movement-group link. Nullable columns preserve historical rows exactly; M7 performs no historical backfill.
 
 ## 7. Migration application status
 
@@ -109,6 +120,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
   - id 17, `0017_stock_movement_groups`, hash prefix `ec36860e3dc4`, timestamp `1787626800000`;
   - id 18, `0018_stock_provenance_lots`, hash prefix `8d15ca349d30`, timestamp `1787630400000`;
   - id 19, `0019_crm_customer_blacklist_repair`, hash prefix `949fc0fcc5a8`, timestamp `1787634000000`.
+  - id 20, `0020_crm_sale_stock_contract`, hash prefix `e52f9c527dfc`, timestamp `1787716800000`.
 - No staging or production database was accessed or modified.
 
 ## 8. Tests executed and exact results
@@ -186,6 +198,32 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Evidence creation is absent. A new evidenced reception requires existing receipt/lot evidence; otherwise provenance must explicitly remain unknown. Purchasing/receiving is later scope.
 - Search is bounded to 100 rows and includes no analytics/dashboard layer.
 
+### Milestone 7 CRM -> Stock contract and final gate
+
+- Exact decrement trigger: stock decrements when an authenticated operator creates a new manual CRM sale through `POST /api/crm/sales` and the order commits as `CONFIRMED` or `PAID`. Drafts, cancelled orders, historical imports, checkout/WhatsApp prospects, and existing historical rows are not processed by M7.
+- Exact consuming-line contract: stable `orderId`, stable `orderItemId`, `SKU`, `type`, `packSize`, positive `quantity`, explicit active `sourceLocationId`, `movementType=VENTE`, `referenceType=ORDER`, `referenceId=orderId`, `referenceLabel=orderItemId`, and explicit operator `author`. Lot is never entered or guessed by CRM; M4 allocates evidenced eligible lots by its deterministic receipt FIFO policy.
+- Classification: new `PRODUCT` and `ACCESSORY` lines must explicitly be `CONSUME`; accessories require `Accessory/0`; cigar products cannot use `Accessory`. `SERVICE` and `CUSTOM` must explicitly be `NON_STOCK` with a reason and no physical identity/location fields. `BUNDLE` is rejected until an exact component/decomposition contract exists. Stock-consuming zero-revenue records are rejected.
+- Source treatment: every consuming line requires an active location selected by code/name/category. No store, Douala, highest-balance location, first location, lot, or provenance is inferred. `LEGACY_UNKNOWN` remains usable only when the operator explicitly selects that visible active location.
+- Durable idempotency: the browser creates one UUID and retains it across failures/retries. The order persists it as `(source_system='crm_manual_sale_stock_v1', source_record_id=clientRequestId)` under the existing unique index, with a SHA-256 normalized payload hash. A matching retry returns the existing order with HTTP 200; reuse with different content fails. Every consuming order item also persists one unique `stock_movement_group_id`.
+- Transaction/locking: customer/order/items, every M4 stock mutation, line/group links, and customer status transition share one MariaDB transaction. All external SKU/location facts are validated before the first movement. Consuming lines run in binary stable `(SKU,type,packSize,sourceLocationId,orderItemId)` order; M4 then performs its stable aggregate/location/FIFO-lot locks. Any line failure rolls back the CRM order and every stock projection/ledger/allocation from earlier lines.
+- Reversal: deleting a manual sale that has a `CONSUME` line is blocked. M7 does not invent a reversal; a future explicit compensating operation is required.
+- Migration gate: `0020` was applied successfully with the real Drizzle migration runner only to disposable MariaDB 12.3.2 at `127.0.0.1:3399`, database `citicigars_rehearsal`, data directory `C:/Users/claud/AppData/Local/Temp/citicigars-phase2-mariadb-3399/`, local TCP with grant tables disabled. The six columns were verified through `information_schema`; journal id 20/hash prefix/timestamp are recorded above.
+- Focused M4-M7 Vitest: PASS — 6 files, 89 tests.
+- M7 real-MariaDB rehearsal: PASS — 18 OK, 0 FAIL. Four evidenced lots (old/new Box and Pack), one explicit physical store, one customer, and a two-line Box+Pack sale proved exact saved contracts, two immutable `VENTE` groups, `ORDER`/line references, selected source metadata, old-then-new FIFO, and both reconciliation levels.
+- Retry proof: same UUID returned the same order and created zero additional orders, items, groups, movements, allocations, or decrements.
+- Failure proof: a second request with sufficient Box first and insufficient Pack second failed; no CRM order survived, all ledger counts were unchanged, and aggregate/location/lot quantities for both identities were unchanged.
+- Regression: M6 36/36; M5 20/20; M4 16/16; backend 45/45; seed atomicity 8/8; append-only detail/group/allocation UPDATE and DELETE checks all rejected.
+- Final direct SQL: 45 aggregate, 45 location, and 45 lot rows; 0 aggregate/location mismatches and 0 location/lot mismatches.
+- Final TypeScript, production build, and `git diff --check`: PASS. Build produced 1,939 frontend modules and `dist/index.cjs`; only the existing Vite chunk-size warning remained.
+- No staging/production access, deployment, migration, historical backfill, purchasing, or admin-dashboard expansion occurred.
+
+### Milestone 7 remaining limitations
+
+- Bundles cannot be sold through the M7 integrated manual form until each physical component has an exact identity, quantity, and source-location contract.
+- There is no explicit compensating CRM sale reversal yet; stock-linked sale deletion is blocked.
+- The previously documented generic CitiCigars location-to-location transfer debt remains separate and must be closed before the final M10 E2E if still required.
+- Available quantity is not cached or inferred in the sale form. The server/M4 transaction remains the authoritative availability check and returns an actionable insufficient-stock error; Stock Admin/M5 remains available for inspection.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -199,6 +237,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `67fd4ca stock: add deterministic multi-location lot allocation`
 - `71bc6a5 stock: add operational traceability reads`
 - `194f42e stock: add operational admin back-office`
+- `0420e15 crm: consume exact stock for confirmed sales`
 
 ## 10. Current status
 
@@ -212,7 +251,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Milestone 4 implementation and its full disposable MariaDB gate are complete.
 - Milestone 5 read/traceability API and its full disposable MariaDB gate are complete.
 - Milestone 6 operational Stock Admin and its full disposable MariaDB gate are complete.
-- No CRM sale-to-stock integration, staging access, or production access was included.
+- Milestone 7 CRM sale-to-stock integration and its full disposable MariaDB gate are complete.
+- Migration `0020` was applied only to disposable/local MariaDB; no staging or production access was included.
 
 ## 11. Unresolved risks/questions
 
@@ -221,11 +261,11 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
 - Milestone 5 must remain a minimal operational read/API surface. It must not become analytics/BI, CRM sale integration, or admin UX.
 - Milestone 6 may consume the protected M5 contracts but must preserve exact identity, explicit unknown, ordering, and fail-closed reconciliation semantics.
-- Milestone 7 must not infer type, pack size, source location, or provenance from incomplete CRM order data.
+- Milestone 8 must preserve M7's exact identity/location/provenance doctrine and must not fabricate purchasing or receiving evidence.
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 7 — CRM → Stock integration. Define and implement the explicit sale-to-stock identity and source-location contract without guessing stock type, pack size, physical source, or provenance. Do not begin purchasing, dashboards, forecasting, or production deployment without separate authorization.
+Begin Milestone 8 — Purchasing / Receiving. Do not start it without explicit authorization. Preserve exact supplier/receipt evidence, exact destination location, exact SKU/type/packSize, M4/M7 reconciliation and append-only history; do not begin dashboards, forecasting, historical backfill, or production deployment.
 
 ## 13. Commands required to resume safely
 
@@ -239,10 +279,12 @@ git status --short
 Set-Location .\CitiCigarsShop
 npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts
 npx.cmd vitest run --config vitest.config.ts server/services/stock-traceability-model.test.ts server/services/stock-movement-processor.test.ts
+npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts server/services/stock-traceability-model.test.ts server/routes.stock-admin.test.ts server/services/manual-sale.test.ts client/src/components/admin/StockAdmin.test.tsx client/src/components/admin/crm/NewSale.test.tsx
 npm.cmd run check
 npm.cmd run build
 npx.cmd tsx scripts/rehearsal-verify-stock-traceability-m5.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-admin-m6.mjs
+npx.cmd tsx scripts/rehearsal-verify-crm-stock-m7.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
