@@ -5,17 +5,25 @@ import mysql from "mysql2/promise";
 const mode = process.argv[2];
 const snapshotFile = process.argv[3];
 const databaseUrl = process.env.MYSQL_URL;
+const allowExactStagingReadOnly = process.argv.includes("--allow-exact-staging-read-only");
 
 if (!['capture', 'verify'].includes(mode) || !snapshotFile || !databaseUrl) {
   throw new Error("Usage: MYSQL_URL=... node scripts/rehearsal-verify-order-items-charset-compatibility.mjs <capture|verify> <snapshot-file>");
 }
 
 const target = new URL(databaseUrl);
-if (
-  target.hostname !== "127.0.0.1" ||
-  target.port !== "3399" ||
-  !target.pathname.startsWith("/citicigars_")
-) {
+const isDisposableTarget = (
+  target.hostname === "127.0.0.1" &&
+  target.port === "3399" &&
+  target.pathname.startsWith("/citicigars_")
+);
+const isExactStagingTarget = (
+  allowExactStagingReadOnly &&
+  target.hostname === "srv18.swhc.ca" &&
+  (target.port === "3306" || target.port === "") &&
+  target.pathname === "/bwljrj22_citicigars_staging"
+);
+if (!isDisposableTarget && !isExactStagingTarget) {
   throw new Error(`STOP_NON_DISPOSABLE_TARGET: ${target.hostname}:${target.port}${target.pathname}`);
 }
 
