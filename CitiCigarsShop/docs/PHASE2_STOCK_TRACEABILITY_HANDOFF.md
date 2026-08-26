@@ -94,6 +94,13 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `scripts/rehearsal-verify-crm-stock-m7.mjs` — controlled real-MariaDB Box+Pack, FIFO, retry, projection, reference, and insufficient-second-line rollback proof.
 - `migrations-mysql/0020_crm_sale_stock_contract.sql` and journal index 19 — forward-only M7 line contract; no historical row is backfilled or inferred.
 
+- `shared/schema.stock.ts` — adds minimal purchase orders/items, durable PO/receipt request identity, PO links on historical-compatible receipt rows, and `RECEIPT` movement references.
+- `server/services/purchasing.ts` — owns supplier validation, exact PO lines, derived outstanding quantities, partial receipts, durable idempotency, evidenced lot creation, stable line order, and one-transaction M4 `RECEPTION` orchestration.
+- `server/routes.purchasing.ts` — thin authenticated supplier, PO, and receipt API; all stock effects remain in the service and M4 writer.
+- `client/src/components/admin/PurchasingAdmin.tsx` — minimal `/admin/purchasing` operator workflow with explicit destination, exact line quantities, confirmation, receipt history, and post-success read refresh.
+- `scripts/rehearsal-verify-purchasing-m8.mjs` — controlled real-MariaDB partial receipt, retry, over-receipt, rollback, M5 evidence, M7 FIFO cross-flow, and global projection proof.
+- Focused M8 route/service/UI tests cover supplier and identity validation, required PO/destination evidence, auth, retry status, conflict mapping, partial progress, and confirmation semantics.
+
 ## 6. Migrations created
 
 - `migrations-mysql/0016_stock_locations_foundation.sql` with journal entry index 15.
@@ -106,6 +113,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migration `0019` conditionally creates the three blacklist columns and their index. It is safe both for a fresh database, where the unjournaled historical migration was skipped, and for a database where that historical SQL was applied manually.
 - `migrations-mysql/0020_crm_sale_stock_contract.sql` with journal entry index 19.
 - Migration `0020` adds nullable `stock_disposition`, `stock_type`, `stock_pack_size`, `stock_source_location_id`, `stock_movement_group_id`, and `stock_non_consumption_reason` columns to `order_items`, plus source/group foreign keys and a unique movement-group link. Nullable columns preserve historical rows exactly; M7 performs no historical backfill.
+- `migrations-mysql/0021_purchasing_receiving.sql` with journal entry index 20.
+- Migration `0021` creates `stock_purchase_orders` and exact `stock_purchase_order_items`; adds nullable PO/idempotency links to existing receipt history; adds `purchase_order_item_id` to receipt items; and extends movement reference enums with `RECEIPT`. Existing rows remain unchanged and no supplier, PO, cost, receipt, location, or provenance fact is backfilled or inferred.
 
 ## 7. Migration application status
 
@@ -121,6 +130,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
   - id 18, `0018_stock_provenance_lots`, hash prefix `8d15ca349d30`, timestamp `1787630400000`;
   - id 19, `0019_crm_customer_blacklist_repair`, hash prefix `949fc0fcc5a8`, timestamp `1787634000000`.
   - id 20, `0020_crm_sale_stock_contract`, hash prefix `e52f9c527dfc`, timestamp `1787716800000`.
+  - id 21, `0021_purchasing_receiving`, hash prefix `751ebfe19bf6`, timestamp `1787803200000`.
+- The first disposable `0021` run executed its DDL but then reported `ER_EMPTY_QUERY` because the file ended with an extra statement breakpoint, so Drizzle had not journaled it. The partially applied M8 objects were audited and removed only from the disposable database, the trailing empty statement was removed, and the real Drizzle runner then applied and journaled `0021` successfully. No old migration was rewritten.
 - No staging or production database was accessed or modified.
 
 ## 8. Tests executed and exact results
@@ -224,6 +235,36 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The previously documented generic CitiCigars location-to-location transfer debt remains separate and must be closed before the final M10 E2E if still required.
 - Available quantity is not cached or inferred in the sale form. The server/M4 transaction remains the authoritative availability check and returns an actionable insufficient-stock error; Stock Admin/M5 remains available for inspection.
 
+### Milestone 8 Purchasing / Receiving architecture and final gate
+
+- Audit result: the trustworthy foundation already contained minimal suppliers, receipts, immutable receipt items, evidenced provenance lots, explicit locations, M4 `RECEPTION`, and M5 supplier/receipt/lot/location reads. It lacked a purchase-order entity, ordered/outstanding quantities, PO lifecycle, durable receipt orchestration, and receiving UI/API. Existing product prices are not trustworthy purchasing costs, so M8 persists no inferred unit cost, currency, landed cost, or accounting fact.
+- Supplier model stays deliberately small: UUID, unique operator-entered code, name, optional notes, active flag, and timestamps. No supplier CRM or payment model was added. Unknown/inactive suppliers fail closed; the controlled rehearsal creates suppliers A and B and never chooses one implicitly.
+- PO model: UUID/code, supplier, ordered/expected dates, `DRAFT|ORDERED|PARTIALLY_RECEIVED|RECEIVED|CANCELLED`, optional reference/notes, operator, request UUID/hash, and exact unique `(SKU,type,packSize)` lines with positive ordered quantity. M8 creates operational POs as `ORDERED`; received/outstanding quantities are derived from immutable receipt items rather than cached.
+- Direct receipt decision: no repository evidence established a direct-without-PO business need. New M8 receipts therefore require an exact PO; the nullable schema links only preserve historical compatibility and do not authorize invented POs.
+- Partial receipt policy: allowed. Each physical receipt remains a distinct event and PO status becomes `PARTIALLY_RECEIVED` until every line is exactly complete, then `RECEIVED`. Omitted lines simply remain outstanding.
+- Over-receipt policy: blocked without override. The service locks the PO, derives prior received quantities, and rejects any line above its outstanding quantity before creating receipt evidence.
+- Provenance policy: exactly one new non-system `RECEIPT` lot per receipt item. The lot links to the exact receipt and is never `LEGACY_UNKNOWN`. Every line invokes M4 with `movementType=RECEPTION`, explicit destination and lot, `referenceType=RECEIPT`, `referenceId=receiptId`, and `referenceLabel=receiptItemId`; the resulting immutable group is therefore derivable without mutating receipt history.
+- Transaction and ordering: one MariaDB transaction contains receipt, items, lots, every M4 group/detail/allocation/projection mutation, and final PO status. The PO row is locked `FOR UPDATE`; validated receipt lines are sorted by binary exact identity plus PO item ID before any M4 mutation. M4 retains its stable aggregate/location/lot locks and reconciliation. Any later-line failure rolls back all earlier receipt and stock writes.
+- Durable idempotency: PO and receipt submissions each require a UUID protected by a unique index plus SHA-256 of the normalized business payload. An identical retry returns the existing record with HTTP 200 and makes zero writes; reuse with changed content fails `idempotency_payload_mismatch`. Browser receipt request IDs survive failed attempts and are replaced only after success.
+- API: protected `GET/POST /api/admin/purchasing/suppliers`, `PUT /api/admin/purchasing/suppliers/:id`, `GET/POST /api/admin/purchasing/orders`, `GET /api/admin/purchasing/orders/:id`, `GET/POST /api/admin/purchasing/receipts`, and `GET /api/admin/purchasing/receipts/:id`. Routes delegate to the purchasing service and existing `requireAdminAuth`.
+- UI: `/admin/purchasing` in the existing admin shell provides supplier creation/listing, exact PO creation, ordered/received/outstanding progress, explicit destination/operator/date receipt entry, a confirmation summary, receipt history with lot and movement IDs, no optimistic stock update, and Stock M5 cache refresh after confirmed success.
+- Focused final M4–M8 Vitest: PASS — 9 files, 99 tests. M8-only final run: 3 files, 10 tests. The first combined command without `MYSQL_URL` produced two import-time environment failures while 89 tests passed; rerunning with the explicit disposable URL passed all tests.
+- M8 real-MariaDB rehearsal: PASS — 26 OK, 0 FAIL. PO-1 ordered Box 10 and Pack(5) 6; receipt 1 accepted 6/2 and remained partial; identical retry added nothing; changed-payload retry failed closed; attempted Box 5 over the remaining 4 changed nothing; receipt 2 accepted 4/4 and completed the PO.
+- Evidence proof: both receipts created one lot and one M4 group per line. M5 returned the exact supplier, receipt, two chronologically distinct Box lots, explicit destination, and movement references. No new evidenced receipt used `LEGACY_UNKNOWN`.
+- Atomic rollback proof: a controlled two-line receipt wrote a valid Box line first and then failed on an invalid physical Loose line; the transaction left no receipt, item, lot, group, movement, allocation, stock increase, or PO status change.
+- M8→M7 cross-flow: a later CRM sale of seven Box units allocated `-6` from the first M8 receipt lot and `-1` from the newer lot. Immutable `ORDER` sale references and `RECEIPT` provenance coexist, and the final Box projection was aggregate 3 = destination 3 = lots 3.
+- Full real-MariaDB regression: M4 16/16; M5 20/20; M6 36/36; M7 18/18; existing backend 45/45; seed atomicity 8/8; append-only UPDATE/DELETE rejection passed for groups, details, and lot allocations.
+- Final global SQL after M8: 49 aggregate identities with 0 aggregate/location mismatches; 49 location identities with 0 location/lot mismatches. Environment: MariaDB `12.3.2-MariaDB`, `127.0.0.1:3399`, database `citicigars_rehearsal`, journal id 21/hash prefix/timestamp recorded above.
+- Final `npm.cmd run check`, production `npm.cmd run build`, and `git diff --check`: PASS. Build produced 1,940 frontend modules and `dist/index.cjs`; only the existing Vite chunk-size warning remained.
+- No staging/production access, deployment, real supplier import, historical receipt backfill, purchasing accounting, CRM reversal, generic transfer work, dashboard, monitoring, forecasting, or Milestone 9 work occurred.
+
+### Milestone 8 remaining limitations
+
+- Direct/manual receipt without a PO is intentionally unavailable until CitiCigars provides evidence that the workflow is required and defines its controls.
+- Expected/unit/landed costs and currency are intentionally absent because no trustworthy purchasing cost model was established.
+- PO editing/cancellation/approval and supplier accounting are outside this minimal receiving workflow.
+- Generic location transfer, bundle component decomposition, and compensating reversal for stock-linked sales remain the previously documented open debts.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -238,6 +279,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `71bc6a5 stock: add operational traceability reads`
 - `194f42e stock: add operational admin back-office`
 - `0420e15 crm: consume exact stock for confirmed sales`
+- `1faf2ed stock: add atomic purchasing and receiving`
 
 ## 10. Current status
 
@@ -253,19 +295,20 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Milestone 6 operational Stock Admin and its full disposable MariaDB gate are complete.
 - Milestone 7 CRM sale-to-stock integration and its full disposable MariaDB gate are complete.
 - Migration `0020` was applied only to disposable/local MariaDB; no staging or production access was included.
+- Milestone 8 purchasing/receiving and its full disposable MariaDB gate are complete and committed.
+- Migration `0021` was applied and journaled only on disposable/local MariaDB; no staging or production access was included.
 
 ## 11. Unresolved risks/questions
 
 - Existing untracked repository artifacts are extensive. Always use path-specific staging and confirm the staged diff before committing.
 - The legacy writer intentionally remains scoped to `LEGACY_UNKNOWN`; evidenced physical operations must use `applyLocationMovement` and must never silently fall back to an invented real location or receipt lot.
 - The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
-- Milestone 5 must remain a minimal operational read/API surface. It must not become analytics/BI, CRM sale integration, or admin UX.
-- Milestone 6 may consume the protected M5 contracts but must preserve exact identity, explicit unknown, ordering, and fail-closed reconciliation semantics.
-- Milestone 8 must preserve M7's exact identity/location/provenance doctrine and must not fabricate purchasing or receiving evidence.
+- New purchasing receipts must continue to require exact PO, supplier, identity, quantity, destination, date, operator, receipt item, and non-legacy provenance evidence; nullable historical columns are not permission to fabricate missing facts.
+- Milestone 9 must consume reconciled operational read models and must not mutate ledger/projections, infer missing evidence, or silently mask projection inconsistencies.
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 8 — Purchasing / Receiving. Do not start it without explicit authorization. Preserve exact supplier/receipt evidence, exact destination location, exact SKU/type/packSize, M4/M7 reconciliation and append-only history; do not begin dashboards, forecasting, historical backfill, or production deployment.
+Begin Milestone 9 — Stock Management / Monitoring / Operational Indicators, only after explicit authorization. Keep monitoring read-only over reconciled M4–M8 facts; do not infer missing provenance, begin production deployment, or absorb the remaining transfer/bundle/reversal debts without explicit scope.
 
 ## 13. Commands required to resume safely
 
@@ -279,12 +322,13 @@ git status --short
 Set-Location .\CitiCigarsShop
 npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts
 npx.cmd vitest run --config vitest.config.ts server/services/stock-traceability-model.test.ts server/services/stock-movement-processor.test.ts
-npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts server/services/stock-traceability-model.test.ts server/routes.stock-admin.test.ts server/services/manual-sale.test.ts client/src/components/admin/StockAdmin.test.tsx client/src/components/admin/crm/NewSale.test.tsx
+npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts server/services/stock-traceability-model.test.ts server/routes.stock-admin.test.ts server/services/manual-sale.test.ts client/src/components/admin/StockAdmin.test.tsx client/src/components/admin/crm/NewSale.test.tsx server/services/purchasing.test.ts server/routes.purchasing.test.ts client/src/components/admin/PurchasingAdmin.test.tsx
 npm.cmd run check
 npm.cmd run build
 npx.cmd tsx scripts/rehearsal-verify-stock-traceability-m5.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-admin-m6.mjs
 npx.cmd tsx scripts/rehearsal-verify-crm-stock-m7.mjs
+npx.cmd tsx scripts/rehearsal-verify-purchasing-m8.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
