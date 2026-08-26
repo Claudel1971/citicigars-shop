@@ -125,10 +125,10 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The first fresh-chain attempt stopped at `0015_research_pool.sql`: that multi-statement migration lacked Drizzle statement breakpoints. Adding the missing breakpoints fixed the real migration runner failure.
 - The first backend rehearsal then stopped in the CRM/DNA portion because `customers.is_blacklisted` was absent. The historical `0007_crm_customer_blacklist.sql` file had never been journaled, so the guarded forward migration `0019` was added. After both fixes, the database was rebuilt from zero and the complete gate passed. No Milestone 4 work was started.
 - Phase 2 journal evidence from the final fresh run:
-  - id 16, `0016_stock_locations_foundation`, hash prefix `4db94bc39ec7`, timestamp `1787623200000`;
-  - id 17, `0017_stock_movement_groups`, hash prefix `ec36860e3dc4`, timestamp `1787626800000`;
-  - id 18, `0018_stock_provenance_lots`, hash prefix `8d15ca349d30`, timestamp `1787630400000`;
-  - id 19, `0019_crm_customer_blacklist_repair`, hash prefix `949fc0fcc5a8`, timestamp `1787634000000`.
+  - id 16, `0016_stock_locations_foundation`, final fresh-chain hash prefix `0c9f4aae3144`, timestamp `1787623200000`;
+  - id 17, `0017_stock_movement_groups`, final fresh-chain hash prefix `9317c3e6649a`, timestamp `1787626800000`;
+  - id 18, `0018_stock_provenance_lots`, final fresh-chain hash prefix `e84d0d1eb62c`, timestamp `1787630400000`;
+  - id 19, `0019_crm_customer_blacklist_repair`, final fresh-chain hash prefix `29317b85df3e`, timestamp `1787634000000`.
   - id 20, `0020_crm_sale_stock_contract`, hash prefix `e52f9c527dfc`, timestamp `1787716800000`.
   - id 21, `0021_purchasing_receiving`, hash prefix `751ebfe19bf6`, timestamp `1787803200000`.
 - The first disposable `0021` run executed its DDL but then reported `ER_EMPTY_QUERY` because the file ended with an extra statement breakpoint, so Drizzle had not journaled it. The partially applied M8 objects were audited and removed only from the disposable database, the trailing empty statement was removed, and the real Drizzle runner then applied and journaled `0021` successfully. No old migration was rewritten.
@@ -288,6 +288,24 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - CSV export was not added because the bounded operational tables and correctness gate took priority; no Excel/PDF reporting is included.
 - Generic transfer, bundle decomposition, and CRM compensating reversal remain outside M9 and must be addressed explicitly before final acceptance if M10 requires them.
 
+### Milestone 10 — Final Phase-2 Acceptance
+
+- Fresh environment gate: the disposable MariaDB `12.3.2-MariaDB` database `citicigars_rehearsal` at `127.0.0.1:3399` was dropped and recreated twice from the documented `0000` baseline. The real Drizzle runner applied the complete chain through journal id 21 / `0021_purchasing_receiving`; a second migrate was a no-op. Phase 2 migrations `0016`–`0021`, guarded repair `0019`, FK and triggers were verified. No migration or production schema change was needed for M10.
+- Dedicated bank-statement rehearsal: `scripts/rehearsal-verify-stock-phase2-m10.mjs`, PASS — 82 OK, 0 FAIL. It created two explicit suppliers; one PO with distinct Box, Pack(5), and Loose identities; partial and final receipts at separate dates; one evidenced lot per receipt item; exact supplier/PO/receipt/item/lot/destination links; and repeated SQL plus M5 reconciliation after every major lifecycle step.
+- Purchasing failure proofs: identical receipt retry produced zero writes; same key with changed payload failed; over-receipt failed; invalid Pack sentinel failed. Before/after counts covered PO, PO items, receipts, receipt items, lots, groups, details, allocations and all three projections.
+- CRM/FIFO proof: one exact two-line CRM sale consumed Box and Pack(5) at an explicit source. Both immutable `VENTE` groups allocated the oldest receipt lot and then the newer lot. Identical CRM UUID produced no duplicate order, movement, allocation or decrement. A later insufficient line rolled back an otherwise valid first line and the entire order.
+- Lifecycle proof: client reservation/release changed availability without relocation; event reservation/sortie/return moved and restored the same lots; deposit/return moved and restored the same lots; an explicit-location counted correction with mandatory reason remained traceable. After every step, all six aggregate buckets equalled location sums, every location equalled its lot sums, and M5 `availableNow` matched direct SQL.
+- Unknown/concurrency proof: a controlled legacy reception remained `LEGACY_UNKNOWN` with null supplier/receipt evidence and M9 WATCH classification. Two concurrent same-lot sales for the remaining quantity serialized with exactly one winner and one clean insufficient-stock failure; no negative bucket, oversell or double allocation remained.
+- M9-after-lifecycle proof: M9 rehearsal PASS — 13/13, covering healthy, zero, low, fully reserved, sufficiently dormant, insufficient-history and legacy positions; old evidenced lot; future/open and overdue/partial PO; recent sale; event/deposit movement; and direct-SQL commercial totals. It never converted old to expired, insufficient history to never sold, or mixed stock units to cigars.
+- Final accepted regressions: focused M4–M9 Vitest 12 files / 113 tests; M4 16/16; M5 20/20; M6 36/36; M7 18/18; M8 26/26; M9 13/13; historical backend 45/45; seed atomicity 8/8; append-only UPDATE/DELETE rejection for movement groups, details and lot allocations. M8 final regression SQL reported 19 aggregate identities and 30 location identities with zero mismatches; seed finished with 45 rows in each projection. TypeScript, production build (1,941 frontend modules plus `dist/index.cjs`) and `git diff --check` passed; only the existing chunk-size warning remained.
+- Defects discovered: no M4–M9 product defect. The first M10 harness run compared numeric aggregate columns with MariaDB string-valued `SUM()` results using strict equality, creating false failures while M5 was reconciled. The harness now normalizes SQL values with `Number()`; the database was rebuilt again from zero before the successful 82/82 run.
+- Residual-debt decision — generic arbitrary location transfer: fundamental Phase 2 objective required now: NO; safely supported otherwise as an arbitrary operation: NO (only typed deposit/event cycles are supported); blocks acceptance: NO. Recommendation: design a separately authorized typed transfer contract with business reference/reversal semantics before exposing it.
+- Residual-debt decision — physical bundle sale/decomposition: fundamental Phase 2 objective required now: NO; safely supported otherwise: NO (ambiguous bundles fail closed); blocks acceptance: NO. Recommendation: first persist exact component identity/quantity/source rules, then add a transactional decomposition flow.
+- Residual-debt decision — compensating reversal of a stock-consuming CRM sale: fundamental Phase 2 objective required now: NO; safely supported otherwise: NO (destructive deletion is blocked); blocks acceptance: NO. Recommendation: implement a separately authorized append-only compensating return/reversal with exact original allocations and accounting policy.
+- Security/error contracts remain covered by focused and real route rehearsals: admin reads/writes require auth; invalid identity is 400; unknown resources are 404 where specified; reconciliation inconsistency and stock/concurrency conflicts are 409; raw SQL is not returned to the browser.
+- Final decision: **M10 PASS — PHASE 2 ACCEPTED** for the delivered M4–M9 scope. The system proves what is held, its exact identity, evidenced origin when known, current/previous location, immutable movements, FIFO consumption, CRM linkage and operational monitoring without fabricated provenance.
+- No staging or production database, deployment, real supplier order, historical backfill, unrelated tracked DNA file, or pre-existing untracked artifact was accessed or modified.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -304,6 +322,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `0420e15 crm: consume exact stock for confirmed sales`
 - `1faf2ed stock: add atomic purchasing and receiving`
 - `b702f7f stock: add read-only operational monitoring`
+- `d2063c9 stock: complete phase 2 end-to-end acceptance`
 
 ## 10. Current status
 
@@ -322,6 +341,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Milestone 8 purchasing/receiving and its full disposable MariaDB gate are complete and committed.
 - Migration `0021` was applied and journaled only on disposable/local MariaDB; no staging or production access was included.
 - Milestone 9 read-only management/monitoring and its complete disposable MariaDB gate are complete and committed; no M9 migration was required.
+- Milestone 10 final acceptance is complete: M10 PASS and PHASE 2 ACCEPTED for the explicitly delivered scope.
 
 ## 11. Unresolved risks/questions
 
@@ -333,7 +353,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 10 — Grand End-to-End Stock Evolution Test / Final Phase-2 Acceptance, only after explicit authorization. Do not deploy or access staging/production; explicitly account for the known generic-transfer, bundle and CRM-reversal limitations rather than inventing support.
+Phase 2 is accepted and closed at the M10 checkpoint. Do not deploy or access staging/production without a new explicit rollout authorization and environment-specific readiness plan. Treat generic transfer, bundle decomposition and CRM compensating reversal as separate future scopes.
 
 ## 13. Commands required to resume safely
 
@@ -355,6 +375,7 @@ npx.cmd tsx scripts/rehearsal-verify-stock-admin-m6.mjs
 npx.cmd tsx scripts/rehearsal-verify-crm-stock-m7.mjs
 npx.cmd tsx scripts/rehearsal-verify-purchasing-m8.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-monitoring-m9.mjs
+npx.cmd tsx scripts/rehearsal-verify-stock-phase2-m10.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
