@@ -56,6 +56,11 @@ declare module "@/pages/Admin" {
   export default component;
 }
 
+declare module "@/config" {
+  export const API_URL: string;
+  export function getApiUrl(path: string): string;
+}
+
 declare module "@/pages/BundlesPage" {
   import type { ComponentType } from "react";
   const component: ComponentType<any>;

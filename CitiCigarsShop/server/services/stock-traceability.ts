@@ -1,4 +1,4 @@
-import { and, asc, countDistinct, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, countDistinct, eq, inArray, like, or, sql } from "drizzle-orm";
 import { db } from "../db.mysql";
 import { products } from "../../shared/schema.mysql";
 import {
@@ -13,6 +13,7 @@ import {
   stockReceipts,
   stockSuppliers,
   stockLotLocationBalances,
+  stockReceiptItems,
   type StockType,
 } from "../../shared/schema.stock";
 import {
@@ -79,6 +80,90 @@ async function readStockSummary(sku: string, filter: { type?: StockType; packSiz
 
 export async function getStockSummary(sku: string, filter: { type?: StockType; packSize?: number }) {
   return db.transaction((reader) => readStockSummary(sku, filter, reader));
+}
+
+export async function listStockPositions(searchValue = "") {
+  const search = searchValue.trim().slice(0, 100);
+  const pattern = `%${search.replace(/[\\%_]/g, "\\$&")}%`;
+  const rows = await db.select({
+    sku: skus.sku,
+    kind: skus.kind,
+    cigarId: products.cigarId,
+    marque: products.marque,
+    ligne: products.ligne,
+    vitole: products.vitole,
+    type: stockBalances.type,
+    packSize: stockBalances.packSize,
+    onHandQty: stockBalances.onHandQty,
+    reservedClientQty: stockBalances.reservedClientQty,
+    reservedEventQty: stockBalances.reservedEventQty,
+    atEventQty: stockBalances.atEventQty,
+    depositQty: stockBalances.depositQty,
+    transitQty: stockBalances.transitQty,
+    updatedAt: stockBalances.updatedAt,
+    lastMovementGroupId: stockBalances.lastMovementGroupId,
+  }).from(skus)
+    .leftJoin(stockBalances, eq(stockBalances.sku, skus.sku))
+    .leftJoin(products, eq(products.sku, skus.sku))
+    .where(search ? or(
+      like(skus.sku, pattern),
+      like(products.marque, pattern),
+      like(products.ligne, pattern),
+      like(products.vitole, pattern),
+    ) : undefined)
+    .orderBy(asc(skus.sku), asc(stockBalances.type), asc(stockBalances.packSize))
+    .limit(100);
+  return {
+    search,
+    limit: 100,
+    positions: rows.map((row) => ({
+      sku: { sku: row.sku, kind: row.kind, cigarId: row.cigarId, marque: row.marque, ligne: row.ligne, vitole: row.vitole },
+      identity: row.type ? { sku: row.sku, type: row.type, packSize: row.packSize ?? 0 } : null,
+      hasPosition: Boolean(row.type),
+      ...describeBalance(row.type ? projectionRowToBalance({
+        onHandQty: row.onHandQty ?? 0,
+        reservedClientQty: row.reservedClientQty ?? 0,
+        reservedEventQty: row.reservedEventQty ?? 0,
+        atEventQty: row.atEventQty ?? 0,
+        depositQty: row.depositQty ?? 0,
+        transitQty: row.transitQty ?? 0,
+      }) : projectionRowToBalance(undefined)),
+      updatedAt: row.updatedAt,
+      lastMovementGroupId: row.lastMovementGroupId,
+    })),
+  };
+}
+
+export async function listStockLocations() {
+  return db.select().from(stockLocations)
+    .where(eq(stockLocations.active, true))
+    .orderBy(asc(stockLocations.code), asc(stockLocations.locationId));
+}
+
+export async function listReceptionLots(identity: Identity & { destinationLocationId: string }) {
+  return db.select({
+    lotId: stockProvenanceLots.lotId,
+    lotCode: stockProvenanceLots.lotCode,
+    originKind: stockProvenanceLots.originKind,
+    receiptId: stockReceipts.receiptId,
+    receiptCode: stockReceipts.receiptCode,
+    receivedAt: stockReceipts.receivedAt,
+    purchaseReference: stockReceipts.purchaseReference,
+    invoiceReference: stockReceipts.invoiceReference,
+    supplierId: stockSuppliers.supplierId,
+    supplierCode: stockSuppliers.code,
+    supplierName: stockSuppliers.name,
+  }).from(stockReceiptItems)
+    .innerJoin(stockProvenanceLots, eq(stockProvenanceLots.lotId, stockReceiptItems.lotId))
+    .innerJoin(stockReceipts, eq(stockReceipts.receiptId, stockReceiptItems.receiptId))
+    .leftJoin(stockSuppliers, eq(stockSuppliers.supplierId, stockReceipts.supplierId))
+    .where(and(
+      eq(stockReceiptItems.sku, identity.sku),
+      eq(stockReceiptItems.type, identity.type),
+      eq(stockReceiptItems.packSize, identity.packSize),
+      eq(stockReceipts.destinationLocationId, identity.destinationLocationId),
+    ))
+    .orderBy(asc(stockReceipts.receivedAt), asc(stockProvenanceLots.createdAt), asc(stockProvenanceLots.lotId));
 }
 
 async function loadOperationGroups(groupIds: string[], reader: ReadTx) {
