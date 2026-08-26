@@ -2,6 +2,7 @@ import { mysqlTable, varchar, text, int, decimal, timestamp, mysqlEnum, index, u
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { customers } from "./schema.crm";
+import { STOCK_TYPES, stockLocations, stockMovementGroups } from "./schema.stock";
 
 // ---------------------------------------------------------------------------
 // ORDERS
@@ -69,6 +70,7 @@ export const orders = mysqlTable(
 // ---------------------------------------------------------------------------
 
 export const orderItemTypeValues = ["PRODUCT", "BUNDLE", "ACCESSORY", "SERVICE", "CUSTOM"] as const;
+export const stockDispositionValues = ["CONSUME", "NON_STOCK"] as const;
 
 export const orderItems = mysqlTable(
   "order_items",
@@ -137,6 +139,17 @@ export const orderItems = mysqlTable(
     sourceSystem: varchar("source_system", { length: 100 }),
     sourceRecordId: varchar("source_record_id", { length: 255 }),
 
+    // M7 CRM -> Stock contract. Nullable for historical rows; every new
+    // manual sale must explicitly classify each line in manual-sale.ts.
+    stockDisposition: mysqlEnum("stock_disposition", stockDispositionValues),
+    stockType: mysqlEnum("stock_type", STOCK_TYPES),
+    stockPackSize: int("stock_pack_size"),
+    stockSourceLocationId: varchar("stock_source_location_id", { length: 36 })
+      .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+    stockMovementGroupId: varchar("stock_movement_group_id", { length: 36 })
+      .references(() => stockMovementGroups.groupId, { onDelete: "restrict", onUpdate: "cascade" }),
+    stockNonConsumptionReason: varchar("stock_non_consumption_reason", { length: 255 }),
+
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   },
@@ -144,6 +157,8 @@ export const orderItems = mysqlTable(
     orderIdx: index("idx_order_items_order").on(table.orderId),
     itemSkuIdx: index("idx_order_items_item_sku").on(table.itemSku),
     sourceUniqueIdx: unique("uq_order_items_source_record").on(table.sourceSystem, table.sourceRecordId),
+    stockSourceIdx: index("idx_order_items_stock_source").on(table.stockSourceLocationId),
+    stockMovementGroupUq: unique("uq_order_items_stock_movement_group").on(table.stockMovementGroupId),
   })
 );
 

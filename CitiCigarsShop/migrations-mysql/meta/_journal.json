@@ -134,6 +134,13 @@
       "when": 1787634000000,
       "tag": "0019_crm_customer_blacklist_repair",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1787716800000,
+      "tag": "0020_crm_sale_stock_contract",
+      "breakpoints": true
     }
   ]
 }
