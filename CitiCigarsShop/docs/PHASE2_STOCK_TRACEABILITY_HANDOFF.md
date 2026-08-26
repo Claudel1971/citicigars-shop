@@ -68,6 +68,13 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `server/storage.stock.ts` — added the location-aware transactional writer with explicit endpoints, stable aggregate/location/lot locking, same-lot transfers, atomic reconciliation, and append-only multi-lot allocations while preserving the legacy writer.
 - `scripts/rehearsal-verify-stock-central-m4.mjs` — added the dedicated real-MariaDB Milestone 4 gate.
 
+- `server/services/stock-traceability-model.ts` — strict identity/pagination parsing, explicit zero semantics, derived availability, deterministic ordering, allocation arithmetic status, and fail-closed three-projection reconciliation.
+- `server/services/stock-traceability.ts` — snapshot-consistent read models for aggregate summary, current physical/provenance traceability, bounded history, and full movement-group traces without a parallel datastore.
+- `server/services/stock-traceability-model.test.ts` — focused Milestone 5 contract and consistency tests.
+- `server/routes.stock-traceability.ts` — read-only admin Stock Central routes using the existing CMS admin authentication middleware.
+- `server/routes.ts` — registered the Milestone 5 route module.
+- `scripts/rehearsal-verify-stock-traceability-m5.mjs` — controlled real-MariaDB/HTTP stock-life rehearsal for the operational read layer.
+
 ## 6. Migrations created
 
 - `migrations-mysql/0016_stock_locations_foundation.sql` with journal entry index 15.
@@ -117,6 +124,35 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Final direct SQL reconciliation after the complete gate: 47 aggregate rows with 0 aggregate/location mismatches; 49 location rows with 0 location/lot mismatches.
 - Final `npm.cmd run check`: PASS. Final production build: PASS — 1,937 client modules and `dist/index.cjs`; only the existing chunk-size warning. Final `git diff --check`: PASS.
 
+### Milestone 5 final gate
+
+- Focused Phase 2 Vitest: PASS — 2 files, 69 tests passed.
+- Milestone 5 HTTP/read rehearsal: PASS — 20 OK, 0 FAIL.
+- Environment: MariaDB 12.3.2 at `127.0.0.1:3399`, database `citicigars_rehearsal`, using the documented disposable data directory. No new migration was required for M5; the read layer used the already-applied schema through `0019`, including Phase 2 migrations `0016`, `0017`, and `0018`.
+- Controlled story: explicit unknown reception; evidenced lot A and later lot B into STORE; client reservation; FIFO sale; STORE-to-PARTNER transfer and return; event reservation, sortie, and return; location-specific correction.
+- Security/status/edge cases: admin auth 401; stable 404 for unknown SKU/group; empty known-SKU summary; explicit zero exact identity; 400 for invalid identities and excessive history limit.
+- Every controlled group had matching details; every allocation reconciled; aggregate/location/lot reported `RECONCILED`; repeated reads left all ledger counts unchanged.
+- Milestone 4 MariaDB regression: PASS — 16 OK, 0 FAIL.
+- Existing backend rehearsal: PASS — 45 OK, 0 FAIL.
+- Seed atomicity: PASS — 8 OK, 0 FAIL.
+- Append-only trigger rehearsal: PASS — UPDATE and DELETE rejected for details, group headers, and allocations.
+- Final SQL: 45 aggregate rows, 0 aggregate/location mismatches; 45 location rows, 0 location/lot mismatches.
+- Final TypeScript check, production build, and `git diff --check`: PASS. Build produced 1,937 client modules and `dist/index.cjs`; only the existing chunk warning remained.
+
+### Milestone 5 endpoint and query contract
+
+- `GET /api/admin/stock/:sku` returns SKU/product identity and deterministic aggregate positions. Optional `type`/`packSize` preserve exact stock identity. Known/no-stock is not an error; an exact absent position is explicit zero.
+- `GET /api/admin/stock/:sku/traceability` requires an exact identity and returns aggregate buckets, non-zero current locations, non-zero current lot/location provenance, reconciliation, and bounded chronological operations with details and allocations.
+- `GET /api/admin/stock/movements/:groupId` returns one complete immutable operation with endpoints, details, allocations in ledger insertion order, and allocation consistency.
+- The combined trace endpoint intentionally replaces separate location/lot/history endpoints so consumers receive one coherent point-in-time answer.
+- All routes are read-only and protected by existing `requireAdminAuth`. DNA continues reading unchanged aggregate stock.
+- Trace queries run in one MariaDB/InnoDB transaction snapshot and batch-load operation data without N+1 queries.
+- History order: `COALESCE(movement_date, created_at)`, `created_at`, `group_id`. Detail/allocation order: numeric `id`. Locations: code/ID. Lots: location code, receipt time, lot creation time, lot ID.
+- Pagination: offset, default limit 50, maximum 100, default offset 0, exact total.
+- Zero location/lot rows reconcile but are omitted from current arrays. `LEGACY_UNKNOWN` and null evidence are returned literally; nothing is inferred.
+- Projection mismatch fails with HTTP 409 `stock_traceability_inconsistent`.
+- Accepted M5 limitation: bounded offset pagination. Reporting, mutations, UI, CRM integration, purchasing, and dashboards remain out of scope.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -128,6 +164,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `b86b3d6 docs: checkpoint phase 2 provenance foundation`
 - `9802f2f db: repair disposable migration chain`
 - `67fd4ca stock: add deterministic multi-location lot allocation`
+- `71bc6a5 stock: add operational traceability reads`
 
 ## 10. Current status
 
@@ -139,7 +176,8 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migrations `0016`, `0017`, `0018`, and the necessary forward repair `0019` were applied only to the local disposable rehearsal database.
 - All required database, rollback, concurrency, projection, immutability, type-check, focused unit-test, build, and diff checks pass.
 - Milestone 4 implementation and its full disposable MariaDB gate are complete.
-- No CRM sale-to-stock integration, read API, admin UX, staging access, or production access was included.
+- Milestone 5 read/traceability API and its full disposable MariaDB gate are complete.
+- No CRM sale-to-stock integration, admin UX, staging access, or production access was included.
 
 ## 11. Unresolved risks/questions
 
@@ -147,10 +185,11 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - The legacy writer intentionally remains scoped to `LEGACY_UNKNOWN`; evidenced physical operations must use `applyLocationMovement` and must never silently fall back to an invented real location or receipt lot.
 - The rehearsal discovered that `0007_crm_customer_blacklist.sql` was historically absent from `meta/_journal.json`; `0019` is the forward-only guarded repair. Do not retroactively insert `0007` into the old journal position.
 - Milestone 5 must remain a minimal operational read/API surface. It must not become analytics/BI, CRM sale integration, or admin UX.
+- Milestone 6 may consume the protected M5 contracts but must preserve exact identity, explicit unknown, ordering, and fail-closed reconciliation semantics.
 
 ## 12. NEXT EXACT ACTION
 
-Begin Milestone 5 — Read/API traceability. Add minimal backend reads for current stock by SKU and location, movement history, known provenance, current/destination location history, and movement-group detail. Keep response formats suitable for a future admin UI, but do not build analytics/BI, CRM sale-to-stock integration, or admin UX.
+Begin Milestone 6 — Operational Stock Admin / back-office. Build the smallest operational admin experience on the protected Milestone 5 read contracts and existing Milestone 4 write service. Do not begin CRM sale-to-stock integration, purchasing, dashboards, or production deployment without separate authorization.
 
 ## 13. Commands required to resume safely
 
@@ -163,8 +202,10 @@ git merge-base HEAD origin/phase2-stock-traceability
 git status --short
 Set-Location .\CitiCigarsShop
 npx.cmd vitest run --config vitest.config.ts server/services/stock-movement-processor.test.ts
+npx.cmd vitest run --config vitest.config.ts server/services/stock-traceability-model.test.ts server/services/stock-movement-processor.test.ts
 npm.cmd run check
 npm.cmd run build
+npx.cmd tsx scripts/rehearsal-verify-stock-traceability-m5.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-backend.mjs
 npx.cmd tsx scripts/rehearsal-verify-stock-central-m4.mjs
 npx.cmd tsx scripts/rehearsal-verify-seed-atomicity.mjs
