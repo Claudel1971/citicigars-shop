@@ -1,0 +1,14 @@
+import { describe, expect, it } from "vitest";
+import { balanceOf, evaluateIdentity, isOverdue, movementClass, parseMonitoringQuery } from "./stock-monitoring-model";
+const now=new Date("2026-08-26T00:00:00Z"), options={lowStockThreshold:2,dormantDays:90};
+const position=(extra:any={})=>({reconciled:true,buckets:{onHand:5,reservedClient:0,reservedEvent:0},availableNow:5,legacyUnknown:false,historySince:"2026-01-01",lastSaleAt:"2026-08-01",...extra});
+describe("M9 monitoring model",()=>{
+ it("calculates physical and available units without converting identity types",()=>expect(balanceOf({on_hand_qty:10,reserved_client_qty:2,reserved_event_qty:1,at_event_qty:3,deposit_qty:4,transit_qty:5})).toEqual({buckets:{onHand:10,reservedClient:2,reservedEvent:1,atEvent:3,deposit:4,transit:5},availableNow:7,physicalUnits:22}));
+ it("classifies zero, low and fully reserved",()=>{expect(evaluateIdentity(position({availableNow:0,buckets:{onHand:0,reservedClient:0,reservedEvent:0}}),now,options)[0].type).toBe("OUT_OF_STOCK");expect(evaluateIdentity(position({availableNow:2}),now,options)[0].type).toBe("LOW_STOCK");expect(evaluateIdentity(position({availableNow:0,buckets:{onHand:5,reservedClient:5,reservedEvent:0}}),now,options)[0].type).toBe("FULLY_RESERVED");});
+ it("flags inconsistency and excludes other conclusions",()=>expect(evaluateIdentity(position({reconciled:false}),now,options)).toEqual([{type:"RECONCILIATION_ERROR",severity:"CRITICAL"}]));
+ it("flags explicit legacy exposure",()=>expect(evaluateIdentity(position({legacyUnknown:true}),now,options).some(a=>a.type==="LEGACY_UNKNOWN_EXPOSURE")).toBe(true));
+ it("distinguishes dormant from insufficient history",()=>{const old=position({lastSaleAt:"2026-01-02"});evaluateIdentity(old,now,options);expect(old).toMatchObject({historySufficient:true,dormant:true});const recent=position({historySince:"2026-08-01",lastSaleAt:null});evaluateIdentity(recent,now,options);expect(recent).toMatchObject({historySufficient:false,dormant:false});});
+ it("detects overdue PO only for open statuses",()=>{expect(isOverdue("2026-01-01","ORDERED",now,0)).toBe(true);expect(isOverdue("2026-01-01","RECEIVED",now,0)).toBe(false);});
+ it("classifies exact M4 movements",()=>{expect(movementClass("VENTE",-1)).toBe("COMMERCIAL_OUTBOUND");expect(movementClass("RESERVATION_CLIENT",1)).toBe("RESERVATION");expect(movementClass("MISE_EN_DEPOT",-1)).toBe("PHYSICAL_DEPLOYMENT");expect(movementClass("CORRECTION_INVENTAIRE",1)).toBe("CORRECTION");expect(movementClass("RECEPTION",1)).toBe("INBOUND");});
+ it("parses bounded filters and rejects invalid pagination",()=>{expect(parseMonitoringQuery({limit:"100",offset:"2",search:"abc"})).toMatchObject({limit:100,offset:2,search:"abc"});expect(()=>parseMonitoringQuery({limit:"101"})).toThrowError(expect.objectContaining({code:"invalid_limit"}));});
+});

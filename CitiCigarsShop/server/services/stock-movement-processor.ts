@@ -2,6 +2,8 @@
 // Aucune dépendance DB ici volontairement : ces fonctions sont testables sans MySQL,
 // et server/storage.stock.ts les enveloppe dans de vraies transactions Drizzle.
 
+import type { MovementType } from "../../shared/schema.stock";
+
 export type BalanceField = "onHand" | "reservedClient" | "reservedEvent" | "atEvent" | "deposit" | "transit";
 export type StockType = "Box" | "Pack" | "Loose" | "Accessory";
 
@@ -15,6 +17,136 @@ export const ZERO_BALANCE: Balance = {
   deposit: 0,
   transit: 0,
 };
+
+export function sumBalances(balances: readonly Balance[]): Balance {
+  return balances.reduce<Balance>((sum, balance) => ({
+    onHand: sum.onHand + balance.onHand,
+    reservedClient: sum.reservedClient + balance.reservedClient,
+    reservedEvent: sum.reservedEvent + balance.reservedEvent,
+    atEvent: sum.atEvent + balance.atEvent,
+    deposit: sum.deposit + balance.deposit,
+    transit: sum.transit + balance.transit,
+  }), { ...ZERO_BALANCE });
+}
+
+export function assertLocationProjectionMatches(aggregate: Balance, locationBalances: readonly Balance[]): void {
+  const projected = sumBalances(locationBalances);
+  for (const field of Object.keys(ZERO_BALANCE) as BalanceField[]) {
+    if (projected[field] !== aggregate[field]) {
+      throw new StockRuleViolation(
+        "location_projection_mismatch",
+        `${field}: aggregate=${aggregate[field]}, locations=${projected[field]}`,
+      );
+    }
+  }
+}
+
+export function legacyUnknownEndpointsForMovement(movementType: MovementType, unknownLocationId: string) {
+  if (movementType === "RECEPTION" || movementType === "ENTREE_TRANSIT") {
+    return { sourceLocationId: null, destinationLocationId: unknownLocationId };
+  }
+  if (["VENTE", "CADEAU", "ECHANTILLON", "PERTE_CASSE"].includes(movementType)) {
+    return { sourceLocationId: unknownLocationId, destinationLocationId: null };
+  }
+  return { sourceLocationId: unknownLocationId, destinationLocationId: unknownLocationId };
+}
+
+export const PHYSICAL_TRANSFER_MOVEMENT_TYPES = [
+  "MISE_EN_DEPOT",
+  "RETOUR_DE_DEPOT",
+  "SORTIE_EVENEMENT",
+  "RETOUR_EVENEMENT",
+  "RECEPTION_TRANSIT",
+] as const satisfies readonly MovementType[];
+
+const EXTERNAL_INBOUND_MOVEMENT_TYPES = ["RECEPTION", "ENTREE_TRANSIT"] as const satisfies readonly MovementType[];
+const EXTERNAL_OUTBOUND_MOVEMENT_TYPES = ["VENTE", "CADEAU", "ECHANTILLON", "PERTE_CASSE"] as const satisfies readonly MovementType[];
+
+export function locationAwareEndpointsForMovement(
+  movementType: MovementType,
+  sourceLocationId?: string,
+  destinationLocationId?: string,
+): { sourceLocationId: string | null; destinationLocationId: string | null } {
+  if ((EXTERNAL_INBOUND_MOVEMENT_TYPES as readonly MovementType[]).includes(movementType)) {
+    if (!destinationLocationId) throw new StockRuleViolation("destination_location_required");
+    if (sourceLocationId) throw new StockRuleViolation("external_inbound_source_must_be_null");
+    return { sourceLocationId: null, destinationLocationId };
+  }
+  if ((EXTERNAL_OUTBOUND_MOVEMENT_TYPES as readonly MovementType[]).includes(movementType)) {
+    if (!sourceLocationId) throw new StockRuleViolation("source_location_required");
+    if (destinationLocationId) throw new StockRuleViolation("external_outbound_destination_must_be_null");
+    return { sourceLocationId, destinationLocationId: null };
+  }
+  if ((PHYSICAL_TRANSFER_MOVEMENT_TYPES as readonly MovementType[]).includes(movementType)) {
+    if (!sourceLocationId) throw new StockRuleViolation("source_location_required");
+    if (!destinationLocationId) throw new StockRuleViolation("destination_location_required");
+    if (sourceLocationId === destinationLocationId) throw new StockRuleViolation("physical_transfer_requires_distinct_locations");
+    return { sourceLocationId, destinationLocationId };
+  }
+  const locationId = sourceLocationId ?? destinationLocationId;
+  if (!locationId) throw new StockRuleViolation("location_required");
+  if (sourceLocationId && destinationLocationId && sourceLocationId !== destinationLocationId) {
+    throw new StockRuleViolation("non_transfer_location_mismatch");
+  }
+  return { sourceLocationId: locationId, destinationLocationId: locationId };
+}
+
+export interface LotAllocationCandidate {
+  lotId: string;
+  originKind: "LEGACY_UNKNOWN" | "RECEIPT" | "OTHER";
+  receivedAt: Date | null;
+  createdAt: Date | null;
+  eligibleQty: number;
+}
+
+export interface PlannedLotAllocation {
+  lotId: string;
+  qty: number;
+}
+
+function lotEvidenceRank(candidate: LotAllocationCandidate): number {
+  if (candidate.originKind === "RECEIPT") return 0;
+  if (candidate.originKind === "OTHER") return 1;
+  return 2;
+}
+
+export function compareLotAllocationCandidates(a: LotAllocationCandidate, b: LotAllocationCandidate): number {
+  const rank = lotEvidenceRank(a) - lotEvidenceRank(b);
+  if (rank !== 0) return rank;
+  const aDate = (a.receivedAt ?? a.createdAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  const bDate = (b.receivedAt ?? b.createdAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  if (aDate !== bDate) return aDate - bDate;
+  const aCreated = a.createdAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  const bCreated = b.createdAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  if (aCreated !== bCreated) return aCreated - bCreated;
+  return a.lotId.localeCompare(b.lotId);
+}
+
+/**
+ * Evidenced FIFO. Receipt provenance is ordered by receivedAt, OTHER by
+ * createdAt, and LEGACY_UNKNOWN is deliberately last because its real age is
+ * unknown. lotId is the total-order tie breaker. No candidate is mutated.
+ */
+export function planDeterministicLotAllocation(
+  candidates: readonly LotAllocationCandidate[],
+  requestedQty: number,
+): PlannedLotAllocation[] {
+  if (!Number.isInteger(requestedQty) || requestedQty <= 0) {
+    throw new StockRuleViolation("invalid_allocation_quantity");
+  }
+  let remaining = requestedQty;
+  const allocations: PlannedLotAllocation[] = [];
+  for (const candidate of [...candidates].sort(compareLotAllocationCandidates)) {
+    if (!Number.isInteger(candidate.eligibleQty) || candidate.eligibleQty < 0) {
+      throw new StockRuleViolation("invalid_lot_eligible_quantity", `lotId=${candidate.lotId}`);
+    }
+    const qty = Math.min(candidate.eligibleQty, remaining);
+    if (qty > 0) allocations.push({ lotId: candidate.lotId, qty });
+    remaining -= qty;
+    if (remaining === 0) return allocations;
+  }
+  throw new StockRuleViolation("insufficient_eligible_lot_stock");
+}
 
 export class StockRuleViolation extends Error {
   code: string;

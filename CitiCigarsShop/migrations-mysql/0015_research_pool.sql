@@ -33,6 +33,7 @@ CREATE TABLE `cigar_research_pool` (
   KEY `idx_research_pool_made_by` (`made_by`),
   KEY `idx_research_pool_canonical` (`canonical_cigar_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+--> statement-breakpoint
 
 CREATE TABLE `cigar_research_pool_evidence` (
   `id` varchar(40) NOT NULL,
@@ -53,16 +54,19 @@ CREATE TABLE `cigar_research_pool_evidence` (
   CONSTRAINT `fk_pool_evidence_pool` FOREIGN KEY (`pool_id`)
     REFERENCES `cigar_research_pool` (`pool_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+--> statement-breakpoint
 
 ALTER TABLE `cigar_catalog`
   ADD COLUMN `pool_id` varchar(40) DEFAULT NULL,
   ADD UNIQUE KEY `uq_cigar_catalog_pool_id` (`pool_id`),
   ADD CONSTRAINT `fk_cigar_catalog_pool` FOREIGN KEY (`pool_id`)
     REFERENCES `cigar_research_pool` (`pool_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+--> statement-breakpoint
 
 ALTER TABLE `cigar_research_pool`
   ADD CONSTRAINT `fk_research_pool_canonical` FOREIGN KEY (`canonical_cigar_id`)
     REFERENCES `cigar_catalog` (`cigar_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+--> statement-breakpoint
 
 CREATE TABLE `dna_research_cases` (
   `case_id` varchar(40) NOT NULL,
@@ -89,6 +93,7 @@ CREATE TABLE `dna_research_cases` (
   CONSTRAINT `fk_dna_cases_cigar` FOREIGN KEY (`cigar_id`)
     REFERENCES `cigar_catalog` (`cigar_id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+--> statement-breakpoint
 
 INSERT IGNORE INTO `dna_research_cases` (
   `case_id`, `pool_id`, `cigar_id`, `status`, `case_type`, `research_mode`,

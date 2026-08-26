@@ -21,7 +21,7 @@ function bad(msg) { fail++; console.error("FAIL: " + msg); }
 const raw = await mysql.createConnection({ host: "127.0.0.1", port: 3399, database: "citicigars_rehearsal", multipleStatements: true });
 console.log("=== Réinitialisation des données (schéma déjà migré) ===");
 await raw.query("SET FOREIGN_KEY_CHECKS=0");
-for (const t of ["stock_movements", "stock_balances", "pack_size_config", "dna_availability_watch", "dna_leads", "bundle_items", "bundles", "products", "accessories", "cigar_catalog", "skus"]) {
+for (const t of ["stock_movement_lot_allocations", "stock_movements", "stock_movement_groups", "stock_lot_location_balances", "stock_location_balances", "stock_balances", "pack_size_config", "dna_availability_watch", "dna_leads", "bundle_items", "bundles", "products", "accessories", "cigar_catalog", "skus"]) {
   await raw.query(`TRUNCATE TABLE \`${t}\``);
 }
 await raw.query("SET FOREIGN_KEY_CHECKS=1");
@@ -37,6 +37,7 @@ const mappingRows = parseMappingCsv(CSV_PATH);
 const reconRows = parseReconciliationCsv(RECON_PATH);
 const reconMap = buildReconciliationMap(reconRows);
 const goodPlan = buildSeedPlan(mappingRows, reconMap);
+const expectedMovementGroups = goodPlan.filter((operation) => operation.kind === "MOVEMENT").length;
 console.log(`Plan réel: ${goodPlan.length} opérations (attendu 257).`);
 if (goodPlan.length !== 257) bad(`Le plan a ${goodPlan.length} opérations, attendu 257 — vérifier les CSV source avant de continuer.`);
 
@@ -99,7 +100,7 @@ if (thrown instanceof SeedApplyError && thrown.opIndex === INJECT_AT) {
 // du seed lui-même. Vérifiés séparément juste après (doivent rester à
 // exactement bundleSkusInPlan.length, ni plus ni moins).
 const [[countsAfterRollback]] = await raw.query(
-  "SELECT (SELECT COUNT(*) FROM cigar_catalog) AS cigar_catalog, (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM stock_movements) AS stock_movements, (SELECT COUNT(*) FROM stock_balances) AS stock_balances, (SELECT COUNT(*) FROM bundle_items) AS bundle_items, (SELECT COUNT(*) FROM accessories) AS accessories, (SELECT COUNT(*) FROM pack_size_config) AS pack_size_config",
+  "SELECT (SELECT COUNT(*) FROM cigar_catalog) AS cigar_catalog, (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM stock_movements) AS stock_movements, (SELECT COUNT(*) FROM stock_movement_groups) AS stock_movement_groups, (SELECT COUNT(*) FROM stock_movement_lot_allocations) AS stock_movement_lot_allocations, (SELECT COUNT(*) FROM stock_balances) AS stock_balances, (SELECT COUNT(*) FROM stock_location_balances) AS stock_location_balances, (SELECT COUNT(*) FROM stock_lot_location_balances) AS stock_lot_location_balances, (SELECT COUNT(*) FROM bundle_items) AS bundle_items, (SELECT COUNT(*) FROM accessories) AS accessories, (SELECT COUNT(*) FROM pack_size_config) AS pack_size_config",
 );
 const allZero = Object.values(countsAfterRollback).every((v) => Number(v) === 0);
 if (allZero) {
@@ -132,11 +133,11 @@ if (!secondAttemptError) {
 }
 
 const [[finalCounts]] = await raw.query(
-  "SELECT (SELECT COUNT(*) FROM skus) AS skus, (SELECT COUNT(*) FROM cigar_catalog) AS cigar_catalog, (SELECT COUNT(*) FROM stock_movements) AS stock_movements, (SELECT COUNT(*) FROM stock_balances) AS stock_balances, (SELECT COUNT(*) FROM bundle_items) AS bundle_items, (SELECT COUNT(*) FROM pack_size_config) AS pack_size_config",
+  "SELECT (SELECT COUNT(*) FROM skus) AS skus, (SELECT COUNT(*) FROM cigar_catalog) AS cigar_catalog, (SELECT COUNT(*) FROM stock_movements) AS stock_movements, (SELECT COUNT(*) FROM stock_movement_groups) AS stock_movement_groups, (SELECT COUNT(*) FROM stock_movement_lot_allocations) AS stock_movement_lot_allocations, (SELECT COUNT(*) FROM stock_balances) AS stock_balances, (SELECT COUNT(*) FROM stock_location_balances) AS stock_location_balances, (SELECT COUNT(*) FROM stock_lot_location_balances) AS stock_lot_location_balances, (SELECT COUNT(*) FROM bundle_items) AS bundle_items, (SELECT COUNT(*) FROM pack_size_config) AS pack_size_config",
 );
 console.log("Comptes finaux:", finalCounts);
 // Comptes connus (déjà vérifiés contre le dry-run en mémoire dans le commit précédent).
-const expected = { skus: 55, cigar_catalog: 46, stock_movements: 59, stock_balances: 45, bundle_items: 20, pack_size_config: 15 };
+const expected = { skus: 55, cigar_catalog: 46, stock_movements: 59, stock_movement_groups: expectedMovementGroups, stock_movement_lot_allocations: 59, stock_balances: 45, stock_location_balances: 45, stock_lot_location_balances: 45, bundle_items: 20, pack_size_config: 15 };
 let countsMatch = true;
 for (const [k, v] of Object.entries(expected)) {
   if (Number(finalCounts[k]) !== v) {

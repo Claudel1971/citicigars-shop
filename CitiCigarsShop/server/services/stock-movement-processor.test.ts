@@ -2,6 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   ZERO_BALANCE,
   Balance,
+  sumBalances,
+  assertLocationProjectionMatches,
+  legacyUnknownEndpointsForMovement,
+  locationAwareEndpointsForMovement,
+  planDeterministicLotAllocation,
   computeAvailability,
   looseTotal,
   assertLooseNeverInTransit,
@@ -29,6 +34,105 @@ import {
 function b(partial: Partial<Balance>): Balance {
   return { ...ZERO_BALANCE, ...partial };
 }
+
+describe("location projection reconciliation (Phase 2)", () => {
+  it("sums every lifecycle bucket across physical locations", () => {
+    expect(sumBalances([
+      b({ onHand: 3, reservedClient: 1 }),
+      b({ onHand: 2, reservedEvent: 2, atEvent: 1, deposit: 4, transit: 5 }),
+    ])).toEqual(b({ onHand: 5, reservedClient: 1, reservedEvent: 2, atEvent: 1, deposit: 4, transit: 5 }));
+  });
+
+  it("accepts an aggregate equal to the sum of its location projections", () => {
+    const locations = [b({ onHand: 3, reservedClient: 1 }), b({ onHand: 2, reservedEvent: 2 })];
+    expect(() => assertLocationProjectionMatches(b({ onHand: 5, reservedClient: 1, reservedEvent: 2 }), locations)).not.toThrow();
+  });
+
+  it("rejects drift in any bucket instead of silently accepting two truths", () => {
+    expect(() => assertLocationProjectionMatches(b({ onHand: 5 }), [b({ onHand: 4 })]))
+      .toThrowError(expect.objectContaining({ code: "location_projection_mismatch" }));
+  });
+
+  it("keeps a reservation at its physical source location", () => {
+    const sourceBefore = b({ onHand: 5 });
+    const sourceAfter = applyEffects(sourceBefore, effectsForReservationClient(2, sourceBefore));
+    expect(sourceAfter).toEqual(b({ onHand: 5, reservedClient: 2 }));
+    expect(sourceAfter.onHand).toBe(sourceBefore.onHand);
+  });
+});
+
+describe("legacy movement group endpoints (Phase 2)", () => {
+  const unknown = "LEGACY_UNKNOWN_ID";
+
+  it("records an inbound reception without fabricating an external source", () => {
+    expect(legacyUnknownEndpointsForMovement("RECEPTION", unknown))
+      .toEqual({ sourceLocationId: null, destinationLocationId: unknown });
+  });
+
+  it("records an ownership outflow without fabricating a customer location", () => {
+    expect(legacyUnknownEndpointsForMovement("VENTE", unknown))
+      .toEqual({ sourceLocationId: unknown, destinationLocationId: null });
+  });
+
+  it("does not relocate reservations or box openings", () => {
+    expect(legacyUnknownEndpointsForMovement("RESERVATION_CLIENT", unknown))
+      .toEqual({ sourceLocationId: unknown, destinationLocationId: unknown });
+    expect(legacyUnknownEndpointsForMovement("OUVERTURE_BOITE", unknown))
+      .toEqual({ sourceLocationId: unknown, destinationLocationId: unknown });
+  });
+});
+
+describe("location-aware endpoints (Phase 2 Milestone 4)", () => {
+  it("requires the physical source for decrements and the destination for inbound stock", () => {
+    expect(() => locationAwareEndpointsForMovement("VENTE", undefined, undefined))
+      .toThrowError(expect.objectContaining({ code: "source_location_required" }));
+    expect(() => locationAwareEndpointsForMovement("RECEPTION", undefined, undefined))
+      .toThrowError(expect.objectContaining({ code: "destination_location_required" }));
+    expect(locationAwareEndpointsForMovement("VENTE", "STORE", undefined))
+      .toEqual({ sourceLocationId: "STORE", destinationLocationId: null });
+    expect(locationAwareEndpointsForMovement("RECEPTION", undefined, "STORE"))
+      .toEqual({ sourceLocationId: null, destinationLocationId: "STORE" });
+  });
+
+  it("requires both distinct endpoints for a true physical transfer", () => {
+    expect(() => locationAwareEndpointsForMovement("MISE_EN_DEPOT", "STORE", undefined))
+      .toThrowError(expect.objectContaining({ code: "destination_location_required" }));
+    expect(() => locationAwareEndpointsForMovement("MISE_EN_DEPOT", "STORE", "STORE"))
+      .toThrowError(expect.objectContaining({ code: "physical_transfer_requires_distinct_locations" }));
+    expect(locationAwareEndpointsForMovement("MISE_EN_DEPOT", "STORE", "PARTNER"))
+      .toEqual({ sourceLocationId: "STORE", destinationLocationId: "PARTNER" });
+  });
+
+  it("keeps reservation lifecycle changes at one physical location", () => {
+    expect(locationAwareEndpointsForMovement("RESERVATION_CLIENT", "STORE", undefined))
+      .toEqual({ sourceLocationId: "STORE", destinationLocationId: "STORE" });
+    expect(() => locationAwareEndpointsForMovement("RESERVATION_CLIENT", "STORE", "EVENT"))
+      .toThrowError(expect.objectContaining({ code: "non_transfer_location_mismatch" }));
+  });
+});
+
+describe("deterministic evidenced FIFO lot allocation (Phase 2 Milestone 4)", () => {
+  const d = (iso: string) => new Date(iso);
+
+  it("uses receipt receivedAt, deterministic tie-breakers, and LEGACY_UNKNOWN last", () => {
+    expect(planDeterministicLotAllocation([
+      { lotId: "unknown", originKind: "LEGACY_UNKNOWN", receivedAt: null, createdAt: d("2020-01-01"), eligibleQty: 10 },
+      { lotId: "lot-b", originKind: "RECEIPT", receivedAt: d("2025-01-02"), createdAt: d("2025-01-01"), eligibleQty: 2 },
+      { lotId: "lot-a", originKind: "RECEIPT", receivedAt: d("2025-01-02"), createdAt: d("2025-01-01"), eligibleQty: 2 },
+      { lotId: "lot-old", originKind: "RECEIPT", receivedAt: d("2024-12-01"), createdAt: d("2024-12-01"), eligibleQty: 1 },
+    ], 4)).toEqual([
+      { lotId: "lot-old", qty: 1 },
+      { lotId: "lot-a", qty: 2 },
+      { lotId: "lot-b", qty: 1 },
+    ]);
+  });
+
+  it("fails rather than returning a partial allocation", () => {
+    expect(() => planDeterministicLotAllocation([
+      { lotId: "lot-a", originKind: "RECEIPT", receivedAt: d("2025-01-01"), createdAt: d("2025-01-01"), eligibleQty: 2 },
+    ], 3)).toThrowError(expect.objectContaining({ code: "insufficient_eligible_lot_stock" }));
+  });
+});
 
 describe("computeAvailability (amendement 3 : plafonné à 0, déficit séparé)", () => {
   it("cas normal, pas de réservation", () => {

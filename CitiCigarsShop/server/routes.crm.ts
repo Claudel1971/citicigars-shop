@@ -365,7 +365,7 @@ export function registerCrmRoutes(app: Express) {
   app.post("/api/crm/sales", requireAdminAuth, async (req, res) => {
     try {
       const result = await createManualSale(req.body || {});
-      res.status(201).json(result);
+      res.status(result.idempotentReplay ? 200 : 201).json(result);
     } catch (error) {
       console.error("[POST /api/crm/sales]", error);
       res.status(400).json({ error: error instanceof Error ? error.message : "Vente invalide" });

@@ -106,6 +106,55 @@
       "when": 1787531040000,
       "tag": "0015_research_pool",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1787623200000,
+      "tag": "0016_stock_locations_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1787626800000,
+      "tag": "0017_stock_movement_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1787630400000,
+      "tag": "0018_stock_provenance_lots",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1787634000000,
+      "tag": "0019_crm_customer_blacklist_repair",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1787670000000,
+      "tag": "0019a_order_items_default_charset_compatibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1787716800000,
+      "tag": "0020_crm_sale_stock_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1787803200000,
+      "tag": "0021_purchasing_receiving",
+      "breakpoints": true
     }
   ]
 }
