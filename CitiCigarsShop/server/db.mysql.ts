@@ -18,4 +18,5 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+export const mysqlPool = pool;
 export const db = drizzle(pool, { schema, mode: "default" });

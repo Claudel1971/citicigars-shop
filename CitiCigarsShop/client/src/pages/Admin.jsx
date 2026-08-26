@@ -21,6 +21,7 @@ import NewSale from '@/components/admin/crm/NewSale';
 import DnaResearchApproval from '@/components/admin/DnaResearchApproval';
 import StockAdmin from '@/components/admin/StockAdmin';
 import PurchasingAdmin from '@/components/admin/PurchasingAdmin';
+import StockMonitoring from '@/components/admin/StockMonitoring';
 import { Menu } from 'lucide-react';
 import { API_URL } from '@/config';
 
@@ -187,6 +188,7 @@ const Admin = () => {
               <Route path="/admin/fiches" component={ImportFiches} />
               <Route path="/admin/dna-research" component={DnaResearchApproval} />
               <Route path="/admin/stock" component={StockAdmin} />
+              <Route path="/admin/stock/monitoring" component={StockMonitoring} />
               <Route path="/admin/purchasing" component={PurchasingAdmin} />
               <Route path="/admin/crm" component={CrmList} />
               <Route path="/admin/crm-whatsapp" component={ConversationAnalyzer} />

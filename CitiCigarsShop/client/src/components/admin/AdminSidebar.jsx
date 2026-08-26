@@ -34,6 +34,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
   const links = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/stock', icon: Warehouse, label: 'Stock Central' },
+    { path: '/admin/stock/monitoring', icon: LayoutDashboard, label: 'Pilotage Stock' },
     { path: '/admin/purchasing', icon: Truck, label: 'Achats & Réceptions' },
     { path: '/admin/products', icon: Package, label: 'Prix_Produits' },
     { path: '/admin/characteristics', icon: Edit3, label: 'Produits' },
