@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCart } from "@/context/CartContext";
 import { generateWhatsAppLink } from "@/utils/whatsappGenerator";
+import { clearDnaCheckoutContact, readDnaCheckoutContact } from "@/utils/dnaCheckoutContact";
 import { formatPrice } from "@/utils/priceCalculator";
 import {
   Form,
@@ -25,6 +26,7 @@ const formSchema = z.object({
   nom: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   telephone: z.string().min(10, "Numéro de téléphone invalide"),
   ville: z.string().min(2, "La ville est requise"),
+  email: z.string().email("Adresse email invalide"),
   notes: z.string().optional(),
   cgv: z.boolean().refine((val) => val === true, "Vous devez accepter les CGV"),
 });
@@ -32,13 +34,15 @@ const formSchema = z.object({
 const CheckoutForm = () => {
   const { items, total, clearCart } = useCart();
   const [, setLocation] = useLocation();
+  const [dnaContact] = React.useState(readDnaCheckoutContact);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      nom: "",
-      telephone: "",
-      ville: "",
+      nom: dnaContact.nom,
+      telephone: dnaContact.telephone,
+      ville: dnaContact.ville,
+      email: dnaContact.email,
       notes: "",
       cgv: false,
     },
@@ -47,6 +51,7 @@ const CheckoutForm = () => {
   const onSubmit = (data) => {
     const link = generateWhatsAppLink(items, total, data);
     window.open(link, "_blank");
+    clearDnaCheckoutContact();
     clearCart();
     setLocation("/"); // Redirect home after checkout
   };
@@ -115,6 +120,20 @@ const CheckoutForm = () => {
                     <FormLabel>Ville / Quartier</FormLabel>
                     <FormControl>
                       <Input placeholder="Abidjan, Cocody..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" autoComplete="email" placeholder="jean.dupont@example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

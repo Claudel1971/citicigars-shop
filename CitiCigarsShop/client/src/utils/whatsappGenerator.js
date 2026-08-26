@@ -10,6 +10,7 @@ export const generateWhatsAppLink = (cartItems, total, customerData) => {
 
 Client: ${customerData.nom}
 Téléphone: ${customerData.telephone} - Ville: ${customerData.ville}
+Email: ${customerData.email}
 
 Commande:
 ${itemsList}

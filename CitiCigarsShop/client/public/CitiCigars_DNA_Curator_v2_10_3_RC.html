@@ -438,6 +438,22 @@ const AVAILABILITY_ENDPOINT=apiEndpoint('dna/availability');
 let step=0;
 let answers={firstName:'',lastName:'',power:null,intensity:null,family:null,secondaryFamily:null,spice:undefined,sweetness:undefined,signatures:[],signatureNoPreference:false,duration:null,ritualMoments:[]};
 let contact={country:'',city:'',phone:'',email:''};
+const DNA_CHECKOUT_CONTACT_KEY='citicigars:dna-checkout-contact:v1';
+
+function persistCheckoutContact(){
+  try{
+    sessionStorage.setItem(DNA_CHECKOUT_CONTACT_KEY,JSON.stringify({
+      version:1,
+      firstName:answers.firstName,
+      lastName:answers.lastName,
+      phone:contact.phone,
+      city:contact.city,
+      email:contact.email
+    }));
+  }catch(e){
+    // Le handoff commercial ne doit jamais bloquer le parcours DNA.
+  }
+}
 
 function corridor(v){return v<=2?0:v===3?1:2}
 function dnaId(a){const f={veloute:'VEL',boise:'BOI',gourmand:'GOU',fauve:'FAU'}[a.family];return `${f}-${corridor(a.power)+1}-${corridor(a.intensity)+1}`}
@@ -1030,6 +1046,9 @@ document.getElementById('loadReco').addEventListener('click',()=>{
 });
 
 async function submitContactAfterConsent(){
+  // Les champs ont été validés et le client vient de confirmer le consentement.
+  // sessionStorage suit le même onglet jusqu'au checkout, sans créer de donnée durable.
+  persistCheckoutContact();
   const isZeroCase=document.getElementById('contactGate').dataset.mode==='zero';
   const btn=document.getElementById('loadReco');
   btn.disabled=true;btn.textContent=isZeroCase?'Enregistrement…':'Enregistrement et curation…';
