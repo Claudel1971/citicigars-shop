@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight, ShoppingCart, Archive, Dna, Warehouse } from 'lucide-react';
+import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight, ShoppingCart, Archive, Dna, Warehouse, Truck } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +34,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
   const links = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/stock', icon: Warehouse, label: 'Stock Central' },
+    { path: '/admin/purchasing', icon: Truck, label: 'Achats & Réceptions' },
     { path: '/admin/products', icon: Package, label: 'Prix_Produits' },
     { path: '/admin/characteristics', icon: Edit3, label: 'Produits' },
     { path: '/admin/content', icon: FileText, label: 'Contenu (CMS)' },

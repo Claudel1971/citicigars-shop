@@ -15,6 +15,7 @@ import { registerDnaResearchRoutes } from "./routes.dna-research";
 import { registerResearchPoolRoutes } from "./routes.research-pool";
 import { registerStockTraceabilityRoutes } from "./routes.stock-traceability";
 import { registerStockAdminRoutes } from "./routes.stock-admin";
+import { registerPurchasingRoutes } from "./routes.purchasing";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
@@ -620,6 +621,7 @@ export async function registerRoutes(
   registerCrmRoutes(app);
   registerStockAdminRoutes(app);
   registerStockTraceabilityRoutes(app);
+  registerPurchasingRoutes(app);
 
   return httpServer;
 }

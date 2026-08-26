@@ -53,7 +53,7 @@ export const MOVEMENT_TYPES = [
 ] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
-export const REFERENCE_TYPES = ["CLIENT", "ORDER", "EVENT", "PARTNER", "OTHER"] as const;
+export const REFERENCE_TYPES = ["CLIENT", "ORDER", "RECEIPT", "EVENT", "PARTNER", "OTHER"] as const;
 export type ReferenceType = (typeof REFERENCE_TYPES)[number];
 
 // --- 1. Table racine skus (décision D1) ---
@@ -361,11 +361,54 @@ export const stockSuppliers = mysqlTable("stock_suppliers", {
   nameIdx: index("idx_stock_suppliers_name").on(table.name),
 }));
 
+export const PURCHASE_ORDER_STATUSES = ["DRAFT", "ORDERED", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"] as const;
+export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number];
+
+export const stockPurchaseOrders = mysqlTable("stock_purchase_orders", {
+  purchaseOrderId: varchar("purchase_order_id", { length: 36 }).primaryKey(),
+  purchaseOrderCode: varchar("purchase_order_code", { length: 50 }).notNull(),
+  clientRequestId: varchar("client_request_id", { length: 36 }).notNull(),
+  sourceRowHash: varchar("source_row_hash", { length: 64 }).notNull(),
+  supplierId: varchar("supplier_id", { length: 36 }).notNull()
+    .references(() => stockSuppliers.supplierId, { onDelete: "restrict", onUpdate: "cascade" }),
+  orderedAt: timestamp("ordered_at").notNull(),
+  expectedAt: timestamp("expected_at"),
+  status: mysqlEnum("status", PURCHASE_ORDER_STATUSES).notNull().default("ORDERED"),
+  purchaseReference: varchar("purchase_reference", { length: 100 }),
+  notes: text("notes"),
+  createdBy: varchar("created_by", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+}, (table) => ({
+  codeUq: uniqueIndex("uq_stock_purchase_orders_code").on(table.purchaseOrderCode),
+  requestUq: uniqueIndex("uq_stock_purchase_orders_request").on(table.clientRequestId),
+  supplierDateIdx: index("idx_stock_purchase_orders_supplier_date").on(table.supplierId, table.orderedAt),
+  statusIdx: index("idx_stock_purchase_orders_status").on(table.status, table.orderedAt),
+}));
+
+export const stockPurchaseOrderItems = mysqlTable("stock_purchase_order_items", {
+  purchaseOrderItemId: varchar("purchase_order_item_id", { length: 36 }).primaryKey(),
+  purchaseOrderId: varchar("purchase_order_id", { length: 36 }).notNull()
+    .references(() => stockPurchaseOrders.purchaseOrderId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  type: mysqlEnum("type", STOCK_TYPES).notNull(),
+  packSize: int("pack_size").notNull().default(0),
+  orderedQuantity: int("ordered_quantity", { unsigned: true }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  orderIdx: index("idx_stock_purchase_order_items_order").on(table.purchaseOrderId),
+  identityUq: uniqueIndex("uq_stock_purchase_order_items_identity").on(table.purchaseOrderId, table.sku, table.type, table.packSize),
+}));
+
 export const stockReceipts = mysqlTable("stock_receipts", {
   receiptId: varchar("receipt_id", { length: 36 }).primaryKey(),
   receiptCode: varchar("receipt_code", { length: 50 }).notNull(),
   supplierId: varchar("supplier_id", { length: 36 })
     .references(() => stockSuppliers.supplierId, { onDelete: "restrict", onUpdate: "cascade" }),
+  purchaseOrderId: varchar("purchase_order_id", { length: 36 })
+    .references(() => stockPurchaseOrders.purchaseOrderId, { onDelete: "restrict", onUpdate: "cascade" }),
+  clientRequestId: varchar("client_request_id", { length: 36 }),
+  sourceRowHash: varchar("source_row_hash", { length: 64 }),
   destinationLocationId: varchar("destination_location_id", { length: 36 }).notNull()
     .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
   purchaseReference: varchar("purchase_reference", { length: 100 }),
@@ -376,6 +419,8 @@ export const stockReceipts = mysqlTable("stock_receipts", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   codeUq: uniqueIndex("uq_stock_receipts_code").on(table.receiptCode),
+  requestUq: uniqueIndex("uq_stock_receipts_request").on(table.clientRequestId),
+  purchaseOrderIdx: index("idx_stock_receipts_purchase_order").on(table.purchaseOrderId, table.receivedAt),
   supplierDateIdx: index("idx_stock_receipts_supplier_date").on(table.supplierId, table.receivedAt),
   locationDateIdx: index("idx_stock_receipts_location_date").on(table.destinationLocationId, table.receivedAt),
 }));
@@ -400,6 +445,8 @@ export const stockReceiptItems = mysqlTable("stock_receipt_items", {
   receiptItemId: varchar("receipt_item_id", { length: 36 }).primaryKey(),
   receiptId: varchar("receipt_id", { length: 36 }).notNull()
     .references(() => stockReceipts.receiptId, { onDelete: "restrict", onUpdate: "cascade" }),
+  purchaseOrderItemId: varchar("purchase_order_item_id", { length: 36 })
+    .references(() => stockPurchaseOrderItems.purchaseOrderItemId, { onDelete: "restrict", onUpdate: "cascade" }),
   lotId: varchar("lot_id", { length: 36 }).notNull()
     .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
   sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
@@ -410,6 +457,7 @@ export const stockReceiptItems = mysqlTable("stock_receipt_items", {
 }, (table) => ({
   lotUq: uniqueIndex("uq_stock_receipt_items_lot").on(table.lotId),
   receiptIdx: index("idx_stock_receipt_items_receipt").on(table.receiptId),
+  purchaseOrderItemIdx: index("idx_stock_receipt_items_purchase_order_item").on(table.purchaseOrderItemId),
   identityIdx: index("idx_stock_receipt_items_identity").on(table.sku, table.type, table.packSize),
 }));
 
@@ -532,6 +580,8 @@ export const insertPackSizeConfigSchema = createInsertSchema(packSizeConfig).pic
 export const insertStockLocationSchema = createInsertSchema(stockLocations).omit({ createdAt: true, updatedAt: true });
 export const insertStockMovementGroupSchema = createInsertSchema(stockMovementGroups).omit({ createdAt: true });
 export const insertStockSupplierSchema = createInsertSchema(stockSuppliers).omit({ createdAt: true, updatedAt: true });
+export const insertStockPurchaseOrderSchema = createInsertSchema(stockPurchaseOrders).omit({ createdAt: true, updatedAt: true });
+export const insertStockPurchaseOrderItemSchema = createInsertSchema(stockPurchaseOrderItems).omit({ createdAt: true });
 export const insertStockReceiptSchema = createInsertSchema(stockReceipts).omit({ createdAt: true });
 export const insertStockProvenanceLotSchema = createInsertSchema(stockProvenanceLots).omit({ createdAt: true });
 export const insertStockReceiptItemSchema = createInsertSchema(stockReceiptItems).omit({ createdAt: true });
@@ -558,6 +608,10 @@ export type StockMovementGroup = typeof stockMovementGroups.$inferSelect;
 export type InsertStockMovementGroup = z.infer<typeof insertStockMovementGroupSchema>;
 export type StockSupplier = typeof stockSuppliers.$inferSelect;
 export type InsertStockSupplier = z.infer<typeof insertStockSupplierSchema>;
+export type StockPurchaseOrder = typeof stockPurchaseOrders.$inferSelect;
+export type InsertStockPurchaseOrder = z.infer<typeof insertStockPurchaseOrderSchema>;
+export type StockPurchaseOrderItem = typeof stockPurchaseOrderItems.$inferSelect;
+export type InsertStockPurchaseOrderItem = z.infer<typeof insertStockPurchaseOrderItemSchema>;
 export type StockReceipt = typeof stockReceipts.$inferSelect;
 export type InsertStockReceipt = z.infer<typeof insertStockReceiptSchema>;
 export type StockProvenanceLot = typeof stockProvenanceLots.$inferSelect;
