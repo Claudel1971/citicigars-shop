@@ -351,6 +351,33 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Full local regression after the migration-chain change: focused M4–M9 Vitest 12 files / 113 tests PASS; M10 82/82; M4 16/16; M5 20/20; M6 36/36; M7 18/18; M8 26/26; M9 13/13; historical backend 45/45; seed atomicity 8/8; append-only UPDATE/DELETE rejection PASS. All aggregate/location and location/lot checks reported zero mismatches and all negative-bucket checks reported zero. `npm.cmd run check`, `npm.cmd run build` (1,941 frontend modules and `dist/index.cjs`) and `git diff --check` PASS; only the existing Vite chunk-size warning remains.
 - Compatibility Gate at this checkpoint: **PASS locally and on a restored staging-data clone**. No second staging mutation has yet occurred in this checkpoint; production was not accessed.
 
+### Phase 2 staging deployment, technical acceptance, and owner-visible review gate
+
+- Final date: 2026-08-26 (America/Toronto). Production was not accessed or modified.
+- Compatibility Gate: **PASS**. The real staging MariaDB is `10.6.27-MariaDB-cll-lve` at `srv18.swhc.ca:3306`, database `bwljrj22_citicigars_staging`. The real Drizzle runner applied and journaled the forward-only compatibility migration, unchanged `0020`, and unchanged `0021` as journal ids 20, 21, and 22. The compatibility migration changed only the `order_items` table default; all 28 historical columns, historical indexes/FKs, and historical values remained unchanged. All 59 historical order items received NULL in the six new M7 columns, and the new string columns are `utf8mb4_unicode_ci` with both required foreign keys present.
+- Rollback evidence: the verified POST-0019/PRE-COMPATIBILITY logical backup is `C:\Users\claud\AppData\Local\Temp\CitiCigars-Staging-Post0019-PreCompatibility-20260826T1550Z.sql.gz`, SHA-256 `9579207679fb61479ee7795239511bbccc66e5cda272c646a1209ea3d4d5ac4d`. It restored completely on disposable MariaDB with 41 tables, 19 triggers, valid JSON, all rows, and journal through 0019. The older PRE dump remains audit-only and must not be represented as restorable.
+- Deployed source: Phase 2 through `eb56dc2` was merged into `staging-crm-dna-integration` at `eb084910d4ad065a08810fed7d05db569c62e6c1`. Render service `srv-da15590u01pc739gdjrg` reported that exact commit live at `https://citicigars-api-staging.onrender.com`. Frontend workflow run `32986706450` completed successfully for the same commit and serves `https://staging.citicigars.com`.
+- Public/protected smoke: backend `/health` returned 200/OK; frontend `/`, `/admin`, `/admin/stock`, `/admin/stock/monitoring`, `/admin/purchasing`, and `/admin/crm-sale-new` returned 200. Unauthenticated Stock, Monitoring, and Purchasing API reads returned 401. DNA availability remained backward compatible for the controlled Box and Pack identities, and excluded Loose as expected by the existing DNA contract.
+- Final real-staging reconciliation after controlled fixtures: 43 tables, 20 triggers, 54 aggregate identities, 56 location rows, 57 lot/location rows, 72 movement groups, 81 movement details, and 22 immutable allocations. Aggregate/location mismatches: 0. Location/lot mismatches: 0. Negative buckets in all three projections: 0. Exactly one system `LEGACY_UNKNOWN` location and one system `LEGACY_UNKNOWN` lot remain explicit.
+- Controlled fixture runner: `scripts/staging-phase2-demo-fixtures.mjs`, committed as `6018c59` (`test: add controlled staging visual fixtures`). It is guarded to the exact staging target, idempotent, uses Phase 2 services, performs no deletes, and was run twice on disposable MariaDB before one successful real-staging run.
+- Controlled visible fixtures: supplier `STG-DEMO-SUPPLIER`; locations `STG-DEMO-STORE`, `STG-DEMO-PARTNER`, and `STG-DEMO-EVENT`; customer `STG-DEMO Visual Acceptance`; SKUs `STG-DEMO-AVAILABLE`, `STG-DEMO-PACK`, `STG-DEMO-LOOSE`, `STG-DEMO-ZERO`, `STG-DEMO-LOW`, `STG-DEMO-RESERVED`, `STG-DEMO-DORMANT`, `STG-DEMO-SHORT-HISTORY`, and `STG-DEMO-LEGACY`. The fixtures include evidenced old/recent receipt lots, an explicit legacy-unknown lot, client/event reservations, event and deposit movements, and one stock-consuming CRM sale `CTCG-SALE-000019`.
+- Purchasing fixtures visible in the UI: one open PO (ordered 5, received 0, outstanding 5), one partially received overdue PO (ordered 10, received 2, outstanding 8), and three receipt events with their exact generated lot codes. All references and product names are clearly prefixed `STG-DEMO` where operators need to distinguish them from commercial data.
+- Monitoring visual gate: PASS. The UI visibly shows available, low, zero, fully reserved, dormant, insufficient-history, `LEGACY_UNKNOWN`, evidenced old lot, open PO, partial/overdue PO, recent movements, reservations, and per-location balances. Reservation rows keep identical source/destination location; physical event/deposit rows show their exact endpoints.
+- Stock Central visual gate: PASS. Search `STG-DEMO` shows all nine exact identities and Box/Pack/Loose packaging with quantities, availability, reservations, and locations. The detail for `STG-DEMO-AVAILABLE` shows reconciled aggregate/location/lot projections, supplier/receipt provenance, movement history, and a movement-group dialog with ledger delta and lot allocation.
+- Purchasing visual gate: PASS. The Admin menu exposes `Achats & Réceptions`; the screen shows the demo supplier, open/partial POs, ordered/received/outstanding quantities, explicit receipt destination, receipt history, and generated receipt lots. Selecting the partial PO shows `commandé 10 · reçu 2 · restant 8` without performing another receipt.
+- CRM visual gate: PASS. Admin `CRM` -> `Nouvelle vente` exposes the demo customer and all exact demo SKUs, requires exact Box/Pack/Loose identity and explicit source location, explains automatic M4 FIFO, and states the atomic failure contract. Existing sale `CTCG-SALE-000019` is visible in Stock Central as `VENTE`, source `STG-DEMO-STORE`, with one old-lot allocation and the resulting quantity update. No second append-only sale was created merely for inspection.
+- Final local validation after fixtures/documentation: focused 12 files / 113 tests, M10 82/82, M4 16/16, M5 20/20, M6 36/36, M7 18/18, M8 26/26, M9 13/13, backend 45/45, seed 8/8, and append-only UPDATE/DELETE rejection all remain PASS from the deployment gate. The final rerun of `npm.cmd run check`, `npm.cmd run build` (1,941 frontend modules plus `dist/index.cjs`), and `git diff --check` passed; the first sandboxed build attempt was denied filesystem traversal by the local sandbox and the identical authorized build then passed.
+- Phase 2 staging technical decision: **STAGING ACCEPTED** for the delivered M4-M9 scope. Owner visual sign-off remains Claudel's separate decision after following the prepared path below; technical acceptance does not claim that the owner has already approved the visuals.
+
+#### Visual Acceptance — parcours pour Claudel
+
+1. Open `https://staging.citicigars.com/admin` and sign in with the normal staging Admin account.
+2. In the left Admin menu, click **Stock Central**. Search `STG-DEMO`; open `STG-DEMO-AVAILABLE` to inspect exact identity, Box quantity/availability/reservations, `STG-DEMO-STORE` and `STG-DEMO-PARTNER`, receipt provenance, lots, movement history, and movement detail. Compare `STG-DEMO-PACK` (Pack(5)), `STG-DEMO-LOOSE`, `STG-DEMO-LOW`, `STG-DEMO-ZERO`, and `STG-DEMO-RESERVED`.
+3. Click **Pilotage Stock**. Inspect `STG-DEMO-DORMANT`, `STG-DEMO-SHORT-HISTORY`, `STG-DEMO-LEGACY`, the old evidenced lots, `STG-DEMO-STORE/PARTNER/EVENT`, PO alerts, and recent reservation/event/deposit/sale movements.
+4. Click **Achats & Réceptions**. Select the `STG-DEMO-SUPPLIER` partial PO `PO-20260826-979B8B11` to see ordered 10, received 2, outstanding 8, explicit destination choices, status `PARTIALLY_RECEIVED`, and the receipt/lot history. The other open PO is `PO-20260826-40FDFC9E`.
+5. Expand **CRM** and click **Nouvelle vente**. Choose client `Visual Acceptance STG-DEMO`, SKU `STG-DEMO-AVAILABLE`, identity `Box`, pack size `0`, and source `STG-DEMO-STORE`. The screen documents FIFO and atomicity. Do not click **Créer la vente** unless an additional append-only staging sale is intentionally desired; the already-created controlled proof is `CTCG-SALE-000019` and can be inspected in Stock Central.
+6. Report owner visual acceptance or any UI defect separately. Do not use production for this review.
+
 ## 9. Commits created
 
 - `345133d docs: define phase 2 stock traceability architecture`
@@ -368,6 +395,9 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - `1faf2ed stock: add atomic purchasing and receiving`
 - `b702f7f stock: add read-only operational monitoring`
 - `d2063c9 stock: complete phase 2 end-to-end acceptance`
+- `d17171e db: add staging charset compatibility gate`
+- `eb56dc2 test: allow exact staging compatibility audit`
+- `6018c59 test: add controlled staging visual fixtures`
 
 ## 10. Current status
 
@@ -387,7 +417,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 - Migration `0021` was applied and journaled only on disposable/local MariaDB; no staging or production access was included.
 - Milestone 9 read-only management/monitoring and its complete disposable MariaDB gate are complete and committed; no M9 migration was required.
 - Milestone 10 final acceptance is complete: M10 PASS and PHASE 2 ACCEPTED for the explicitly delivered scope.
-- The original 2026-08-26 staging gate remains **NOT ACCEPTED** until the now-proven compatibility migration, 0020 and 0021 are applied to the real staging MariaDB and the backend/frontend plus visual gate pass. The staging DB is currently safely reconciled through journal id 19; no Phase 2 deployment has yet occurred.
+- The compatibility gate and real staging migration/deployment gate are complete. Staging is technically accepted through journal id 22, with backend/frontend live and controlled owner-visible fixtures prepared. Claudel's visual sign-off remains a separate owner decision.
 
 ## 11. Unresolved risks/questions
 
@@ -399,7 +429,7 @@ Extend the existing Stock Central ledger so CitiCigars can identify inventory pr
 
 ## 12. NEXT EXACT ACTION
 
-Commit and push the proven compatibility checkpoint to `origin/phase2-stock-traceability`. Then, using only the verified POST-0019 backup as rollback evidence, run the real Drizzle chain on staging: compatibility → 0020 → 0021; verify journal, schema, both FKs, historical NULL stock links, and zero projection/negative-bucket defects. If and only if that passes, integrate the exact Phase 2 checkpoint into `staging-crm-dna-integration`, deploy backend and frontend staging, run smoke/non-regression checks, create controlled `STG-DEMO-*` fixtures if required, and complete Claudel's visual acceptance path. Production remains out of scope.
+Claudel performs the owner visual review on `https://staging.citicigars.com/admin` using the documented `STG-DEMO-*` path and reports either visual acceptance or a precise UI defect. No production action is authorized; any production plan or deployment requires a separate explicit instruction.
 
 ## 13. Commands required to resume safely
 
