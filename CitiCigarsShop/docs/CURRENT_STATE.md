@@ -1,4 +1,4 @@
-# Current State — après R0
+# Current State — après R0.1
 
 ## Source
 
@@ -11,9 +11,14 @@
 
 - V2.1 intégrale validée localement.
 - R0 Audit & Freeze terminé.
+- R0.1 documentation et control-foundation design terminé.
 - Memo : `docs/ARCHITECTURE_PRODUCT_CHALLENGE_MEMO_R0_20260903.md`.
+- Decision pack : `docs/R0_1_CONTROL_FOUNDATION_DECISION_PACK.md`.
 - Stock Central / Phase 2 : KEEP / FREEZE.
-- R1 : non commencé, non autorisé sans revue propriétaire.
+- Cigar ID : `CTCGXXXXXX`, migration alias legacy soumise à preflight.
+- Architecture agentique challengée : adoptée.
+- Supplier Watcher : premier vertical slice documenté, non construit.
+- R1 : non commencé, non autorisé sans GO propriétaire séparé.
 - Production/WHC/Render/main : non touchés.
 - `feature/crm-phase1` : observée comme référence historique, jamais mergée.
 
@@ -29,11 +34,17 @@
 - CRM/DNA foundation ;
 - CMS legacy.
 
-## Bloqueurs avant build fonctionnel
+## Contrôles restant à arbitrer avant implémentation
 
-- convention Cigar ID exacte non disponible ;
 - handoffs CRM/DNA demandés absents ;
 - auth/RBAC insuffisants ;
-- cash/cost/reversal/transfer/bundle non figés ;
-- backup/restore et authority matrix à formaliser ;
-- owner review R0 requise.
+- cash/cost restent à spécifier ;
+- seuils d’approbation et rôles délégués Owner à définir ;
+- scope/rétention email Supplier Watcher à définir ;
+- seuils d’évaluation shadow à définir ;
+- transfer/reversal/bundle figés comme contrats séparés, non conçus en détail ;
+- backup/restore à formaliser avant implémentation risquée.
+
+## STOP
+
+R0.1 documentaire terminé. Aucun R1, module fonctionnel, migration, push ou déploiement.

@@ -1,28 +1,21 @@
-# Next Actions — STOP après R0
+# Next Actions — STOP après R0.1
 
-## Owner review requis
+## Owner decisions encore requises
 
-1. Lire `ARCHITECTURE_PRODUCT_CHALLENGE_MEMO_R0_20260903.md`.
-2. Confirmer le freeze Stock Central / Phase 2.
-3. Choisir si R0.1 est accepté avant R1.
-4. Fournir/valider la convention exacte du Cigar ID.
-5. Arbitrer cash, cost, reversal, transfer et bundle.
-6. Valider le principe READ → PROPOSE → approved EXECUTE pour les agents.
-7. Définir le premier owner visual journey de R1.
+1. Confirmer six chiffres pour `CTCGXXXXXX`.
+2. Choisir la règle de résolution d’une collision legacy/canonique.
+3. Nommer les rôles opérationnels et leurs délégations.
+4. Définir les seuils A3/A4/A5 pour achats et messages.
+5. Définir mailbox, labels et fournisseurs email autorisés.
+6. Définir rétention, privacy et pièces jointes.
+7. Fixer budgets modèles et critères de sortie shadow.
+8. Définir les actions à faible risque éventuellement automatisables.
+9. Arbitrer cash/cost et, séparément, transfer/reversal/bundle.
 
-## Si GO R0.1
+## Si GO R0.2
 
-Produire uniquement les contrats/ADRs suivants avant code fonctionnel :
-
-- authority matrix ;
-- RBAC/capability model ;
-- event/outbox envelope ;
-- tool/action registry ;
-- policy/approval lifecycle ;
-- audit/evidence model ;
-- backup/restore design ;
-- Master Gestion profiling plan read-only.
+Implémenter uniquement la fondation de contrôle avant un vertical slice : identities, registry, policy/approval, audit, outbox/jobs, context/evidence, replay, flags/kill switches et tests.
 
 ## Interdiction actuelle
 
-Aucun R1, migration, déploiement ou changement de production tant que le propriétaire n’a pas donné un GO explicite.
+Aucun R1, module Supplier Watcher, migration, push, déploiement ou changement de production sans GO explicite.

@@ -1,4 +1,4 @@
-# Test Status — R0
+# Test Status — R0 / R0.1
 
 ## R0
 
@@ -6,6 +6,15 @@
 - Tests exécutés : aucun.
 - Build exécuté : aucun.
 - Migration exécutée : aucune.
+- Base de données accédée : aucune.
+
+## R0.1
+
+- Type : architecture et contrats documentaires.
+- Tests exécutés : aucun.
+- Build exécuté : aucun.
+- Migration exécutée : aucune.
+- Service email/web/agent accédé : aucun.
 - Base de données accédée : aucune.
 
 ## Preuves historiques disponibles

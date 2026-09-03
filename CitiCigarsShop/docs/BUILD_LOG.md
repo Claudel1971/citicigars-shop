@@ -1,5 +1,38 @@
 # Build Log
 
+## 2026-09-03 — R0.1 Control Foundation Design
+
+### DONE
+
+- décisions Owner Cigar ID et architecture agentique enregistrées ;
+- architecture cible et contrôles transversaux formalisés ;
+- Capability Registry et inventaire des agents V2.1 ;
+- authority/RBAC matrix ;
+- Context & Evidence Fabric et Decision Replay ;
+- Action State Machine et durable workflows ;
+- Supplier Watcher email → web → integrated app ;
+- Agent Evaluation & Quality Governance ;
+- préflight `CTCGXXXXXX` ;
+- build gates révisés.
+
+### WHAT ACTUALLY WORKS
+
+Documentation et contrats seulement. Aucun nouveau runtime ou module.
+
+### TESTS / DB / VISUAL
+
+Non applicable à R0.1 documentaire. Aucun test, DB, build ou UI.
+
+### INCOMPLETE
+
+- seuils et rôles nécessitant Owner ;
+- toute implémentation R0.2/Supplier Watcher ;
+- R1 et suivants.
+
+### NEXT PROPOSED ACTION
+
+Revue Owner des décisions encore ouvertes, puis GO distinct éventuel pour R0.2. STOP avant R1.
+
 ## 2026-09-03 — R0 Audit & Freeze
 
 ### DONE
