@@ -1,0 +1,1 @@
+- [Emplacement stable de R1](r1-worktree-stability.md) — conserver CitiCigarsAdmin directement dans le workspace racine aligné sur GitHub, sans worktree externe.

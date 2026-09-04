@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CitiCigars Admin V2 — R1"
+description = "Environnement R1 stable et local, aligné sur la branche GitHub replit-commerce-os-v2, utilisant uniquement des données simulées et des interactions en lecture seule."
+version = "1.0.0"
+id = "artifacts/citicigars-admin"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18279
+
+[services.development]
+run = "pnpm --filter @workspace/citicigars-admin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/citicigars-admin", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/citicigars-admin/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18279"
+BASE_PATH = "/"
