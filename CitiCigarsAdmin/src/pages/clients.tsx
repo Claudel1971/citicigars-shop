@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'wouter';
 import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Badge, DataLabel, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TabContainer, TabButton } from '@/components/ui/bespoke';
 import { FIXTURES } from '@/lib/fixtures';
@@ -21,11 +22,23 @@ export default function Clients() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const idParam = params.get('id');
+    const tabParam = params.get('detailTab');
     if (idParam && FIXTURES.clients.some(c => c.id === idParam)) {
       setSelectedClientId(idParam);
       setTab('consulter');
+      if (tabParam === 'adn' || tabParam === 'infos' || tabParam === 'commandes' || tabParam === 'interactions') {
+        setDetailTab(tabParam as any);
+      }
     }
   }, []);
+
+  useEffect(() => {
+    if (detailTab === 'adn' && window.location.hash === '#dna-consolide') {
+      window.requestAnimationFrame(() => {
+        document.getElementById('dna-consolide')?.scrollIntoView({ block: 'start' });
+      });
+    }
+  }, [detailTab, selectedClientId]);
 
   const handleClearSelection = () => {
     setSelectedClientId(null);
@@ -35,10 +48,35 @@ export default function Clients() {
   const handleSelectClient = (id: string) => {
     setSelectedClientId(id);
     setDetailTab('infos');
-    window.history.replaceState({}, '', `/clients?id=${id}`);
+    window.history.replaceState({}, '', `/clients?id=${id}&detailTab=infos`);
+  };
+
+  const handleDetailTabChange = (t: 'infos' | 'adn' | 'commandes' | 'interactions') => {
+    setDetailTab(t);
+    if (selectedClientId) {
+      window.history.replaceState({}, '', `/clients?id=${selectedClientId}&detailTab=${t}`);
+    }
   };
 
   const selectedClient = selectedClientId ? FIXTURES.clients.find(c => c.id === selectedClientId) : null;
+  const consolidatedDnaChoices = selectedClient ? [
+    ...selectedClient.dnaBlock2Selections.slice(0, 5).map(choice => ({
+      id: choice.id,
+      sku: choice.sku,
+      name: choice.name,
+      origin: 'Bloc 2 · proposé par CitiCigars',
+      detail: `${choice.classification} · ${choice.context}`,
+      catalogStatus: 'Référencé' as const,
+    })),
+    ...selectedClient.dnaBlock3FreeChoices.slice(0, 5).map(choice => ({
+      id: choice.id,
+      sku: choice.sku,
+      name: choice.name,
+      origin: 'Bloc 3 · demandé librement par le client',
+      detail: choice.context,
+      catalogStatus: choice.catalogStatus,
+    })),
+  ] : [];
 
   const handleSimulate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,10 +122,10 @@ export default function Clients() {
 
           <div className="mt-8">
             <TabContainer className="mb-6">
-              <TabButton active={detailTab === 'infos'} onClick={() => setDetailTab('infos')}>Identité & Contact</TabButton>
-              <TabButton active={detailTab === 'adn'} onClick={() => setDetailTab('adn')}>ADN & Préférences</TabButton>
-              <TabButton active={detailTab === 'commandes'} onClick={() => setDetailTab('commandes')}>Commandes</TabButton>
-              <TabButton active={detailTab === 'interactions'} onClick={() => setDetailTab('interactions')}>Interactions / Communication</TabButton>
+              <TabButton active={detailTab === 'infos'} onClick={() => handleDetailTabChange('infos')}>Identité & Contact</TabButton>
+              <TabButton active={detailTab === 'adn'} onClick={() => handleDetailTabChange('adn')}>ADN & Préférences</TabButton>
+              <TabButton active={detailTab === 'commandes'} onClick={() => handleDetailTabChange('commandes')}>Commandes</TabButton>
+              <TabButton active={detailTab === 'interactions'} onClick={() => handleDetailTabChange('interactions')}>Interactions / Communication</TabButton>
             </TabContainer>
 
             {detailTab === 'infos' && (
@@ -147,11 +185,11 @@ export default function Clients() {
                     <CardHeader className="bg-primary/5">
                       <CardTitle className="text-primary">Recommandations Imminentes (Top 5)</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex-1">
+                    <CardContent className="flex-1 overflow-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>SKU Cible</TableHead>
+                            <TableHead>SKU / Raison</TableHead>
                             <TableHead>Disponibilité</TableHead>
                             <TableHead>Source</TableHead>
                           </TableRow>
@@ -159,9 +197,18 @@ export default function Clients() {
                         <TableBody>
                           {selectedClient.recommendations.slice(0, 5).map((rec, i) => (
                             <TableRow key={i}>
-                              <TableCell className="font-mono text-xs font-medium text-primary">{rec.sku}</TableCell>
-                              <TableCell>{rec.availability}</TableCell>
-                              <TableCell className="text-muted-foreground italic text-xs">{rec.source}</TableCell>
+                              <TableCell>
+                                <div className="font-mono text-xs font-bold text-primary mb-1">
+                                  <Link href={`/stock?sku=${rec.sku}`} className="hover:underline">{rec.sku}</Link>
+                                </div>
+                                <div className="text-[11px] text-muted-foreground leading-tight max-w-[250px]">{rec.rationale}</div>
+                              </TableCell>
+                              <TableCell className="align-top pt-4">
+                                <Badge variant="outline" className="whitespace-nowrap">{rec.availability}</Badge>
+                              </TableCell>
+                              <TableCell className="align-top pt-4 text-xs italic text-muted-foreground whitespace-nowrap">
+                                {rec.source}
+                              </TableCell>
                             </TableRow>
                           ))}
                           {selectedClient.recommendations.length === 0 && (
@@ -188,6 +235,119 @@ export default function Clients() {
                         </li>
                       ))}
                     </ul>
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Bloc 2 · Propositions CitiCigars sélectionnées</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">Jusqu'à 5 références A1, A2 ou B proposées selon les priorités d'approvisionnement, puis retenues par le client.</p>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU / Produit</TableHead>
+                            <TableHead>Classe</TableHead>
+                            <TableHead>Contexte</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedClient.dnaBlock2Selections.slice(0, 5).map(choice => (
+                            <TableRow key={choice.id}>
+                              <TableCell>
+                                <Link href={`/stock?sku=${choice.sku}`} className="font-mono text-xs text-primary hover:underline block">{choice.sku}</Link>
+                                <span className="text-sm font-medium">{choice.name}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={choice.classification === 'A1' ? 'success' : choice.classification === 'A2' ? 'default' : 'secondary'}>{choice.classification}</Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{choice.context}</TableCell>
+                            </TableRow>
+                          ))}
+                          {selectedClient.dnaBlock2Selections.length === 0 && (
+                            <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Aucune proposition du Bloc 2 retenue</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Bloc 3 · Demandes libres du client</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">Jusqu'à 5 autres cigares indiqués librement car absents de la liste proposée au Bloc 2; ils peuvent être hors catalogue CitiCigars.</p>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Produit demandé</TableHead>
+                            <TableHead>Catalogue</TableHead>
+                            <TableHead>Motif / contexte</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedClient.dnaBlock3FreeChoices.slice(0, 5).map(choice => (
+                            <TableRow key={choice.id}>
+                              <TableCell>
+                                {choice.sku ? (
+                                  <Link href={`/stock?sku=${choice.sku}`} className="font-mono text-xs text-primary hover:underline block">{choice.sku}</Link>
+                                ) : (
+                                  <span className="font-mono text-[10px] text-muted-foreground block">SKU non attribué</span>
+                                )}
+                                <span className="text-sm font-medium">{choice.name}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={choice.catalogStatus === 'Référencé' ? 'success' : 'outline'}>{choice.catalogStatus}</Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{choice.context}</TableCell>
+                            </TableRow>
+                          ))}
+                          {selectedClient.dnaBlock3FreeChoices.length === 0 && (
+                            <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Aucune demande libre du Bloc 3</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card id="dna-consolide" className="border-primary/20 scroll-mt-6">
+                  <CardHeader className="bg-primary/5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <CardTitle>Vue consolidée · Choix DNA du client</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">Bloc 2 + Bloc 3, jusqu'à 10 cigares par client, prêts à être agrégés plus tard pour l'intelligence d'approvisionnement.</p>
+                      </div>
+                      <Badge variant="secondary">{consolidatedDnaChoices.length} / 10 choix</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Origine</TableHead>
+                          <TableHead>SKU / Cigare</TableHead>
+                          <TableHead>Statut</TableHead>
+                          <TableHead>Signal exploitable</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {consolidatedDnaChoices.map(choice => (
+                          <TableRow key={`${choice.origin}-${choice.id}`}>
+                            <TableCell className="text-xs font-medium">{choice.origin}</TableCell>
+                            <TableCell>
+                              {choice.sku && <span className="font-mono text-[10px] text-primary block">{choice.sku}</span>}
+                              <span className="text-sm">{choice.name}</span>
+                            </TableCell>
+                            <TableCell><Badge variant={choice.catalogStatus === 'Référencé' ? 'success' : 'outline'}>{choice.catalogStatus}</Badge></TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{choice.detail}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </CardContent>
                 </Card>
               </div>

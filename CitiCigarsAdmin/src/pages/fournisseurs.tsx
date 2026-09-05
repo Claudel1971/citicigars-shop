@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
+import { Link } from 'wouter';
 import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Badge, DataLabel, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TabContainer, TabButton } from '@/components/ui/bespoke';
 import { FIXTURES } from '@/lib/fixtures';
@@ -21,6 +22,8 @@ export default function Fournisseurs() {
   const [poAmount, setPoAmount] = useState<string>('');
   const [refDate, setRefDate] = useState<string>('');
   const [poState, setPoState] = useState<'draft' | 'validated' | 'correction'>('draft');
+  const [poCurrencySelect, setPoCurrencySelect] = useState<string>('');
+  const [poCurrencyCustom, setPoCurrencyCustom] = useState<string>('');
 
   // Supplier create form
   const [supForm, setSupForm] = useState({ company: '', contact: '', email: '', phone: '', currency: 'EUR' });
@@ -28,9 +31,21 @@ export default function Fournisseurs() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const idParam = params.get('id');
+    const tabParam = params.get('detailTab');
+    const poParam = params.get('po');
     if (idParam && FIXTURES.suppliers.some(s => s.id === idParam)) {
       setSelectedOppId(idParam);
       setTab('consulter');
+      if (tabParam === 'infos' || tabParam === 'historique' || tabParam === 'po') {
+        setDetailTab(tabParam as any);
+      }
+      const opp = FIXTURES.suppliers.find(s => s.id === idParam);
+      if (opp) {
+        setPoCurrencySelect(opp.originCurrency || 'EUR');
+        if (poParam && opp.poHistory.some(po => po.poId === poParam)) {
+          setExpandedPoId(poParam);
+        }
+      }
     }
   }, []);
 
@@ -47,12 +62,34 @@ export default function Fournisseurs() {
     setFxRate('');
     setPoAmount('');
     setRefDate('');
-    window.history.replaceState({}, '', `/fournisseurs?id=${id}`);
+    const opp = FIXTURES.suppliers.find(s => s.id === id);
+    if (opp) setPoCurrencySelect(opp.originCurrency || 'EUR');
+    setPoCurrencyCustom('');
+    window.history.replaceState({}, '', `/fournisseurs?id=${id}&detailTab=infos`);
   };
 
+  const handleDetailTabChange = (t: 'infos' | 'historique' | 'po') => {
+    setDetailTab(t);
+    if (selectedOppId) {
+      window.history.replaceState({}, '', `/fournisseurs?id=${selectedOppId}&detailTab=${t}`);
+    }
+  };
+
+  const handleTogglePo = (poId: string) => {
+    const nextPoId = expandedPoId === poId ? null : poId;
+    setExpandedPoId(nextPoId);
+    if (selectedOppId) {
+      const suffix = nextPoId ? `&po=${encodeURIComponent(nextPoId)}` : '';
+      window.history.replaceState({}, '', `/fournisseurs?id=${selectedOppId}&detailTab=historique${suffix}`);
+    }
+  };
+
+  const actualCurrency = poCurrencySelect === 'Autre' ? poCurrencyCustom : poCurrencySelect;
+  const isXAF = actualCurrency.toUpperCase() === 'XAF' || actualCurrency.toUpperCase() === 'FCFA' || actualCurrency.toUpperCase() === 'XAF/FCFA';
+
   const handleValidatePO = () => {
-    if (!fxRate || !poAmount || !refDate) {
-      toast({ title: 'Erreur', description: 'Renseignez le montant, la date et le taux FX manuel.', variant: 'destructive' });
+    if (!poAmount || !refDate || (!isXAF && !fxRate) || (poCurrencySelect === 'Autre' && !poCurrencyCustom)) {
+      toast({ title: 'Erreur', description: 'Renseignez le montant, la devise, la date et le taux FX manuel.', variant: 'destructive' });
       return;
     }
     setPoState('validated');
@@ -93,9 +130,9 @@ export default function Fournisseurs() {
           </div>
 
           <TabContainer className="mb-6 mt-8">
-            <TabButton active={detailTab === 'infos'} onClick={() => setDetailTab('infos')}>Identité & Contact</TabButton>
-            <TabButton active={detailTab === 'historique'} onClick={() => setDetailTab('historique')}>Historique des commandes</TabButton>
-            <TabButton active={detailTab === 'po'} onClick={() => setDetailTab('po')}>Créer un PO</TabButton>
+            <TabButton active={detailTab === 'infos'} onClick={() => handleDetailTabChange('infos')}>Identité & Contact</TabButton>
+            <TabButton active={detailTab === 'historique'} onClick={() => handleDetailTabChange('historique')}>Historique des commandes</TabButton>
+            <TabButton active={detailTab === 'po'} onClick={() => handleDetailTabChange('po')}>Créer un PO</TabButton>
           </TabContainer>
 
           {detailTab === 'infos' && (
@@ -142,7 +179,7 @@ export default function Fournisseurs() {
                     <Fragment key={po.poId}>
                       <TableRow 
                         className="cursor-pointer hover:bg-muted/30" 
-                        onClick={() => setExpandedPoId(expandedPoId === po.poId ? null : po.poId)}
+                        onClick={() => handleTogglePo(po.poId)}
                       >
                         <TableCell className="font-mono text-xs text-primary underline">{po.poId}</TableCell>
                         <TableCell className="text-xs">{po.date}</TableCell>
@@ -167,7 +204,9 @@ export default function Fournisseurs() {
                               <TableBody>
                                 {po.items.map(item => (
                                   <TableRow key={item.sku}>
-                                    <TableCell className="font-mono text-xs">{item.sku}</TableCell>
+                                    <TableCell className="font-mono text-xs">
+                                      <Link href={`/stock?sku=${item.sku}`} className="text-primary hover:underline">{item.sku}</Link>
+                                    </TableCell>
                                     <TableCell className="text-right font-bold text-xs">{item.qty}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground">{item.unitPriceOriginal}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">{formatFCFA(item.unitPriceXAF)}</TableCell>
@@ -195,26 +234,40 @@ export default function Fournisseurs() {
                 <p className="text-xs text-muted-foreground mt-1">Le taux FX de la transaction doit être figé manuellement par l'opérateur pour tracer la valeur d'immobilisation XAF exacte au moment du paiement.</p>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Montant ({selectedOpp.originCurrency})</label>
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Montant</label>
                     <Input type="number" value={poAmount} onChange={e => setPoAmount(e.target.value)} placeholder="0.00" disabled={poState === 'validated'} />
                   </div>
+                  <div className="space-y-2 flex flex-col">
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Devise</label>
+                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" value={poCurrencySelect} onChange={e => setPoCurrencySelect(e.target.value)} disabled={poState === 'validated'}>
+                      <option value="XAF">XAF / FCFA</option>
+                      <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
+                      <option value="Autre">Autre...</option>
+                    </select>
+                    {poCurrencySelect === 'Autre' && (
+                      <Input className="mt-2" value={poCurrencyCustom} onChange={e => setPoCurrencyCustom(e.target.value)} placeholder="Code devise (ex: CHF)" disabled={poState === 'validated'} />
+                    )}
+                  </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Date de réf. / Paiement</label>
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Date</label>
                     <Input type="date" value={refDate} onChange={e => setRefDate(e.target.value)} disabled={poState === 'validated'} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Taux de change Manuel (XAF pour 1 {selectedOpp.originCurrency})</label>
-                  <Input type="number" value={fxRate} onChange={e => setFxRate(e.target.value)} step="0.001" disabled={poState === 'validated'} placeholder="Ex: 655.957" />
+                  <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                    {isXAF ? "Taux de change (Fixé à 1:1 pour XAF/FCFA)" : `Taux de change Manuel (XAF pour 1 ${actualCurrency || '?'})`}
+                  </label>
+                  <Input type="number" value={isXAF ? '1' : fxRate} onChange={e => { if(!isXAF) setFxRate(e.target.value) }} step="0.001" disabled={poState === 'validated' || isXAF} placeholder="Ex: 655.957" />
                 </div>
                 
                 <div className="bg-muted/30 border border-border p-4 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Équivalent Fixé (Immuable) :</span>
                     <span className="text-xl font-serif text-primary">
-                      {formatFCFA((parseFloat(poAmount || '0') * parseFloat(fxRate || '0')) || 0)}
+                      {formatFCFA((parseFloat(poAmount || '0') * parseFloat((isXAF ? '1' : fxRate) || '0')) || 0)}
                     </span>
                   </div>
                 </div>

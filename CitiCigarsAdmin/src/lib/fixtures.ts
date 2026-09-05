@@ -39,6 +39,29 @@ export type Interaction = {
   agent: string;
 };
 
+export type DNABlock3FreeChoice = {
+  id: string;
+  sku?: string;
+  name: string;
+  context: string;
+  catalogStatus: 'Référencé' | 'Hors catalogue';
+};
+
+export type DNABlock2Selection = {
+  id: string;
+  sku: string;
+  name: string;
+  classification: 'A1' | 'A2' | 'B';
+  context: string;
+};
+
+export type Recommendation = {
+  sku: string;
+  availability: string;
+  source: string;
+  rationale: string;
+};
+
 export type Client360 = {
   id: string;
   identity: { lastName: string; firstName: string; email: string; phone: string; city: string };
@@ -47,7 +70,9 @@ export type Client360 = {
   score: number;
   balanceDueXAF: number;
   dna: string[];
-  recommendations: { sku: string; availability: string; source: string }[];
+  dnaBlock2Selections: DNABlock2Selection[];
+  dnaBlock3FreeChoices: DNABlock3FreeChoice[];
+  recommendations: Recommendation[];
   kpis: { lifetimeValueXAF: number; totalOrders: number; averageOrderValueXAF: number; lastOrderDate: string };
   orders: Order[];
   interactions: Interaction[];
@@ -88,6 +113,11 @@ export type Stock360 = {
   sku: string;
   brand: string;
   type: string;
+  lineSeries: string;
+  vitola: string;
+  format: string;
+  strength: string;
+  origin: string;
   packSize: number;
   aggregate: number;
   reserved: number;
@@ -231,8 +261,17 @@ export const FIXTURES = {
       score: 85,
       balanceDueXAF: 0,
       dna: ['Préférence Maduro', 'Achat régulier de robustos', 'Sensible aux éditions limitées'],
+      dnaBlock2Selections: [
+        { id: 'REF-01', sku: 'CTCG001102', name: 'Romeo y Julieta Wide Churchills', classification: 'A1', context: 'Retenu suite à suggestion algorithmique (A1: match parfait)' },
+        { id: 'REF-02', sku: 'CTCG001020', name: 'Partagás Serie D No. 4', classification: 'A2', context: 'Confirmation de réassort (A2: match secondaire historique)' }
+      ],
+      dnaBlock3FreeChoices: [
+        { id: 'LIBRE-01', name: 'Davidoff Nicaragua Robusto', context: 'Demandé librement pour son profil terreux et épicé; absent des propositions du Bloc 2', catalogStatus: 'Hors catalogue' },
+        { id: 'LIBRE-02', name: 'Arturo Fuente Hemingway Short Story', context: 'Souhait spontané exprimé pendant le parcours DNA; absent des propositions du Bloc 2', catalogStatus: 'Hors catalogue' }
+      ],
       recommendations: [
-        { sku: 'CTCG001020', availability: '14 boîtes', source: 'Stock Central — inférence simulée' }
+        { sku: 'CTCG001020', availability: '14 boîtes', source: 'Historique + ADN', rationale: 'Achat régulier (12x) et alignement parfait avec la préférence Robusto/Maduro (Choix ADN A1)' },
+        { sku: 'CTCG001045', availability: '42 boîtes', source: 'Découverte Premium', rationale: 'Affinité identifiée lors du profilage pour les formats Marevas, stock en rotation lente idéal pour proposition.' }
       ],
       kpis: { lifetimeValueXAF: 4500000, totalOrders: 12, averageOrderValueXAF: 375000, lastOrderDate: '2026-08-20' },
       orders: [
@@ -252,8 +291,14 @@ export const FIXTURES = {
       score: 42,
       balanceDueXAF: 150000,
       dna: ['Explorateur', 'Budget modéré', 'Format Corona privilégié'],
+      dnaBlock2Selections: [
+        { id: 'REF-03', sku: 'CTCG001045', name: 'Cohiba Siglo II', classification: 'B', context: 'Intérêt marqué (B: match exploratoire)' }
+      ],
+      dnaBlock3FreeChoices: [
+        { id: 'LIBRE-03', name: 'H. Upmann Half Corona', context: 'Demandé librement comme format court; absent des propositions du Bloc 2', catalogStatus: 'Hors catalogue' }
+      ],
       recommendations: [
-        { sku: 'CTCG001045', availability: '42 boîtes', source: 'Stock Central — inférence simulée' }
+        { sku: 'CTCG001045', availability: '42 boîtes', source: 'ADN - Explorateur', rationale: 'Sélectionné explicitement comme référence Corona. Stock disponible en Réserve.' }
       ],
       kpis: { lifetimeValueXAF: 125000, totalOrders: 1, averageOrderValueXAF: 125000, lastOrderDate: '2025-11-10' },
       orders: [
@@ -270,6 +315,11 @@ export const FIXTURES = {
       sku: 'CTCG001020',
       brand: 'Partagás',
       type: 'Serie D No. 4',
+      lineSeries: 'Serie D',
+      vitola: 'Robusto',
+      format: '124 × 19,8 mm · cepo 50',
+      strength: 'Corsé',
+      origin: 'Cuba',
       packSize: 25,
       aggregate: 150,
       reserved: 20,
@@ -291,6 +341,11 @@ export const FIXTURES = {
       sku: 'CTCG001045',
       brand: 'Cohiba',
       type: 'Siglo II',
+      lineSeries: 'Línea 1492',
+      vitola: 'Marevas · Petit Corona',
+      format: '129 × 16,7 mm · cepo 42',
+      strength: 'Moyen à corsé',
+      origin: 'Cuba',
       packSize: 25,
       aggregate: 30,
       reserved: 10,
@@ -311,6 +366,11 @@ export const FIXTURES = {
       sku: 'CTCG001102',
       brand: 'Romeo y Julieta',
       type: 'Wide Churchills',
+      lineSeries: 'Churchills',
+      vitola: 'Montesco · Robusto Extra',
+      format: '130 × 21,4 mm · cepo 55',
+      strength: 'Moyen',
+      origin: 'Cuba',
       packSize: 10,
       aggregate: 0,
       reserved: 0,

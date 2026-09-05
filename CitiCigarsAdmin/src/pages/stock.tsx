@@ -104,6 +104,19 @@ export default function Stock() {
             </div>
           </div>
 
+          <Card className="border-primary/20">
+            <CardHeader className="py-3 bg-primary/5">
+              <CardTitle>Identité canonique Product / SKU 360</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4">
+              <DataLabel label="Marque" value={selectedItem.brand} />
+              <DataLabel label="Ligne / Série" value={selectedItem.lineSeries} />
+              <DataLabel label="Vitole" value={selectedItem.vitola} />
+              <DataLabel label="Format" value={selectedItem.format} />
+              <DataLabel label="Origine / Force" value={`${selectedItem.origin} · ${selectedItem.strength}`} />
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardContent className="p-6">
