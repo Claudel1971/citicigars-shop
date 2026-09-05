@@ -21,8 +21,8 @@ export default function Recherche() {
   if (query.length > 2) {
     const q = query.toLowerCase();
     FIXTURES.clients.forEach(c => {
-      if (c.identity.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)) {
-        results.push({ type: 'Client', id: c.id, title: c.identity.name, sub: c.identity.email, link: `/clients?id=${c.id}` });
+      if (c.identity.lastName.toLowerCase().includes(q) || c.identity.firstName.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)) {
+        results.push({ type: 'Client', id: c.id, title: `${c.identity.firstName} ${c.identity.lastName}`, sub: c.identity.email, link: `/clients?id=${c.id}` });
       }
     });
     FIXTURES.stock.forEach(s => {

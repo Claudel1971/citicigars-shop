@@ -122,8 +122,8 @@ export function TableCell({ className, children, ...props }: React.TdHTMLAttribu
 
 export function TabContainer({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("flex border-b border-border w-fit max-w-full overflow-x-auto no-scrollbar", className)} {...props}>
-      {children}
+    <div className={cn("flex border-b border-border w-full overflow-x-auto no-scrollbar", className)} {...props}>
+      <div className="flex space-x-1">{children}</div>
     </div>
   );
 }
@@ -132,8 +132,10 @@ export function TabButton({ active, className, children, ...props }: React.Butto
   return (
     <button
       className={cn(
-        "px-4 py-2 text-sm font-medium uppercase tracking-widest font-mono border-b-2 transition-colors whitespace-nowrap outline-none",
-        active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground focus-visible:bg-muted/50",
+        "px-4 py-2.5 text-sm font-medium uppercase tracking-widest font-mono border transition-colors whitespace-nowrap outline-none relative rounded-t-sm -mb-[1px]",
+        active 
+          ? "border-border border-b-background bg-background text-foreground z-10" 
+          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30 focus-visible:bg-muted/50",
         className
       )}
       {...props}

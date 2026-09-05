@@ -5,18 +5,17 @@ import { FIXTURES } from '@/lib/fixtures';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { Check, X, ShieldAlert, ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { formatFCFA } from '@/lib/utils';
 
 export default function Clients() {
   const [tab, setTab] = useState<'consulter' | 'creer'>('consulter');
-  const [detailTab, setDetailTab] = useState<'infos' | 'historique' | 'communications'>('infos');
+  const [detailTab, setDetailTab] = useState<'infos' | 'adn' | 'commandes' | 'interactions'>('infos');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Simulate creation state
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', preferences: '' });
-  const [simState, setSimState] = useState<'idle'|'confirm'|'success'>('idle');
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', city: '', preferences: '' });
 
   // Read URL query parameter for direct link
   useEffect(() => {
@@ -43,25 +42,18 @@ export default function Clients() {
 
   const handleSimulate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email) {
+    if (!formData.lastName || !formData.email) {
       toast({ title: 'Erreur', description: 'Nom et Email requis.', variant: 'destructive' });
       return;
     }
-    setSimState('confirm');
-  };
-
-  const handleConfirm = () => {
-    setSimState('success');
-    toast({ title: 'Succès simulé', description: 'Le client serait enregistré en base (Mode R1).' });
-    setTimeout(() => {
-      setSimState('idle');
-      setFormData({ name: '', email: '', phone: '', preferences: '' });
-      setTab('consulter');
-    }, 2500);
+    toast({ title: 'Simulation locale', description: 'Client sauvegardé en mémoire (Mode R1).' });
+    setFormData({ firstName: '', lastName: '', email: '', phone: '', city: '', preferences: '' });
+    setTab('consulter');
   };
 
   const filteredClients = FIXTURES.clients.filter(c => 
-    c.identity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.identity.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.identity.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.identity.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -76,142 +68,173 @@ export default function Clients() {
           
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-serif">{selectedClient.identity.name}</h1>
+              <h1 className="text-3xl font-serif">{selectedClient.identity.firstName} {selectedClient.identity.lastName}</h1>
               <div className="flex items-center gap-3 mt-2">
                 <Badge variant="outline">{selectedClient.id}</Badge>
-                {selectedClient.ctcgLinked ? (
-                  <Badge variant="success" className="flex gap-1 items-center"><Check className="w-3 h-3"/> Compte Lié</Badge>
-                ) : (
-                  <Badge variant="warning" className="flex gap-1 items-center"><X className="w-3 h-3"/> Non Lié</Badge>
-                )}
+                <Badge variant={selectedClient.type === 'B2B' ? 'secondary' : 'default'}>{selectedClient.type}</Badge>
+                <Badge variant={selectedClient.status === 'Actif' ? 'success' : selectedClient.status === 'Blacklisté' ? 'destructive' : 'warning'}>{selectedClient.status}</Badge>
               </div>
             </div>
-            <Button variant="outline" disabled title="Export désactivé dans R1">Exporter le rapport (désactivé)</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => toast({ title: 'Mode édition', description: 'Ouverture du formulaire de modification (Simulation).' })}>Modifier</Button>
+              <Button variant="outline" className="text-warning border-warning hover:bg-warning hover:text-warning-foreground" onClick={() => toast({ title: 'Archivage simulé', description: "Le client est désactivé et archivé. Aucune suppression physique de l'historique." })}>Archiver / Désactiver</Button>
+              <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => toast({ title: 'Mise sur liste noire', description: 'Client blacklisté. Les futures transactions seront bloquées (Simulation R1).' })}>Blacklister</Button>
+            </div>
           </div>
 
           <div className="mt-8">
             <TabContainer className="mb-6">
-              <TabButton active={detailTab === 'infos'} onClick={() => setDetailTab('infos')}>Infos & ADN</TabButton>
-              <TabButton active={detailTab === 'historique'} onClick={() => setDetailTab('historique')}>Historique (Commandes & Interactions)</TabButton>
-              <TabButton active={detailTab === 'communications'} onClick={() => setDetailTab('communications')}>Brouillon Communication</TabButton>
+              <TabButton active={detailTab === 'infos'} onClick={() => setDetailTab('infos')}>Identité & Contact</TabButton>
+              <TabButton active={detailTab === 'adn'} onClick={() => setDetailTab('adn')}>ADN & Préférences</TabButton>
+              <TabButton active={detailTab === 'commandes'} onClick={() => setDetailTab('commandes')}>Commandes</TabButton>
+              <TabButton active={detailTab === 'interactions'} onClick={() => setDetailTab('interactions')}>Interactions / Communication</TabButton>
             </TabContainer>
 
             {detailTab === 'infos' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                   <Card>
                     <CardContent className="p-4">
-                      <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Lifetime Value</p>
-                      <p className="text-2xl font-serif text-primary">{formatFCFA(selectedClient.kpis.lifetimeValueXAF)}</p>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Score IA</p>
+                      <p className="text-2xl font-serif text-primary">{selectedClient.score} / 100</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Commandes</p>
-                      <p className="text-2xl font-serif">{selectedClient.kpis.totalOrders}</p>
+                      <p className="text-xl font-serif">{selectedClient.kpis.totalOrders}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">CA Cumulé</p>
+                      <p className="text-xl font-serif">{formatFCFA(selectedClient.kpis.lifetimeValueXAF)}</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
                       <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Panier Moyen</p>
-                      <p className="text-2xl font-serif">{formatFCFA(selectedClient.kpis.averageOrderValueXAF)}</p>
+                      <p className="text-xl font-serif">{formatFCFA(selectedClient.kpis.averageOrderValueXAF)}</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4">
-                      <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Dernière Commande</p>
-                      <p className="text-2xl font-serif">{selectedClient.kpis.lastOrderDate}</p>
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Dernière vente</p>
+                      <p className="text-xl font-serif">{selectedClient.kpis.lastOrderDate}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest mb-1">Solde Dû</p>
+                      <p className={`text-xl font-serif ${selectedClient.balanceDueXAF > 0 ? 'text-destructive' : 'text-success'}`}>{formatFCFA(selectedClient.balanceDueXAF)}</p>
                     </CardContent>
                   </Card>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card>
-                    <CardHeader><CardTitle>Identité & Contact</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                      <DataLabel label="Email" value={selectedClient.identity.email} />
+                    <CardHeader><CardTitle>Informations Personnelles</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-4">
+                      <DataLabel label="Nom" value={selectedClient.identity.lastName} />
+                      <DataLabel label="Prénom" value={selectedClient.identity.firstName} />
+                      <DataLabel label="Email" value={selectedClient.identity.email} className="col-span-2" />
                       <DataLabel label="Téléphone" value={selectedClient.identity.phone || 'Non renseigné'} />
-                      <DataLabel label="Activité Récente" value={selectedClient.activity} />
+                      <DataLabel label="Ville" value={selectedClient.identity.city} />
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader><CardTitle>ADN & Préférences (Déduit)</CardTitle></CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
-                        {selectedClient.dna.map((trait, i) => (
-                          <li key={i} className="flex items-center gap-2 text-sm">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                            {trait}
-                          </li>
-                        ))}
-                      </ul>
+
+                  <Card className="border-primary/20 flex flex-col">
+                    <CardHeader className="bg-primary/5">
+                      <CardTitle className="text-primary">Recommandations Imminentes (Top 5)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-1">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU Cible</TableHead>
+                            <TableHead>Disponibilité</TableHead>
+                            <TableHead>Source</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedClient.recommendations.slice(0, 5).map((rec, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-xs font-medium text-primary">{rec.sku}</TableCell>
+                              <TableCell>{rec.availability}</TableCell>
+                              <TableCell className="text-muted-foreground italic text-xs">{rec.source}</TableCell>
+                            </TableRow>
+                          ))}
+                          {selectedClient.recommendations.length === 0 && (
+                            <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Aucune recommandation</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
                     </CardContent>
                   </Card>
                 </div>
+              </div>
+            )}
 
-                <Card className="border-primary/20">
-                  <CardHeader className="bg-primary/5">
-                    <CardTitle className="text-primary">Recommandations (Next-Best-Action)</CardTitle>
-                  </CardHeader>
+            {detailTab === 'adn' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader><CardTitle>Traits Caractéristiques (Déduits)</CardTitle></CardHeader>
                   <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>SKU Cible</TableHead>
-                          <TableHead>Disponibilité</TableHead>
-                          <TableHead>Source d'inférence</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedClient.recommendations.map((rec, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-mono text-xs font-medium">{rec.sku}</TableCell>
-                            <TableCell>{rec.availability}</TableCell>
-                            <TableCell className="text-muted-foreground italic text-xs">{rec.source}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <ul className="space-y-2">
+                      {selectedClient.dna.map((trait, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                          {trait}
+                        </li>
+                      ))}
+                    </ul>
                   </CardContent>
                 </Card>
               </div>
             )}
 
-            {detailTab === 'historique' && (
+            {detailTab === 'commandes' && (
+              <Card>
+                <CardHeader><CardTitle>Historique des Commandes</CardTitle></CardHeader>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Articles</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead>Statut</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedClient.orders.map(o => (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-mono text-xs">{o.date}</TableCell>
+                        <TableCell className="font-mono text-xs">{o.id}</TableCell>
+                        <TableCell className="text-xs max-w-[200px] truncate">{o.items}</TableCell>
+                        <TableCell className="text-right font-medium">{formatFCFA(o.totalXAF)}</TableCell>
+                        <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                    {selectedClient.orders.length === 0 && (
+                      <TableRow><TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Aucune commande</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+
+            {detailTab === 'interactions' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                  <CardHeader><CardTitle>Commandes</CardTitle></CardHeader>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Montant</TableHead>
-                        <TableHead>Statut</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedClient.orders.map(o => (
-                        <TableRow key={o.id}>
-                          <TableCell className="font-mono text-xs">{o.date}</TableCell>
-                          <TableCell className="font-medium">{formatFCFA(o.totalXAF)}</TableCell>
-                          <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
-                        </TableRow>
-                      ))}
-                      {selectedClient.orders.length === 0 && (
-                        <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Aucune commande</TableCell></TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </Card>
-
-                <Card>
-                  <CardHeader><CardTitle>Interactions</CardTitle></CardHeader>
+                  <CardHeader><CardTitle>Historique des Contacts</CardTitle></CardHeader>
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Résumé</TableHead>
+                        <TableHead>Agent</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -220,37 +243,30 @@ export default function Clients() {
                           <TableCell className="font-mono text-xs">{inter.date}</TableCell>
                           <TableCell><Badge variant="secondary">{inter.type}</Badge></TableCell>
                           <TableCell className="text-xs">{inter.summary}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{inter.agent}</TableCell>
                         </TableRow>
                       ))}
                       {selectedClient.interactions.length === 0 && (
-                        <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Aucune interaction</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={4} className="text-center py-4 text-muted-foreground">Aucune interaction</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
                 </Card>
-              </div>
-            )}
 
-            {detailTab === 'communications' && (
-              <Card className="max-w-2xl border-primary/20">
-                <CardHeader className="bg-primary/5">
-                  <CardTitle className="text-primary">Créer un brouillon (Local)</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Canal</label>
-                    <select className="flex h-10 w-full border border-input bg-background px-3 py-2 text-sm">
-                      <option>WhatsApp</option>
-                      <option>Email</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Message</label>
-                    <textarea className="flex min-h-[120px] w-full border border-input bg-background px-3 py-2 text-sm" placeholder={`Cher ${selectedClient.identity.name}...`} />
-                  </div>
-                  <Button className="w-full mt-4" onClick={(e) => { e.preventDefault(); toast({ title: 'Brouillon sauvegardé', description: 'Enregistré localement. Mutation R1 bloquée.' }); }}>Enregistrer Brouillon</Button>
-                </CardContent>
-              </Card>
+                <Card className="border-primary/20">
+                  <CardHeader className="bg-primary/5">
+                    <CardTitle className="text-primary">Dicter une communication (Simulation Agent)</CardTitle>
+                    <p className="text-xs text-muted-foreground">L'agent IA préparera un message basé sur vos instructions.</p>
+                  </CardHeader>
+                  <CardContent className="pt-6 space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Instructions (Texte libre)</label>
+                      <textarea className="flex min-h-[120px] w-full border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-primary" placeholder={`Ex: Demande-lui s'il a apprécié la dernière boîte de Partagás et propose-lui une réservation sur le nouvel arrivage.`} />
+                    </div>
+                    <Button className="w-full mt-4" onClick={(e) => { e.preventDefault(); toast({ title: 'Agent Sollicité', description: 'La simulation de préparation du message est en cours (aucun envoi externe).' }); }}>Simuler Préparation IA</Button>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </div>
@@ -268,10 +284,10 @@ export default function Clients() {
           </div>
           <TabContainer>
             <TabButton active={tab === 'consulter'} onClick={() => setTab('consulter')}>
-              Consulter
+              Annuaire
             </TabButton>
             <TabButton active={tab === 'creer'} onClick={() => setTab('creer')}>
-              Créer (Simulation locale)
+              Nouveau (Local)
             </TabButton>
           </TabContainer>
         </header>
@@ -294,28 +310,38 @@ export default function Clients() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Nom</TableHead>
+                    <TableHead>Prénom</TableHead>
+                    <TableHead>Téléphone</TableHead>
+                    <TableHead>Ville</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Activité</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="text-right">Nb commandes</TableHead>
+                    <TableHead className="text-right">CA cumulé</TableHead>
+                    <TableHead className="text-right">Solde dû</TableHead>
+                    <TableHead className="text-right">Score</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredClients.map(client => (
                     <TableRow key={client.id} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectClient(client.id)}>
-                      <TableCell className="font-mono text-xs">{client.id}</TableCell>
-                      <TableCell className="font-medium">{client.identity.name}</TableCell>
+                      <TableCell className="font-mono text-xs text-primary">{client.id}</TableCell>
+                      <TableCell className="font-medium">{client.identity.lastName}</TableCell>
+                      <TableCell>{client.identity.firstName}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{client.identity.phone}</TableCell>
+                      <TableCell className="text-xs">{client.identity.city}</TableCell>
+                      <TableCell><Badge variant="outline">{client.type}</Badge></TableCell>
                       <TableCell>
-                        {client.ctcgLinked ? <Badge variant="success">Lié</Badge> : <Badge variant="warning">Isolé</Badge>}
+                        <Badge variant={client.status === 'Actif' ? 'success' : client.status === 'Blacklisté' ? 'destructive' : 'warning'}>{client.status}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{client.activity}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleSelectClient(client.id); }}>Détails</Button>
-                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">{client.kpis.totalOrders}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{formatFCFA(client.kpis.lifetimeValueXAF)}</TableCell>
+                      <TableCell className={`text-right font-mono text-xs ${client.balanceDueXAF > 0 ? 'text-destructive' : ''}`}>{formatFCFA(client.balanceDueXAF)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-bold">{client.score}</TableCell>
                     </TableRow>
                   ))}
                   {filteredClients.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground border-dashed">
+                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground border-dashed">
                         Aucun client trouvé.
                       </TableCell>
                     </TableRow>
@@ -330,69 +356,36 @@ export default function Clients() {
           <div className="max-w-xl">
             <Card className="border-warning/50">
               <CardHeader className="bg-warning/10 border-warning/20">
-                <CardTitle className="text-warning flex items-center gap-2">
-                   <ShieldAlert className="w-4 h-4" /> Bac à sable de création
-                </CardTitle>
-                <p className="text-xs text-warning/80">Validation locale uniquement. Aucune mutation vers la base de données.</p>
+                <CardTitle className="text-warning">Création (Local uniquement)</CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
-                {simState === 'idle' && (
                   <form onSubmit={handleSimulate} className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono uppercase tracking-widest">Nom complet</label>
-                      <Input value={formData.name} onChange={e => setFormData(prev => ({...prev, name: e.target.value}))} placeholder="ex: Jean Dupont" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono uppercase tracking-widest">Email</label>
-                      <Input type="email" value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} placeholder="ex: jean@example.com" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono uppercase tracking-widest">Téléphone (Optionnel)</label>
-                      <Input value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} placeholder="ex: +33 6 00..." />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono uppercase tracking-widest">Notes / Préférences brutes</label>
-                      <textarea 
-                        className="flex min-h-[80px] w-full border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" 
-                        value={formData.preferences} 
-                        onChange={e => setFormData(prev => ({...prev, preferences: e.target.value}))}
-                        placeholder="Le modèle IA extraira l'ADN depuis ces notes..."
-                      />
-                    </div>
-                    <Button type="submit" className="w-full mt-4">Valider & Simuler l'Extraction</Button>
-                  </form>
-                )}
-                
-                {simState === 'confirm' && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="bg-muted p-4 border border-border">
-                      <h4 className="font-serif text-lg mb-2">Récapitulatif (Extraction Simulée)</h4>
-                      <DataLabel label="Nom" value={formData.name} className="mb-2" />
-                      <DataLabel label="Email" value={formData.email} className="mb-2" />
-                      <div className="mt-4">
-                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">ADN Déduit (Simulation)</span>
-                        <ul className="list-disc list-inside text-sm mt-1 text-primary">
-                          <li>Nouveau prospect</li>
-                          <li>Intérêt potentiel : {formData.preferences ? 'Analyse des notes simulée' : 'Non qualifié'}</li>
-                        </ul>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Prénom</label>
+                        <Input value={formData.firstName} onChange={e => setFormData(prev => ({...prev, firstName: e.target.value}))} placeholder="ex: Jean" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Nom</label>
+                        <Input value={formData.lastName} onChange={e => setFormData(prev => ({...prev, lastName: e.target.value}))} placeholder="ex: Dupont" />
                       </div>
                     </div>
-                    <div className="flex gap-3">
-                      <Button variant="outline" onClick={() => setSimState('idle')} className="flex-1">Modifier</Button>
-                      <Button variant="default" onClick={handleConfirm} className="flex-1">Confirmer la Création (Local)</Button>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Email</label>
+                        <Input type="email" value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} placeholder="ex: jean@example.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Téléphone</label>
+                        <Input value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} placeholder="ex: +33 6 00..." />
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {simState === 'success' && (
-                  <div className="text-center py-12 animate-in zoom-in-95">
-                    <div className="w-12 h-12 bg-success/20 text-success rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Check className="w-6 h-6" />
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Ville</label>
+                      <Input value={formData.city} onChange={e => setFormData(prev => ({...prev, city: e.target.value}))} placeholder="ex: Paris" />
                     </div>
-                    <h3 className="text-xl font-serif text-success">Client Simulé avec Succès</h3>
-                    <p className="text-muted-foreground text-sm mt-2">Retour au formulaire...</p>
-                  </div>
-                )}
+                    <Button type="submit" className="w-full mt-4">Enregistrer (Simulé)</Button>
+                  </form>
               </CardContent>
             </Card>
           </div>

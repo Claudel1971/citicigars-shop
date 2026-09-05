@@ -1,21 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Badge, DataLabel, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TabContainer, TabButton } from '@/components/ui/bespoke';
 import { FIXTURES } from '@/lib/fixtures';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, Search, FileText } from 'lucide-react';
 import { formatFCFA } from '@/lib/utils';
 
 export default function Fournisseurs() {
   const [tab, setTab] = useState<'consulter' | 'creer'>('consulter');
-  const [detailTab, setDetailTab] = useState<'extraction' | 'profil' | 'po'>('extraction');
+  const [detailTab, setDetailTab] = useState<'infos' | 'historique' | 'po'>('infos');
   const [selectedOppId, setSelectedOppId] = useState<string | null>(null);
-  const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Form mock
-  const [supplierName, setSupplierName] = useState('');
+  const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
+
+  // PO creation local state
+  const [fxRate, setFxRate] = useState<string>('');
+  const [poAmount, setPoAmount] = useState<string>('');
+  const [refDate, setRefDate] = useState<string>('');
+  const [poState, setPoState] = useState<'draft' | 'validated' | 'correction'>('draft');
+
+  // Supplier create form
+  const [supForm, setSupForm] = useState({ company: '', contact: '', email: '', phone: '', currency: 'EUR' });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -33,26 +41,42 @@ export default function Fournisseurs() {
 
   const handleSelectOpp = (id: string) => {
     setSelectedOppId(id);
-    setDetailTab('extraction');
+    setDetailTab('infos');
+    setExpandedPoId(null);
+    setPoState('draft');
+    setFxRate('');
+    setPoAmount('');
+    setRefDate('');
     window.history.replaceState({}, '', `/fournisseurs?id=${id}`);
+  };
+
+  const handleValidatePO = () => {
+    if (!fxRate || !poAmount || !refDate) {
+      toast({ title: 'Erreur', description: 'Renseignez le montant, la date et le taux FX manuel.', variant: 'destructive' });
+      return;
+    }
+    setPoState('validated');
+    toast({ title: 'Snapshot Enregistré', description: 'Taux FX et valeur figés. Le PO est validé localement.' });
+  };
+
+  const handleCorrectPO = () => {
+    setPoState('correction');
+    toast({ title: 'Correction tracée', description: "Mode correction activé. L'ancienne valeur sera tracée dans l'historique d'audit." });
   };
 
   const selectedOpp = selectedOppId ? FIXTURES.suppliers.find(s => s.id === selectedOppId) : null;
 
-  const handleSimulate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!supplierName) return;
-    toast({ title: 'Fournisseur Simulé', description: `${supplierName} a été testé localement.` });
-    setSupplierName('');
-    setTab('consulter');
-  };
+  const filteredSuppliers = FIXTURES.suppliers.filter(s => 
+    s.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (selectedOpp) {
     return (
       <Layout>
         <div className="space-y-6">
           <button onClick={handleClearSelection} className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Retour aux opportunités
+            <ArrowLeft className="w-4 h-4" /> Retour aux fournisseurs
           </button>
           
           <div className="flex items-start justify-between">
@@ -60,123 +84,154 @@ export default function Fournisseurs() {
               <h1 className="text-3xl font-serif">{selectedOpp.supplierName}</h1>
               <div className="flex items-center gap-3 mt-2">
                 <Badge variant="outline">{selectedOpp.id}</Badge>
-                <Badge variant={selectedOpp.shadowState === 'EVALUATION' ? 'warning' : 'secondary'}>{selectedOpp.shadowState}</Badge>
+                <Badge variant={selectedOpp.canonicalProfile.category === 'Distributeur Agréé' ? 'success' : 'warning'}>{selectedOpp.canonicalProfile.category}</Badge>
               </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => toast({ title: 'Mode édition', description: 'Ouverture du formulaire (Simulation R1).' })}>Modifier</Button>
             </div>
           </div>
 
-          <TabContainer className="mb-6">
-            <TabButton active={detailTab === 'extraction'} onClick={() => setDetailTab('extraction')}>Extraction & Preuves</TabButton>
-            <TabButton active={detailTab === 'profil'} onClick={() => setDetailTab('profil')}>Profil Canonique</TabButton>
-            <TabButton active={detailTab === 'po'} onClick={() => setDetailTab('po')}>Historique & Brouillon PO</TabButton>
+          <TabContainer className="mb-6 mt-8">
+            <TabButton active={detailTab === 'infos'} onClick={() => setDetailTab('infos')}>Identité & Contact</TabButton>
+            <TabButton active={detailTab === 'historique'} onClick={() => setDetailTab('historique')}>Historique des commandes</TabButton>
+            <TabButton active={detailTab === 'po'} onClick={() => setDetailTab('po')}>Créer un PO</TabButton>
           </TabContainer>
 
-          {detailTab === 'extraction' && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader><CardTitle>Informations & Extraction</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <DataLabel label="Source Email" value={selectedOpp.emailSource} />
-                    <DataLabel label="Confiance du Modèle" value={`${selectedOpp.confidence}%`} />
-                    <DataLabel label="Économie Proposée" value={`${selectedOpp.proposedEconomics.amount} ${selectedOpp.proposedEconomics.currency}`} />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader><CardTitle>Preuves (Attachments)</CardTitle></CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {selectedOpp.attachments.map((att, i) => (
-                        <li key={i} className="flex items-center justify-between p-3 border border-border bg-muted/20">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-primary" />
-                            <span className="text-sm font-medium">{att}</span>
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedEvidence(att)}>Consulter</Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-              {selectedEvidence && (
-                <Card className="mt-6 border-primary/30">
-                  <CardHeader><CardTitle>Preuve simulée — lecture seule</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
-                    <DataLabel label="Document" value={selectedEvidence} />
-                    <DataLabel label="Provenance" value={selectedOpp.emailSource} />
-                    <DataLabel label="État" value="Métadonnées disponibles; contenu binaire non chargé en R1" />
-                    <Button variant="outline" onClick={() => setSelectedEvidence(null)}>Fermer la preuve</Button>
-                  </CardContent>
-                </Card>
-              )}
-            </>
+          {detailTab === 'infos' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader><CardTitle>Contact & Représentant</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <DataLabel label="Contact Principal" value={selectedOpp.contactName} />
+                  <DataLabel label="Email de réception des offres" value={selectedOpp.emailSource} />
+                  <DataLabel label="Téléphone" value={selectedOpp.phone} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle>Métriques Fournisseur</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <DataLabel label="Évaluation Risque" value={selectedOpp.canonicalProfile.rating} />
+                  <DataLabel label="Conditions de Paiement" value={selectedOpp.canonicalProfile.paymentTerms} />
+                  <div className="pt-2 border-t border-border mt-2">
+                    <span className="text-[10px] font-mono uppercase text-muted-foreground block mb-1">Dépense cumulée XAF</span>
+                    <span className="text-2xl font-serif">{formatFCFA(selectedOpp.cumulativeSpendXAF)}</span>
+                    <span className="text-xs text-muted-foreground ml-2">({selectedOpp.cumulativeSpendOriginal} {selectedOpp.originCurrency})</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
-          {detailTab === 'profil' && (
-            <Card className="max-w-2xl">
-              <CardHeader><CardTitle>Profil Canonique</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <DataLabel label="Catégorie" value={selectedOpp.canonicalProfile.category} />
-                <DataLabel label="Évaluation" value={selectedOpp.canonicalProfile.rating} />
-                <DataLabel label="Conditions de Paiement" value={selectedOpp.canonicalProfile.paymentTerms} />
-              </CardContent>
+          {detailTab === 'historique' && (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>PO ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Montant Original</TableHead>
+                    <TableHead className="text-right">Taux FX (Fixé)</TableHead>
+                    <TableHead className="text-right">Total XAF</TableHead>
+                    <TableHead>Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedOpp.poHistory.map(po => (
+                    <Fragment key={po.poId}>
+                      <TableRow 
+                        className="cursor-pointer hover:bg-muted/30" 
+                        onClick={() => setExpandedPoId(expandedPoId === po.poId ? null : po.poId)}
+                      >
+                        <TableCell className="font-mono text-xs text-primary underline">{po.poId}</TableCell>
+                        <TableCell className="text-xs">{po.date}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{po.totalOriginal} {po.currency}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-muted-foreground">{po.fxRate}</TableCell>
+                        <TableCell className="text-right font-medium">{formatFCFA(po.totalXAF)}</TableCell>
+                        <TableCell><Badge variant="outline">{po.status}</Badge></TableCell>
+                      </TableRow>
+                      {expandedPoId === po.poId && (
+                        <TableRow className="bg-muted/10 border-b-2 border-primary/20">
+                          <TableCell colSpan={6} className="p-4">
+                            <h4 className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">Lignes de commande (Items)</h4>
+                            <Table className="bg-background border border-border">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>SKU</TableHead>
+                                  <TableHead className="text-right">Qté</TableHead>
+                                  <TableHead className="text-right">Prix Unit. ({po.currency})</TableHead>
+                                  <TableHead className="text-right">Prix Unit. (XAF)</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {po.items.map(item => (
+                                  <TableRow key={item.sku}>
+                                    <TableCell className="font-mono text-xs">{item.sku}</TableCell>
+                                    <TableCell className="text-right font-bold text-xs">{item.qty}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-muted-foreground">{item.unitPriceOriginal}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">{formatFCFA(item.unitPriceXAF)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  ))}
+                  {selectedOpp.poHistory.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center py-4 text-muted-foreground">Aucun PO dans l'historique</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </Card>
           )}
 
           {detailTab === 'po' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader><CardTitle>Historique des PO</CardTitle></CardHeader>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Montant</TableHead>
-                        <TableHead>Statut</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedOpp.poHistory.map(po => (
-                        <TableRow key={po.poId}>
-                          <TableCell className="font-mono text-xs">{po.poId}</TableCell>
-                          <TableCell className="text-xs">{po.date}</TableCell>
-                          <TableCell className="font-medium">{formatFCFA(po.totalXAF)}</TableCell>
-                          <TableCell><Badge variant="outline">{po.status}</Badge></TableCell>
-                        </TableRow>
-                      ))}
-                      {selectedOpp.poHistory.length === 0 && (
-                        <TableRow><TableCell colSpan={4} className="text-center py-4 text-muted-foreground">Aucun PO dans l'historique</TableCell></TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </Card>
-                <Card className="border-warning/50">
-                  <CardHeader className="bg-warning/10"><CardTitle className="text-warning">Brouillon PO (Simulation)</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-background p-4 border border-border">
-                      <div className="flex justify-between items-end mb-4 border-b border-border pb-4">
-                        <div>
-                          <p className="text-[10px] font-mono text-muted-foreground uppercase">Devise Source</p>
-                          <p className="font-mono">{selectedOpp.proposedEconomics.amount} {selectedOpp.proposedEconomics.currency}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-mono text-muted-foreground uppercase">Snapshot FX Manuel</p>
-                          <p className="font-mono text-primary">655.957 FCFA / EUR</p>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Total Estimé (XAF)</span>
-                        <span className="text-xl font-serif text-primary">{formatFCFA(selectedOpp.proposedEconomics.amount * 655.957)}</span>
-                      </div>
-                    </div>
-                    <Button className="w-full" onClick={() => toast({ title: 'PO Simulé', description: 'Le brouillon a été généré localement. Validation A4 requise.' })}>Générer Brouillon PO</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            <Card className="max-w-2xl border-primary/20">
+              <CardHeader className="bg-primary/5">
+                <CardTitle className="text-primary">Enregistrement PO Manuel (Simulation)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Le taux FX de la transaction doit être figé manuellement par l'opérateur pour tracer la valeur d'immobilisation XAF exacte au moment du paiement.</p>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Montant ({selectedOpp.originCurrency})</label>
+                    <Input type="number" value={poAmount} onChange={e => setPoAmount(e.target.value)} placeholder="0.00" disabled={poState === 'validated'} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Date de réf. / Paiement</label>
+                    <Input type="date" value={refDate} onChange={e => setRefDate(e.target.value)} disabled={poState === 'validated'} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Taux de change Manuel (XAF pour 1 {selectedOpp.originCurrency})</label>
+                  <Input type="number" value={fxRate} onChange={e => setFxRate(e.target.value)} step="0.001" disabled={poState === 'validated'} placeholder="Ex: 655.957" />
+                </div>
+                
+                <div className="bg-muted/30 border border-border p-4 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Équivalent Fixé (Immuable) :</span>
+                    <span className="text-xl font-serif text-primary">
+                      {formatFCFA((parseFloat(poAmount || '0') * parseFloat(fxRate || '0')) || 0)}
+                    </span>
+                  </div>
+                </div>
+
+                {poState === 'validated' && (
+                  <div className="bg-primary/10 border-l-4 border-primary p-3 flex items-center gap-2 text-sm text-primary">
+                    <FileText className="w-4 h-4" /> <strong>Snapshot Figé.</strong> Ce PO est enregistré en historique.
+                  </div>
+                )}
+                
+                {poState !== 'validated' ? (
+                  <Button className="w-full mt-4" onClick={handleValidatePO}>Valider et Figer le Snapshot</Button>
+                ) : (
+                  <Button className="w-full mt-4 border-warning text-warning hover:bg-warning hover:text-warning-foreground" variant="outline" onClick={handleCorrectPO}>Corriger (Créer une trace historique)</Button>
+                )}
+              </CardContent>
+            </Card>
           )}
 
         </div>
@@ -189,55 +244,65 @@ export default function Fournisseurs() {
       <div className="space-y-6">
         <header className="flex flex-col gap-4">
           <div>
-            <h1 className="text-3xl font-serif">Fournisseurs & Opportunités</h1>
-            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mt-2">Évaluation continue du réseau d'approvisionnement</p>
+            <h1 className="text-3xl font-serif">Fournisseurs & Réseau</h1>
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mt-2">Gestion des relations d'approvisionnement</p>
           </div>
           <TabContainer>
             <TabButton active={tab === 'consulter'} onClick={() => setTab('consulter')}>
-              Consulter
+              Annuaire
             </TabButton>
             <TabButton active={tab === 'creer'} onClick={() => setTab('creer')}>
-              Créer (Simulation locale)
+              Nouveau (Local)
             </TabButton>
           </TabContainer>
         </header>
 
         {tab === 'consulter' && (
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID Opportunité</TableHead>
-                  <TableHead>Fournisseur</TableHead>
-                  <TableHead>Confiance</TableHead>
-                  <TableHead>Matching Inventaire</TableHead>
-                  <TableHead>Statut Shadow</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {FIXTURES.suppliers.map(opp => (
-                  <TableRow key={opp.id} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectOpp(opp.id)}>
-                    <TableCell className="font-mono text-xs">{opp.id}</TableCell>
-                    <TableCell className="font-medium">{opp.supplierName}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-muted overflow-hidden">
-                          <div className={`h-full ${opp.confidence > 80 ? 'bg-success' : 'bg-warning'}`} style={{width: `${opp.confidence}%`}} />
-                        </div>
-                        <span className="text-xs font-mono">{opp.confidence}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs font-mono">{opp.matching}%</TableCell>
-                    <TableCell><Badge variant="outline">{opp.shadowState}</Badge></TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleSelectOpp(opp.id); }}>Évaluer</Button>
-                    </TableCell>
+          <div className="space-y-4">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input 
+                placeholder="Rechercher par nom..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-card"
+              />
+            </div>
+
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Entreprise</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Téléphone</TableHead>
+                    <TableHead>Devise</TableHead>
+                    <TableHead className="text-right">Dépense (Origine)</TableHead>
+                    <TableHead className="text-right">Dépense (XAF)</TableHead>
+                    <TableHead>Catégorie</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredSuppliers.map(opp => (
+                    <TableRow key={opp.id} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectOpp(opp.id)}>
+                      <TableCell className="font-medium text-primary">{opp.supplierName}</TableCell>
+                      <TableCell className="text-xs">{opp.contactName}</TableCell>
+                      <TableCell className="text-xs">{opp.emailSource}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{opp.phone}</TableCell>
+                      <TableCell className="font-mono text-xs">{opp.originCurrency}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{opp.cumulativeSpendOriginal}</TableCell>
+                      <TableCell className="text-right font-medium text-xs">{formatFCFA(opp.cumulativeSpendXAF)}</TableCell>
+                      <TableCell><Badge variant="outline">{opp.canonicalProfile.category}</Badge></TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredSuppliers.length === 0 && (
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground border-dashed">Aucun fournisseur trouvé.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </div>
         )}
 
         {tab === 'creer' && (
@@ -247,12 +312,39 @@ export default function Fournisseurs() {
                 <CardTitle>Ajout Manuel (Simulation locale)</CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
-                <form onSubmit={handleSimulate} className="space-y-4">
+                <form onSubmit={(e) => { 
+                  e.preventDefault(); 
+                  toast({ title: "Simulation locale", description: "Fournisseur non créé en base R1." });
+                  setSupForm({ company: '', contact: '', email: '', phone: '', currency: 'EUR' });
+                }} className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-mono uppercase tracking-widest">Nom du fournisseur</label>
-                    <Input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="ex: Habanos SA" />
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Entreprise</label>
+                    <Input placeholder="ex: Habanos SA" value={supForm.company} onChange={e => setSupForm(prev => ({...prev, company: e.target.value}))} required />
                   </div>
-                  <Button type="submit" className="w-full">Simuler l'inscription (R1)</Button>
+                  <div className="space-y-2">
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Contact / Manager</label>
+                    <Input placeholder="ex: Carlos M." value={supForm.contact} onChange={e => setSupForm(prev => ({...prev, contact: e.target.value}))} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Email</label>
+                      <Input type="email" placeholder="contact@..." value={supForm.email} onChange={e => setSupForm(prev => ({...prev, email: e.target.value}))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Téléphone</label>
+                      <Input placeholder="+..." value={supForm.phone} onChange={e => setSupForm(prev => ({...prev, phone: e.target.value}))} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Devise d'origine</label>
+                    <select className="h-10 w-full border border-border bg-card px-3 text-sm focus:outline-none focus:border-primary" value={supForm.currency} onChange={e => setSupForm(prev => ({...prev, currency: e.target.value}))}>
+                      <option>EUR</option>
+                      <option>USD</option>
+                      <option>CHF</option>
+                      <option>GBP</option>
+                    </select>
+                  </div>
+                  <Button type="submit" className="w-full mt-4">Simuler l'inscription (R1)</Button>
                 </form>
               </CardContent>
             </Card>

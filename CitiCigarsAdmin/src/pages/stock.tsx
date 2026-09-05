@@ -3,7 +3,7 @@ import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, DataLabel, TabContainer, TabButton } from '@/components/ui/bespoke';
 import { FIXTURES } from '@/lib/fixtures';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, MapPin, Search } from 'lucide-react';
+import { ArrowLeft, Package, MapPin, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFCFA } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ export default function Stock() {
   const [filter, setFilter] = useState('');
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
   const [drillTab, setDrillTab] = useState<'lots'|'valeur'|'record'>('lots');
+  const [activeRecordLot, setActiveRecordLot] = useState<string | null>(null);
   const [perspective, setPerspective] = useState<'tout' | 'disponibilite' | 'engage' | 'valeur' | 'rotation'>('tout');
   const [locationFilter, setLocationFilter] = useState('Tous');
   const [levelFilter, setLevelFilter] = useState('Tous');
@@ -33,13 +34,20 @@ export default function Stock() {
 
   const handleClearSelection = () => {
     setSelectedSku(null);
+    setActiveRecordLot(null);
     window.history.replaceState({}, '', '/stock');
   };
 
   const handleSelectSku = (sku: string) => {
     setSelectedSku(sku);
     setDrillTab('lots');
+    setActiveRecordLot(null);
     window.history.replaceState({}, '', `/stock?sku=${sku}`);
+  };
+
+  const handleSelectLot = (lot: string) => {
+    setActiveRecordLot(lot);
+    setDrillTab('record');
   };
 
   const filteredStock = FIXTURES.stock.filter(s => 
@@ -156,9 +164,12 @@ export default function Stock() {
           </div>
 
           <TabContainer className="mb-6 mt-6">
-            <TabButton active={drillTab === 'lots'} onClick={() => setDrillTab('lots')}>Lots & Emplacements</TabButton>
-            <TabButton active={drillTab === 'valeur'} onClick={() => setDrillTab('valeur')}>Valeur & Capital</TabButton>
-            <TabButton active={drillTab === 'record'} onClick={() => setDrillTab('record')}>Enregistrement</TabButton>
+            <TabButton active={drillTab === 'lots'} onClick={() => { setDrillTab('lots'); setActiveRecordLot(null); }}>Lots & Emplacements</TabButton>
+            <TabButton active={drillTab === 'valeur'} onClick={() => { setDrillTab('valeur'); setActiveRecordLot(null); }}>Valeur & Capital</TabButton>
+            <TabButton active={drillTab === 'record'} onClick={() => setDrillTab('record')}>
+              Terminal Enregistrement
+              {activeRecordLot && <Badge variant="secondary" className="ml-2 bg-primary text-primary-foreground text-[8px] py-0 px-1">Filtre: {activeRecordLot}</Badge>}
+            </TabButton>
           </TabContainer>
 
           {drillTab === 'lots' && (
@@ -175,7 +186,7 @@ export default function Stock() {
                 <TableBody>
                   {selectedItem.lotDetails.length > 0 ? (
                     selectedItem.lotDetails.map(l => (
-                      <TableRow key={l.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDrillTab('record')}>
+                      <TableRow key={l.id} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectLot(l.lot)}>
                         <TableCell className="font-mono text-xs">{l.lot}</TableCell>
                         <TableCell>{l.location}</TableCell>
                         <TableCell className="text-right font-bold">{l.quantity}</TableCell>
@@ -205,25 +216,46 @@ export default function Stock() {
           )}
 
           {drillTab === 'record' && (
-            <Card className="border-primary/30">
-              <CardHeader>
-                <CardTitle>Enregistrement stock simulé</CardTitle>
-                <p className="text-xs font-mono text-muted-foreground">
-                  Agrégat / {selectedItem.brand} / {selectedItem.sku} / {selectedItem.lot} / {selectedItem.location}
-                </p>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <DataLabel label="ID enregistrement" value={`REC-${selectedItem.sku}-${selectedItem.lot}`} />
-                <DataLabel label="SKU canonique" value={selectedItem.sku} />
-                <DataLabel label="Lot Principal" value={selectedItem.lot} />
-                <DataLabel label="Emplacement Principal" value={selectedItem.location} />
-                <DataLabel label="Provenance" value={selectedItem.provenance} />
-                <DataLabel label="Conditionnement" value={`Boîte de ${selectedItem.packSize}`} />
-                <DataLabel label="Disponible" value={String(selectedItem.aggregate - selectedItem.reserved - selectedItem.allocated)} />
-                <DataLabel label="Réservé / alloué" value={`${selectedItem.reserved} / ${selectedItem.allocated}`} />
-                <DataLabel label="Dernière projection" value={selectedItem.freshness} />
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {activeRecordLot && (
+                <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 text-sm">
+                  <div className="flex items-center gap-2 text-primary font-mono uppercase tracking-widest text-[10px]">
+                    <Filter className="w-4 h-4" />
+                    Vue restreinte au lot : {activeRecordLot}
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-primary" onClick={() => setActiveRecordLot(null)}>Afficher tous les enregistrements</Button>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(activeRecordLot 
+                  ? selectedItem.lotDetails.filter(l => l.lot === activeRecordLot)
+                  : selectedItem.lotDetails
+                ).map((l) => (
+                  <Card key={l.id} className="border-primary/30">
+                    <CardHeader className="py-3 px-4 bg-muted/20">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-sm font-mono">REC-{selectedItem.sku}-{l.lot}-{l.id.slice(-2)}</CardTitle>
+                        <Badge variant="outline">{l.status}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-x-4 gap-y-3 p-4">
+                      <DataLabel label="SKU Canonique" value={selectedItem.sku} />
+                      <DataLabel label="Lot" value={l.lot} />
+                      <DataLabel label="Emplacement Physique" value={l.location} className="col-span-2" />
+                      <DataLabel label="Quantité Physique" value={String(l.quantity)} />
+                      <DataLabel label="Conditionnement" value={`Boîte de ${selectedItem.packSize}`} />
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {selectedItem.lotDetails.length === 0 && (
+                  <div className="col-span-full text-center py-8 text-muted-foreground border border-dashed border-border">
+                    Aucun enregistrement terminal disponible.
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </Layout>
@@ -267,61 +299,41 @@ export default function Stock() {
           ))}
         </TabContainer>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-          <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+        <div className="flex flex-wrap gap-4 pb-2 border-b border-border">
+          <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Emplacement
             <select
               value={locationFilter}
               onChange={(event) => setLocationFilter(event.target.value)}
-              className="mt-2 h-10 w-full border border-border bg-card px-3 text-sm text-foreground"
+              className="h-8 border border-border bg-card px-2 text-sm text-foreground focus:outline-none focus:border-primary"
             >
               {locations.map((location) => <option key={location}>{location}</option>)}
             </select>
           </label>
-          <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+          <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Lot
             <select
               value={lotFilter}
               onChange={(event) => setLotFilter(event.target.value)}
-              className="mt-2 h-10 w-full border border-border bg-card px-3 text-sm text-foreground"
+              className="h-8 border border-border bg-card px-2 text-sm text-foreground focus:outline-none focus:border-primary"
             >
               {lotFilterOptions.map((lot) => <option key={lot}>{lot}</option>)}
             </select>
           </label>
-          <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-            Provenance
-            <select
-              value={provenanceFilter}
-              onChange={(event) => setProvenanceFilter(event.target.value)}
-              className="mt-2 h-10 w-full border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {provenances.map((provenance) => <option key={provenance}>{provenance}</option>)}
-            </select>
-          </label>
-          <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-            Conditionnement
-            <select
-              value={packFilter}
-              onChange={(event) => setPackFilter(event.target.value)}
-              className="mt-2 h-10 w-full border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {packSizes.map((pack) => <option key={pack} value={pack}>{pack === 'Tous' ? pack : `Boîte de ${pack}`}</option>)}
-            </select>
-          </label>
-          <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+          <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Niveau
             <select
               value={levelFilter}
               onChange={(event) => setLevelFilter(event.target.value)}
-              className="mt-2 h-10 w-full border border-border bg-card px-3 text-sm text-foreground"
+              className="h-8 border border-border bg-card px-2 text-sm text-foreground focus:outline-none focus:border-primary"
             >
               {['Tous', 'Sain', 'Bas', 'Rupture'].map((level) => <option key={level}>{level}</option>)}
             </select>
           </label>
-          <div className="border border-border bg-card px-4 py-2">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Résultats</span>
-            <p className="text-2xl font-serif">{filteredStock.length}</p>
-          </div>
+        </div>
+
+        <div className="text-xs text-muted-foreground font-mono">
+          Résultats affichés : {filteredStock.length}
         </div>
 
         <Card>
@@ -334,7 +346,6 @@ export default function Stock() {
                 <TableHead className="text-right">Total Net</TableHead>
                 <TableHead>Valeur Immob.</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -342,7 +353,7 @@ export default function Stock() {
                 const netAvailable = item.aggregate - item.reserved - item.allocated;
                 return (
                   <TableRow key={item.sku} className="cursor-pointer hover:bg-muted/30" onClick={() => handleSelectSku(item.sku)}>
-                    <TableCell className="font-mono text-xs">{item.sku}</TableCell>
+                    <TableCell className="font-mono text-xs text-primary">{item.sku}</TableCell>
                     <TableCell>
                       <div className="font-medium">{item.brand}</div>
                       <div className="text-xs text-muted-foreground">{item.type}</div>
@@ -353,15 +364,12 @@ export default function Stock() {
                     <TableCell>
                       {item.aggregate > 50 ? <Badge variant="success">Sain</Badge> : item.aggregate > 0 ? <Badge variant="warning">Bas</Badge> : <Badge variant="destructive">Rupture</Badge>}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleSelectSku(item.sku); }}>Tracer</Button>
-                    </TableCell>
                   </TableRow>
                 );
               })}
               {filteredStock.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground border-dashed">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground border-dashed">
                     Aucun résultat dans l'inventaire.
                   </TableCell>
                 </TableRow>

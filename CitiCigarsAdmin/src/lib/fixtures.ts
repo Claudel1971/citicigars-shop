@@ -41,10 +41,12 @@ export type Interaction = {
 
 export type Client360 = {
   id: string;
-  ctcgLinked: boolean;
-  identity: { name: string; email: string; phone?: string };
+  identity: { lastName: string; firstName: string; email: string; phone: string; city: string };
+  type: 'B2B' | 'B2C';
+  status: 'Actif' | 'Inactif' | 'Blacklisté';
+  score: number;
+  balanceDueXAF: number;
   dna: string[];
-  activity: string;
   recommendations: { sku: string; availability: string; source: string }[];
   kpis: { lifetimeValueXAF: number; totalOrders: number; averageOrderValueXAF: number; lastOrderDate: string };
   orders: Order[];
@@ -54,7 +56,12 @@ export type Client360 = {
 export type SupplierOpportunity = {
   id: string;
   supplierName: string;
+  contactName: string;
   emailSource: string;
+  phone: string;
+  originCurrency: string;
+  cumulativeSpendOriginal: number;
+  cumulativeSpendXAF: number;
   attachments: string[];
   matching: number;
   proposedEconomics: { currency: string; amount: number };
@@ -69,8 +76,11 @@ export type SupplierOpportunity = {
     poId: string;
     date: string;
     status: string;
+    totalOriginal: number;
+    currency: string;
+    fxRate: number;
     totalXAF: number;
-    items: { sku: string; qty: number; unitPriceXAF: number }[];
+    items: { sku: string; qty: number; unitPriceOriginal: number; unitPriceXAF: number }[];
   }[];
 };
 
@@ -120,12 +130,18 @@ export type Replay = {
   details: string;
 };
 
-export type HumanGovernance = {
+export type Employee = {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  identifier: string;
+  startDate: string;
   role: string;
+  active: boolean;
   rights: string[];
-  delegations: string[];
   restrictions: string[];
 };
 
@@ -209,10 +225,12 @@ export const FIXTURES = {
   clients: [
     {
       id: 'CLI-8821',
-      ctcgLinked: true,
-      identity: { name: 'Jean-Baptiste L.', email: 'jbl@example.com', phone: '+33 6 12 34 56 78' },
+      identity: { lastName: 'Lefebvre', firstName: 'Jean-Baptiste', email: 'jbl@example.com', phone: '+33 6 12 34 56 78', city: 'Paris' },
+      type: 'B2C',
+      status: 'Actif',
+      score: 85,
+      balanceDueXAF: 0,
       dna: ['Préférence Maduro', 'Achat régulier de robustos', 'Sensible aux éditions limitées'],
-      activity: 'Dernier achat il y a 14 jours (Boutique)',
       recommendations: [
         { sku: 'CTCG001020', availability: '14 boîtes', source: 'Stock Central — inférence simulée' }
       ],
@@ -228,10 +246,12 @@ export const FIXTURES = {
     },
     {
       id: 'CLI-8822',
-      ctcgLinked: false,
-      identity: { name: 'Marc V.', email: 'marcv@example.com' },
+      identity: { lastName: 'Vidal', firstName: 'Marc', email: 'marcv@example.com', phone: '+41 79 123 45 67', city: 'Genève' },
+      type: 'B2B',
+      status: 'Actif',
+      score: 42,
+      balanceDueXAF: 150000,
       dna: ['Explorateur', 'Budget modéré', 'Format Corona privilégié'],
-      activity: 'Dernier clic sur campagne email hier',
       recommendations: [
         { sku: 'CTCG001045', availability: '42 boîtes', source: 'Stock Central — inférence simulée' }
       ],
@@ -311,7 +331,12 @@ export const FIXTURES = {
     {
       id: 'OPP-112',
       supplierName: 'Distributeur A (Espagne)',
+      contactName: 'Carlos M.',
       emailSource: 'offre-speciale-sep@distributeur-a.es',
+      phone: '+34 91 123 45 67',
+      originCurrency: 'EUR',
+      cumulativeSpendOriginal: 120000,
+      cumulativeSpendXAF: 78714840,
       attachments: ['liste_prix_q4.pdf'],
       matching: 98.5,
       proposedEconomics: { currency: 'EUR', amount: 4500 },
@@ -323,13 +348,18 @@ export const FIXTURES = {
         paymentTerms: '30 Jours Fin de Mois'
       },
       poHistory: [
-        { poId: 'PO-4091', date: '2026-06-15', status: 'LIVRÉ', totalXAF: 2850000, items: [{ sku: 'CTCG001020', qty: 200, unitPriceXAF: 14250 }] }
+        { poId: 'PO-4091', date: '2026-06-15', status: 'LIVRÉ', totalOriginal: 4345, currency: 'EUR', fxRate: 655.957, totalXAF: 2850000, items: [{ sku: 'CTCG001020', qty: 200, unitPriceOriginal: 21.72, unitPriceXAF: 14250 }] }
       ]
     },
     {
       id: 'OPP-113',
       supplierName: 'Grossiste Inconnu',
+      contactName: 'N/A',
       emailSource: 'sales@cigars-wholesale-cheap.com',
+      phone: 'N/A',
+      originCurrency: 'USD',
+      cumulativeSpendOriginal: 0,
+      cumulativeSpendXAF: 0,
       attachments: ['catalog.xlsx'],
       matching: 12.0,
       proposedEconomics: { currency: 'USD', amount: 0 },
@@ -396,22 +426,34 @@ export const FIXTURES = {
     }
   ] as Replay[],
 
-  humans: [
+  employees: [
     {
-      id: 'HUM-001',
-      name: 'Owner (Système)',
+      id: 'EMP-001',
+      firstName: 'Owner',
+      lastName: 'Système',
+      email: 'owner@citicigars.com',
+      phone: '+33 6 00 00 00 01',
+      address: '10 Place de la Bourse, Paris',
+      identifier: 'OWN-SYS',
+      startDate: '2024-01-01',
       role: 'Administrateur Suprême',
-      rights: ['Accès R1 (Lecture seule)', 'Dérogation A5', 'Désactivation Agents'],
-      delegations: [],
+      active: true,
+      rights: ['Accès R1 (Lecture seule)', 'Dérogation A5', 'Désactivation Agents', 'Modification des rôles'],
       restrictions: ['Mutations directes désactivées (R1)']
     },
     {
-      id: 'HUM-002',
-      name: 'Opérateur Achats',
+      id: 'EMP-002',
+      firstName: 'Opérateur',
+      lastName: 'Achats',
+      email: 'achats@citicigars.com',
+      phone: '+33 6 00 00 00 02',
+      address: 'Bureau Central',
+      identifier: 'OP-ACH',
+      startDate: '2025-03-15',
       role: 'Valideur Niveau 1',
-      rights: ['Validation A3'],
-      delegations: ['Achats mineurs < 2000 EUR délégués au Supplier Watcher'],
+      active: true,
+      rights: ['Validation A3', 'Création PO (Draft)'],
       restrictions: ['Approbation A4 requise pour nouveaux fournisseurs']
     }
-  ] as HumanGovernance[]
+  ] as Employee[]
 };

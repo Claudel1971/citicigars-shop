@@ -102,27 +102,17 @@ export default function Approbations() {
             </Card>
           </div>
 
-          <div className="p-4 border border-warning/50 bg-warning/5 flex items-center justify-between">
-            <div className="text-sm font-mono text-warning-foreground">
-              Les mutations sont bloquées dans l'environnement R1 (Lecture seule).
+          <div className="p-4 border-2 border-destructive bg-destructive/10 flex flex-col md:flex-row items-center justify-between gap-4 rounded-sm">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-6 h-6 text-destructive" />
+              <div>
+                <p className="text-sm font-bold text-destructive uppercase tracking-wide">Exécution bloquée (Environnement R1)</p>
+                <p className="text-xs font-mono text-destructive/80 mt-1">Le système est en mode audit (lecture seule). Les mutations sont désactivées.</p>
+              </div>
             </div>
-            <div className="flex gap-4">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button variant="outline" disabled className="border-destructive/50 text-destructive/50">Rejeter la demande</Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Désactivé en mode audit R1</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button variant="default" disabled className="bg-success/50 text-success-foreground/50">Approuver</Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Désactivé en mode audit R1</TooltipContent>
-              </Tooltip>
+            <div className="flex gap-4 opacity-50 pointer-events-none grayscale">
+              <Button variant="outline" className="border-destructive text-destructive">Rejeter la demande</Button>
+              <Button variant="default" className="bg-success text-success-foreground">Approuver</Button>
             </div>
           </div>
         </div>
@@ -173,7 +163,7 @@ export default function Approbations() {
           </button>
         </div>
 
-        <TabContainer className="w-full">
+        <TabContainer className="w-full mt-6 mb-4">
           {CATEGORIES.map(cat => (
             <TabButton 
               key={cat}

@@ -2,13 +2,21 @@ import { useEffect, useState } from 'react';
 import { Layout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, DataLabel, TabContainer, TabButton } from '@/components/ui/bespoke';
 import { FIXTURES } from '@/lib/fixtures';
-import { Lock, Activity, Eye, Users, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Lock, Activity, Eye, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 
 export default function Gouvernance() {
-  const [tab, setTab] = useState<'humains' | 'agents' | 'audit'>('humains');
+  const [tab, setTab] = useState<'employes' | 'agents' | 'audit'>('employes');
   const [selectedReplayId, setSelectedReplayId] = useState<string | null>(null);
+
+  // Operator create form
+  const [empForm, setEmpForm] = useState({ firstName: '', lastName: '', email: '', phone: '', address: '', identifier: '', startDate: '', role: 'Opérateur', active: 'true', rights: '' });
+
+  // Agent create form
+  const [agentForm, setAgentForm] = useState({ name: '', identifier: '', role: '', capabilities: '', permissions: '', authLevel: 'A3', state: 'ACTIVE' });
+
   useEffect(() => {
     const replayId = new URLSearchParams(window.location.search).get('replay');
     if (replayId && FIXTURES.replay.some((item) => item.id === replayId)) {
@@ -71,93 +79,144 @@ export default function Gouvernance() {
       <div className="space-y-6">
         <header className="flex flex-col gap-4">
           <div>
-            <h1 className="text-3xl font-serif">Gouvernance & Audit</h1>
-            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mt-2">Gestion des privilèges et traçabilité immuable</p>
+            <h1 className="text-3xl font-serif">Gouvernance & Sécurité</h1>
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest mt-2">Administration des comptes et traçabilité immuable</p>
           </div>
           <TabContainer>
-            <TabButton 
-              active={tab === 'humains'}
-              onClick={() => setTab('humains')}
-            >
-              Humains
-            </TabButton>
-            <TabButton 
-              active={tab === 'agents'}
-              onClick={() => setTab('agents')}
-            >
-              Agents
-            </TabButton>
-            <TabButton 
-              active={tab === 'audit'}
-              onClick={() => setTab('audit')}
-            >
-              Audit / Replay
-            </TabButton>
+            <TabButton active={tab === 'employes'} onClick={() => setTab('employes')}>Employés</TabButton>
+            <TabButton active={tab === 'agents'} onClick={() => setTab('agents')}>Agents</TabButton>
+            <TabButton active={tab === 'audit'} onClick={() => setTab('audit')}>Audit / Replay</TabButton>
           </TabContainer>
         </header>
 
-        {tab === 'humains' && (
-          <div className="space-y-4">
+        {tab === 'employes' && (
+          <div className="space-y-6">
             <div className="flex items-center gap-2 p-3 bg-muted/20 border border-border text-sm">
               <Users className="w-4 h-4 text-primary" /> 
-              <span>Matrice des droits et délégations des opérateurs humains.</span>
+              <span>Administration centralisée des comptes opérateurs. Simulation locale : les données ne sont pas persistées.</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {FIXTURES.humans.map(hum => (
-                <Card key={hum.id}>
-                  <CardHeader className="flex flex-row items-start justify-between">
-                    <div>
-                      <CardTitle>{hum.name}</CardTitle>
-                      <p className="text-xs text-muted-foreground font-mono mt-1">{hum.role} • {hum.id}</p>
+
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Identifiant</TableHead>
+                    <TableHead>Nom complet</TableHead>
+                    <TableHead>Rôle</TableHead>
+                    <TableHead>Email / Contact</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right min-w-[300px]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {FIXTURES.employees.map(emp => (
+                    <TableRow key={emp.id}>
+                      <TableCell className="font-mono text-xs">{emp.identifier}</TableCell>
+                      <TableCell className="font-medium">
+                        {emp.firstName} {emp.lastName}
+                        {emp.id === 'EMP-001' && <Badge variant="default" className="ml-2 bg-primary">Tous les droits</Badge>}
+                      </TableCell>
+                      <TableCell><Badge variant="secondary">{emp.role}</Badge></TableCell>
+                      <TableCell>
+                        <div className="text-xs">{emp.email}</div>
+                        <div className="text-[10px] font-mono text-muted-foreground">{emp.phone}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={emp.active ? 'success' : 'destructive'}>{emp.active ? 'Actif' : 'Inactif'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => toast({ title: 'Édition simulée', description: 'Modification des permissions...' })}>Éditer</Button>
+                          <Button variant="ghost" size="sm" onClick={() => toast({ title: 'Réinitialisation', description: 'Lien de reset sécurisé généré, sans mot de passe en clair.' })}>Reset Sécurisé</Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => toast({ title: 'Révocation', description: 'Accès désactivé (Simulation R1).' })}>Désactiver</Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+
+            <Card className="max-w-3xl border-primary/20">
+              <CardHeader className="bg-primary/5">
+                <CardTitle className="text-primary">Créer un compte opérateur (Simulation)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">L'initialisation génère un lien sécurisé d'activation. Aucun mot de passe en clair n'est stocké.</p>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  toast({ title: 'Simulation', description: 'Un lien d\'initialisation sécurisé a été généré localement.' });
+                  setEmpForm({ firstName: '', lastName: '', email: '', phone: '', address: '', identifier: '', startDate: '', role: 'Opérateur', active: 'true', rights: '' });
+                }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Prénom</label>
+                      <Input placeholder="Prénom" value={empForm.firstName} onChange={e => setEmpForm(prev => ({...prev, firstName: e.target.value}))} required />
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground block mb-2">Droits Directs</span>
-                      <div className="flex flex-wrap gap-2">
-                        {hum.rights.map((r, i) => <Badge key={i} variant="outline">{r}</Badge>)}
-                      </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Nom</label>
+                      <Input placeholder="Nom" value={empForm.lastName} onChange={e => setEmpForm(prev => ({...prev, lastName: e.target.value}))} required />
                     </div>
-                    {hum.delegations.length > 0 && (
-                      <div>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-primary block mb-2">Délégations Actives</span>
-                        <ul className="text-xs space-y-1 text-primary">
-                          {hum.delegations.map((d, i) => <li key={i}>• {d}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    {hum.restrictions.length > 0 && (
-                      <div className="pt-2 border-t border-border">
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-warning flex items-center gap-1 mb-2">
-                          <AlertTriangle className="w-3 h-3" /> Restrictions
-                        </span>
-                        <ul className="text-xs space-y-1 text-warning-foreground">
-                          {hum.restrictions.map((r, i) => <li key={i}>• {r}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    <div className="mt-4 pt-4 border-t border-border flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => toast({ title: 'Simulation Élévation', description: 'Mode R1 : Demande bloquée.' })}>Simuler Élévation A5</Button>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Email pro</label>
+                      <Input type="email" placeholder="email@citicigars.com" value={empForm.email} onChange={e => setEmpForm(prev => ({...prev, email: e.target.value}))} required />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Téléphone</label>
+                      <Input placeholder="+33 6..." value={empForm.phone} onChange={e => setEmpForm(prev => ({...prev, phone: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Adresse complète</label>
+                      <Input placeholder="10 Place..." value={empForm.address} onChange={e => setEmpForm(prev => ({...prev, address: e.target.value}))} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Identifiant Unique</label>
+                      <Input placeholder="OP-001" value={empForm.identifier} onChange={e => setEmpForm(prev => ({...prev, identifier: e.target.value}))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Date de début</label>
+                      <Input type="date" value={empForm.startDate} onChange={e => setEmpForm(prev => ({...prev, startDate: e.target.value}))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Rôle principal</label>
+                      <select className="h-10 w-full border border-border bg-card px-3 text-sm focus:outline-none focus:border-primary" value={empForm.role} onChange={e => setEmpForm(prev => ({...prev, role: e.target.value}))}>
+                        <option>Opérateur</option>
+                        <option>Valideur Niveau 1</option>
+                        <option>Administrateur</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Statut</label>
+                      <select className="h-10 w-full border border-border bg-card px-3 text-sm focus:outline-none focus:border-primary" value={empForm.active} onChange={e => setEmpForm(prev => ({...prev, active: e.target.value}))}>
+                        <option value="true">Actif</option>
+                        <option value="false">Inactif</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Droits / Privilèges supplémentaires (séparés par virgule)</label>
+                      <textarea className="w-full border border-border bg-card p-3 text-sm min-h-[80px] focus:outline-none focus:border-primary" placeholder="Accès A3, Audit, ..." value={empForm.rights} onChange={e => setEmpForm(prev => ({...prev, rights: e.target.value}))} />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full">Générer lien d'activation local</Button>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {tab === 'agents' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex items-center gap-2 p-3 bg-muted/20 border border-border text-sm">
               <Lock className="w-4 h-4 text-warning" /> 
-              <span>Toute modification de capacité nécessite une élévation de privilège (A5 - Owner). L'environnement R1 est en lecture seule.</span>
+              <span>Administration locale des agents de l'essaim. Toute modification réelle nécessite une élévation de privilège (A5 - Owner).</span>
             </div>
+            
             <Card>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID Capacité</TableHead>
-                    <TableHead>Agent</TableHead>
+                    <TableHead>Nom Agent</TableHead>
                     <TableHead>Outil (Tool)</TableHead>
                     <TableHead>Risque</TableHead>
                     <TableHead>Niveau d'Approbation</TableHead>
@@ -179,12 +238,59 @@ export default function Gouvernance() {
                         <Badge variant={cap.state === 'ACTIVE' ? 'success' : cap.state === 'SUSPENDED' ? 'destructive' : 'secondary'}>{cap.state}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => toast({ title: 'Agent Suspendu', description: 'Simulation de suspension locale.' })}>Suspendre</Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => toast({ title: 'Configuration', description: 'Ouverture du panneau IA...' })}>Configurer</Button>
+                          <Button variant="ghost" size="sm" className="text-warning hover:text-warning hover:bg-warning/10" onClick={() => toast({ title: 'Agent Suspendu', description: 'Agent mis en veille locale.' })}>Suspendre</Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => toast({ title: 'Agent Désactivé', description: 'Simulation de désactivation (A5 requis).' })}>Désactiver</Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            </Card>
+
+            <Card className="max-w-3xl">
+              <CardHeader className="bg-muted/10">
+                <CardTitle>Configurer / Enregistrer un Agent (Simulation)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Définissez les garde-fous locaux de la nouvelle capacité.</p>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  toast({ title: 'Agent Configuré', description: 'Configuration locale générée (requiert A5 pour R2).' });
+                  setAgentForm({ name: '', identifier: '', role: '', capabilities: '', permissions: '', authLevel: 'A3', state: 'ACTIVE' });
+                }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Nom Agent</label>
+                      <Input placeholder="ex: Supplier Watcher" value={agentForm.name} onChange={e => setAgentForm(prev => ({...prev, name: e.target.value}))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Identifiant Unique</label>
+                      <Input placeholder="CAP-..." value={agentForm.identifier} onChange={e => setAgentForm(prev => ({...prev, identifier: e.target.value}))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Rôle / Outil</label>
+                      <Input placeholder="ex: inventory.mutate" value={agentForm.role} onChange={e => setAgentForm(prev => ({...prev, role: e.target.value}))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Niveau Auth</label>
+                      <select className="h-10 w-full border border-border bg-card px-3 text-sm focus:outline-none focus:border-primary" value={agentForm.authLevel} onChange={e => setAgentForm(prev => ({...prev, authLevel: e.target.value}))}>
+                        <option>A1 (Auto)</option>
+                        <option>A3 (Lecture)</option>
+                        <option>A4 (Mutation)</option>
+                        <option>A5 (Critique)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Permissions & Capacités</label>
+                      <textarea className="w-full border border-border bg-card p-3 text-sm min-h-[80px] focus:outline-none focus:border-primary" placeholder="Lecture DB locale, ..." value={agentForm.permissions} onChange={e => setAgentForm(prev => ({...prev, permissions: e.target.value}))} />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full">Enregistrer Configuration IA</Button>
+                </form>
+              </CardContent>
             </Card>
           </div>
         )}

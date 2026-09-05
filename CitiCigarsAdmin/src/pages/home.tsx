@@ -119,7 +119,7 @@ export default function Home() {
                     </div>
 
                     <div className="mt-4 flex gap-2">
-                      <Link href={`/approbations?id=${approval.id}`} className="inline-flex items-center justify-center text-xs h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full">Examiner</Link>
+                      <Link href={`/approbations?id=${approval.id}`} className="inline-flex items-center justify-center text-xs h-8 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium w-full">Examiner</Link>
                     </div>
                   </CardContent>
                 </Card>
