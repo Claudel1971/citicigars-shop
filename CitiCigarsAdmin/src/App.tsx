@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import Home from '@/pages/home';
-import Recherche from '@/pages/recherche';
+import Vendre from '@/pages/vendre';
 import Clients from '@/pages/clients';
 import Stock from '@/pages/stock';
 import Fournisseurs from '@/pages/fournisseurs';
@@ -22,7 +22,7 @@ function Router() {
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/recherche" component={Recherche} />
+        <Route path="/vendre" component={Vendre} />
         <Route path="/clients" component={Clients} />
         <Route path="/stock" component={Stock} />
         <Route path="/fournisseurs" component={Fournisseurs} />

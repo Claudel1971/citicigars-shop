@@ -12,18 +12,19 @@ import {
   Lock,
   Database,
   Menu,
+  Target,
   X
 } from 'lucide-react';
 import { cn } from './ui/bespoke';
 
 const NAV_ITEMS = [
   { href: '/', label: "Aujourd'hui", icon: LayoutDashboard },
-  { href: '/recherche', label: 'Recherche Globale', icon: Search },
+  { href: '/vendre', label: 'Vendre', icon: Target },
   { href: '/clients', label: 'Clients 360', icon: Users },
   { href: '/stock', label: 'Stock Central', icon: Package },
   { href: '/fournisseurs', label: 'Fournisseurs', icon: Truck },
   { href: '/approbations', label: 'Approbations', icon: ShieldCheck },
-  { href: '/gouvernance', label: 'Gouvernance', icon: Gavel },
+  { href: '/gouvernance', label: 'Contrôle', icon: Gavel },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -104,12 +105,12 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-6 py-2.5">
             <div className="flex items-center gap-2 text-warning font-medium text-xs">
               <AlertTriangle className="w-4 h-4" />
-              <span className="uppercase tracking-wider font-mono">Environnement R1 (bac à sable) — Données de démonstration</span>
+              <span className="uppercase tracking-wider font-mono">Environnement R2 (Preview Locale) — Pipeline de vente simulé</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] font-mono uppercase tracking-widest">
                 <Database className="w-3.5 h-3.5" />
-                Sources simulées
+                Sources en mémoire
               </div>
               <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
             </div>

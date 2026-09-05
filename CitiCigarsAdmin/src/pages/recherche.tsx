@@ -25,6 +25,20 @@ export default function Recherche() {
         results.push({ type: 'Client', id: c.id, title: `${c.identity.firstName} ${c.identity.lastName}`, sub: c.identity.email, link: `/clients?id=${c.id}` });
       }
     });
+    FIXTURES.leads.forEach(l => {
+      if (
+        l.id.toLowerCase().includes(q) ||
+        l.title.toLowerCase().includes(q)
+      ) {
+        results.push({
+          type: 'Lead',
+          id: l.id,
+          title: l.title,
+          sub: `${l.pipelineStage.replace(/_/g, ' ')}`,
+          link: `/vendre?id=${l.id}`,
+        });
+      }
+    });
     FIXTURES.stock.forEach(s => {
       if (s.sku.toLowerCase().includes(q) || s.type.toLowerCase().includes(q) || s.brand.toLowerCase().includes(q)) {
         results.push({ type: 'Stock', id: s.sku, title: `${s.brand} - ${s.type}`, sub: `Lot: ${s.lot}`, link: `/stock?sku=${s.sku}` });

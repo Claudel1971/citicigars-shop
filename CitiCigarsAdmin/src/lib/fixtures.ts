@@ -1,3 +1,13 @@
+export type Account = {
+  id: string;
+  name: string;
+  type: 'B2B' | 'B2C_Group';
+  status: 'Actif' | 'Inactif';
+  industry?: string;
+  contacts: string[];
+  leads: string[];
+};
+
 export type Signal = {
   id: string;
   priority: 'HAUTE' | 'MOYENNE' | 'BASSE';
@@ -7,8 +17,158 @@ export type Signal = {
   source: string;
   freshness: string;
   state: 'ACTIF' | 'RÉSOLU' | 'EN_ATTENTE';
-  targetType: 'STOCK' | 'FOURNISSEUR' | 'CLIENT';
+  targetType: 'STOCK' | 'FOURNISSEUR' | 'CLIENT' | 'LEAD' | 'ACCOUNT';
   targetId: string;
+};
+
+export type LeadOwner = {
+  current: string;
+  conversation: string;
+  commercialDecision: string;
+  physicalExecution: string;
+};
+
+export type AcceptanceProof = {
+  type: string;
+  timestamp: string;
+  evidence: string;
+};
+
+export type Handoff = {
+  id: string;
+  from: string;
+  to: string;
+  incomingOwnerId: string;
+  context: string;
+  source: string;
+  promise: string;
+  interests: string[];
+  consentChannel: string;
+  step: string;
+  expectedDecision: string;
+  deadline: string;
+  acceptedAt?: string;
+  acceptanceProof?: AcceptanceProof;
+  evidence?: string;
+};
+
+export type AttributionEvidence = {
+  id: string;
+  type: string;
+  timestamp: string;
+  source: string;
+  proof: string;
+  confidence: number;
+};
+
+export type Attribution = {
+  attributionStatus: 'attributed' | 'unattributed' | 'partially_attributed' | 'offline_unverified';
+  unattributedReason?: string;
+  initialSource: string;
+  leadCreationSource: string;
+  conversionSource: string;
+  influences: string[];
+  campaignId: string;
+  experimentId: string;
+  touchpointId: string;
+  relationshipOrigin: string;
+  relationshipDistance: '0' | '1' | '2' | '3' | 'unknown';
+  claudelIntervention: 'none' | 'light' | 'significant' | 'closing';
+  confidence: number;
+  evidence: AttributionEvidence[];
+};
+
+export type NextAction = {
+  type: string;
+  description: string;
+  ownerId: string;
+  dueAt: string;
+  mandatory: boolean;
+};
+
+export type Consent = {
+  version: string;
+  status: 'granted' | 'pending' | 'withdrawn';
+  purpose: string;
+  channels: string[];
+  textVersion: string;
+  capturedAt: string;
+  source: string;
+  proof: string;
+  capturedBy: string;
+  withdrawnAt?: string;
+  adultVerified: boolean;
+};
+
+export type StageHistoryEntry = {
+  changedAt: string;
+  previousStage: string | null;
+  stage: string;
+  changedBy: string;
+  reason: string;
+};
+
+export type Lead = {
+  id: string;
+  title: string;
+  accountId?: string;
+  clientId?: string;
+  orderId?: string;
+  paymentId?: string;
+  pipelineStage: 'captured' | 'contact_pending' | 'contacted' | 'responded' | 'qualified' | 'offer_or_dna' | 'commercial_decision' | 'won_pending_payment' | 'paid' | 'fulfilled' | 'repeat_due' | 'non_qualified' | 'lost' | 'unreachable' | 'consent_withdrawn' | 'duplicate';
+  stageHistory: StageHistoryEntry[];
+  owners: LeadOwner;
+  nextAction: NextAction;
+  handoffs: Handoff[];
+  attribution: Attribution;
+  consent: Consent;
+  
+  lastContactAt?: string;
+  firstResponseAt?: string;
+  firstResponseDelayMinutes?: number;
+  slaMinutes?: number;
+  
+  preferredChannel: string;
+  contactPreferences: string[];
+  productInterests: string[];
+  usageInterests: string[];
+  
+  nonQualificationReason?: string;
+  lossReason?: string;
+
+  financials: {
+    expectedRevenueXAF: number;
+    expectedMarginXAF: number;
+    actualRevenueXAF?: number;
+    actualMarginXAF?: number;
+  };
+  dnaBlock2Selections: DNABlock2Selection[];
+  dnaBlock3FreeChoices: DNABlock3FreeChoice[];
+};
+
+export type Campaign = {
+  id: string;
+  name: string;
+  type: string;
+  owners: {
+    conversation: string;
+    commercialDecision: string;
+    physicalExecution: string;
+  };
+};
+
+export type Experiment = {
+  id: string;
+  campaignId: string;
+  name: string;
+  variant: string;
+};
+
+export type Touchpoint = {
+  id: string;
+  experimentId: string;
+  type: 'UTM' | 'QR' | 'landing' | 'CTA' | 'dna_submit' | 'whatsapp_click' | 'referral_code' | 'named_introduction';
+  name: string;
 };
 
 export type Approval = {
@@ -176,6 +336,18 @@ export type Employee = {
 };
 
 export const FIXTURES = {
+  accounts: [
+    {
+      id: 'ACC-1001',
+      name: 'Groupe Vidal & Associés',
+      type: 'B2B',
+      status: 'Actif',
+      industry: 'Finance',
+      contacts: ['CLI-8822'],
+      leads: ['LD-1091', 'LD-1092']
+    }
+  ] as Account[],
+
   signals: [
     {
       id: 'SIG-20260904-01',
@@ -514,6 +686,340 @@ export const FIXTURES = {
       active: true,
       rights: ['Validation A3', 'Création PO (Draft)'],
       restrictions: ['Approbation A4 requise pour nouveaux fournisseurs']
+    },
+    {
+      id: 'EMP-003',
+      firstName: 'Agent',
+      lastName: 'Montréal',
+      email: 'montreal@citicigars.com',
+      phone: '+1 514 00 00 00',
+      address: 'Montréal HQ',
+      identifier: 'OP-MTL',
+      startDate: '2025-01-10',
+      role: 'Closer Montréal',
+      active: true,
+      rights: ['CRM'],
+      restrictions: []
+    },
+    {
+      id: 'EMP-004',
+      firstName: 'Agent',
+      lastName: 'Douala',
+      email: 'douala@citicigars.com',
+      phone: '+237 600 00 00 00',
+      address: 'Douala Hub',
+      identifier: 'OP-DLA',
+      startDate: '2025-01-10',
+      role: 'Exécuteur Douala',
+      active: true,
+      rights: ['CRM'],
+      restrictions: []
     }
-  ] as Employee[]
+  ] as Employee[],
+
+  leads: [
+    {
+      id: 'LD-1090',
+      title: 'Opportunité Jean-Baptiste - Partagás',
+      clientId: 'CLI-8821',
+      pipelineStage: 'won_pending_payment',
+      stageHistory: [
+        { changedAt: '2026-09-01T08:30:00Z', previousStage: null, stage: 'captured', changedBy: 'System', reason: 'Initial capture' },
+        { changedAt: '2026-09-01T10:15:00Z', previousStage: 'captured', stage: 'contacted', changedBy: 'EMP-003', reason: 'Contact initié' },
+        { changedAt: '2026-09-02T14:20:00Z', previousStage: 'contacted', stage: 'offer_or_dna', changedBy: 'EMP-003', reason: 'Proposition envoyée' },
+        { changedAt: '2026-09-03T16:45:00Z', previousStage: 'offer_or_dna', stage: 'won_pending_payment', changedBy: 'EMP-003', reason: 'Accord client' }
+      ],
+      owners: {
+        current: 'EMP-003',
+        conversation: 'EMP-003',
+        commercialDecision: 'EMP-003',
+        physicalExecution: 'EMP-004'
+      },
+      nextAction: {
+        type: 'Suivi Paiement',
+        description: 'Vérifier la réception du virement pour déclencher le fulfillment à Douala.',
+        ownerId: 'EMP-003',
+        dueAt: '2026-09-05T12:00:00Z',
+        mandatory: true
+      },
+      handoffs: [
+        {
+          id: 'HO-501',
+          from: 'EMP-003',
+          to: 'EMP-004',
+          incomingOwnerId: 'EMP-004',
+          context: 'Client VIP, a validé la commande. Paiement en attente. Livrer discrètement à son hôtel à Douala dès confirmation.',
+          source: 'WhatsApp',
+          promise: 'Livraison express < 4h après paiement',
+          interests: ['Partagás Serie D No. 4'],
+          consentChannel: 'WhatsApp vérifié',
+          step: 'won_pending_payment',
+          expectedDecision: 'Confirmation livraison',
+          deadline: '2026-09-06T18:00:00Z',
+          acceptedAt: '2026-09-04T09:00:00Z',
+          acceptanceProof: {
+            type: 'System_Log',
+            timestamp: '2026-09-04T09:00:00Z',
+            evidence: 'Ack_HO501_EMP004'
+          },
+          evidence: 'Accord_Douala_HO501.pdf'
+        }
+      ],
+      attribution: {
+        attributionStatus: 'attributed',
+        initialSource: 'Campagne Nouveautés Sept',
+        leadCreationSource: 'Email CTA',
+        conversionSource: 'WhatsApp Direct',
+        influences: ['Visite Site Web', 'Recommandation Agent'],
+        campaignId: 'CAMP-SEP-26',
+        experimentId: 'EXP-A-01',
+        touchpointId: 'TP-001',
+        relationshipOrigin: 'Inbound',
+        relationshipDistance: '1',
+        claudelIntervention: 'significant',
+        confidence: 95,
+        evidence: [
+          { id: 'EV-1', type: 'UTM', timestamp: '2026-09-01T08:30:00Z', source: 'Web', proof: 'UTM_Source=newsletter', confidence: 99 }
+        ]
+      },
+      consent: {
+        version: 'v2.1',
+        status: 'granted',
+        purpose: 'Marketing & Sales',
+        channels: ['WhatsApp', 'Email'],
+        textVersion: 'Je consens à être contacté via WhatsApp et Email pour des offres.',
+        capturedAt: '2026-09-01T08:30:00Z',
+        source: 'Web Form',
+        proof: 'IP Log 192.168.1.1',
+        capturedBy: 'System',
+        adultVerified: true
+      },
+      lastContactAt: '2026-09-03T16:45:00Z',
+      firstResponseAt: '2026-09-01T10:15:00Z',
+      firstResponseDelayMinutes: 105,
+      slaMinutes: 120,
+      preferredChannel: 'WhatsApp',
+      contactPreferences: ['WhatsApp', 'Email'],
+      productInterests: ['Maduro', 'Robusto', 'Ediciones Limitadas'],
+      usageInterests: ['Consommation personnelle', 'Cadeaux'],
+      financials: {
+        expectedRevenueXAF: 420000,
+        expectedMarginXAF: 180000
+      },
+      dnaBlock2Selections: [
+        { id: 'REF-01', sku: 'CTCG001102', name: 'Romeo y Julieta Wide Churchills', classification: 'A1', context: 'Retenu suite à suggestion algorithmique (A1: match parfait)' },
+        { id: 'REF-02', sku: 'CTCG001020', name: 'Partagás Serie D No. 4', classification: 'A2', context: 'Confirmation de réassort (A2: match secondaire historique)' }
+      ],
+      dnaBlock3FreeChoices: [
+        { id: 'LIBRE-01', name: 'Davidoff Nicaragua Robusto', context: 'Demandé librement pour son profil terreux et épicé; absent des propositions du Bloc 2', catalogStatus: 'Hors catalogue' }
+      ]
+    },
+    {
+      id: 'LD-1091',
+      title: 'Nouveau Lead - Marc Vidal',
+      accountId: 'ACC-1001',
+      clientId: 'CLI-8822',
+      pipelineStage: 'contact_pending',
+      stageHistory: [
+        { changedAt: '2026-09-04T08:15:00Z', previousStage: null, stage: 'captured', changedBy: 'System', reason: 'Formulaire reçu' }
+      ],
+      owners: {
+        current: 'EMP-003',
+        conversation: 'EMP-003',
+        commercialDecision: 'EMP-003',
+        physicalExecution: 'EMP-004' // Replaced N/A
+      },
+      nextAction: {
+        type: 'Premier Contact',
+        description: 'Appeler Marc pour comprendre son besoin (Explorateur, budget modéré).',
+        ownerId: 'EMP-003',
+        dueAt: '2026-09-04T16:00:00Z',
+        mandatory: true
+      },
+      handoffs: [],
+      attribution: {
+        attributionStatus: 'unattributed',
+        unattributedReason: 'Source tracking bloqué par adblocker du client',
+        initialSource: 'Unknown',
+        leadCreationSource: 'Unknown',
+        conversionSource: 'Unknown',
+        influences: [],
+        campaignId: 'None',
+        experimentId: 'None',
+        touchpointId: 'None',
+        relationshipOrigin: 'Unknown',
+        relationshipDistance: 'unknown',
+        claudelIntervention: 'none',
+        confidence: 0,
+        evidence: []
+      },
+      consent: {
+        version: 'v2.1',
+        status: 'pending',
+        purpose: 'Contact Initial',
+        channels: [],
+        textVersion: 'Attente de validation explicite.',
+        capturedAt: '2026-09-04T08:15:00Z',
+        source: 'Inconnu',
+        proof: 'N/A',
+        capturedBy: 'System',
+        adultVerified: false
+      },
+      lastContactAt: undefined,
+      firstResponseAt: undefined,
+      preferredChannel: 'Unknown',
+      contactPreferences: [],
+      productInterests: ['Corona', 'Exploration'],
+      usageInterests: [],
+      financials: {
+        expectedRevenueXAF: 150000,
+        expectedMarginXAF: 60000
+      },
+      dnaBlock2Selections: [],
+      dnaBlock3FreeChoices: []
+    },
+    {
+      id: 'LD-1092',
+      title: 'Commande Anniversaire B2B',
+      accountId: 'ACC-1001',
+      clientId: 'CLI-8822',
+      pipelineStage: 'fulfilled',
+      stageHistory: [
+        { changedAt: '2026-08-01T08:15:00Z', previousStage: null, stage: 'captured', changedBy: 'System', reason: 'Lead entrant' },
+        { changedAt: '2026-08-05T12:00:00Z', previousStage: 'qualified', stage: 'won_pending_payment', changedBy: 'EMP-003', reason: 'Devis signé' },
+        { changedAt: '2026-08-10T14:00:00Z', previousStage: 'won_pending_payment', stage: 'paid', changedBy: 'System', reason: 'Virement reçu' },
+        { changedAt: '2026-08-12T10:00:00Z', previousStage: 'paid', stage: 'fulfilled', changedBy: 'EMP-004', reason: 'Livraison effectuée' }
+      ],
+      owners: {
+        current: 'EMP-004',
+        conversation: 'EMP-003',
+        commercialDecision: 'EMP-003',
+        physicalExecution: 'EMP-004'
+      },
+      nextAction: {
+        type: 'Feedback',
+        description: 'Demander un retour après dégustation (Fidélisation).',
+        ownerId: 'EMP-003',
+        dueAt: '2026-09-15T12:00:00Z',
+        mandatory: false
+      },
+      handoffs: [],
+      attribution: {
+        attributionStatus: 'attributed',
+        initialSource: 'Recherche Organique',
+        leadCreationSource: 'Landing Page B2B',
+        conversionSource: 'Formulaire Web',
+        influences: [],
+        campaignId: 'CAMP-B2B-Q3',
+        experimentId: 'EXP-B2B-01',
+        touchpointId: 'TP-003',
+        relationshipOrigin: 'Inbound SEO',
+        relationshipDistance: '3', // Valid for Acquisition
+        claudelIntervention: 'none', // Valid for Execution
+        confidence: 100,
+        evidence: [
+          { id: 'EV-2', type: 'landing', timestamp: '2026-08-01T08:15:00Z', source: 'Web', proof: 'Referer=Google', confidence: 100 }
+        ]
+      },
+      consent: {
+        version: 'v2.1',
+        status: 'granted',
+        purpose: 'Business',
+        channels: ['Email'],
+        textVersion: 'Consentement B2B',
+        capturedAt: '2026-08-01T08:15:00Z',
+        source: 'Web Form',
+        proof: 'Opt-in box',
+        capturedBy: 'System',
+        adultVerified: true
+      },
+      lastContactAt: '2026-08-25T10:00:00Z',
+      firstResponseAt: '2026-08-01T10:15:00Z',
+      firstResponseDelayMinutes: 120,
+      slaMinutes: 120,
+      preferredChannel: 'Email',
+      contactPreferences: ['Email'],
+      productInterests: ['Robusto', 'Cohiba'],
+      usageInterests: ['Cadeaux Corpo'],
+      financials: {
+        expectedRevenueXAF: 750000,
+        expectedMarginXAF: 250000,
+        actualRevenueXAF: 750000,
+        actualMarginXAF: 250000
+      },
+      orderId: 'ORD-2026-08-10',
+      paymentId: 'PAY-8812',
+      dnaBlock2Selections: [],
+      dnaBlock3FreeChoices: []
+    }
+  ] as Lead[],
+
+  campaigns: [
+    {
+      id: 'CAMP-SEP-26',
+      name: 'Nouveautés Septembre',
+      type: 'Newsletter Email',
+      owners: {
+        conversation: 'EMP-003',
+        commercialDecision: 'EMP-003',
+        physicalExecution: 'EMP-004'
+      }
+    },
+    {
+      id: 'CAMP-VIP-MTL',
+      name: 'Dîner VIP Montréal',
+      type: 'Événement',
+      owners: {
+        conversation: 'EMP-003',
+        commercialDecision: 'EMP-003',
+        physicalExecution: 'EMP-003'
+      }
+    },
+    {
+      id: 'CAMP-B2B-Q3',
+      name: 'Prospection B2B Q3',
+      type: 'Digital Inbound',
+      owners: {
+        conversation: 'EMP-003',
+        commercialDecision: 'EMP-003',
+        physicalExecution: 'EMP-004'
+      }
+    }
+  ] as Campaign[],
+
+  experiments: [
+    {
+      id: 'EXP-A-01',
+      campaignId: 'CAMP-SEP-26',
+      name: 'Subject Line A/B Test',
+      variant: 'A: "Vos nouveautés exclusives"'
+    },
+    {
+      id: 'EXP-B2B-01',
+      campaignId: 'CAMP-B2B-Q3',
+      name: 'B2B Landing Variant',
+      variant: 'Control'
+    }
+  ] as Experiment[],
+
+  touchpoints: [
+    {
+      id: 'TP-001',
+      experimentId: 'EXP-A-01',
+      type: 'UTM',
+      name: 'Email Link Click'
+    },
+    {
+      id: 'TP-002',
+      experimentId: 'EXP-A-01',
+      type: 'whatsapp_click',
+      name: 'WhatsApp Redirect Button'
+    },
+    {
+      id: 'TP-003',
+      experimentId: 'EXP-B2B-01',
+      type: 'landing',
+      name: 'B2B Corporate Form'
+    }
+  ] as Touchpoint[]
 };
