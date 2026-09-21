@@ -36,6 +36,7 @@ jobs:
           WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
           WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           EVENT_KEY: ${{ github.repository }}:${{ github.event_name }}:${{ github.event.action }}:${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}:${{ github.event.pull_request.number }}:${{ github.event.workflow_run.name }}:${{ github.event.workflow_run.conclusion }}
+          EVENT_TIMESTAMP: ${{ github.event.pull_request.updated_at || github.event.workflow_run.updated_at || github.event.head_commit.timestamp }}
         shell: bash
         run: |
           set -euo pipefail
@@ -59,6 +60,7 @@ jobs:
             --arg workflow_url "${WORKFLOW_URL:-}" \
             --arg workflow_head_sha "${WORKFLOW_HEAD_SHA:-}" \
             --arg event_key "${EVENT_KEY:-}" \
+            --arg event_timestamp "${EVENT_TIMESTAMP:-}" \
             '{
               event_name: $event_name,
               action: $action,
@@ -73,7 +75,8 @@ jobs:
               workflow_conclusion: $workflow_conclusion,
               workflow_url: $workflow_url,
               workflow_head_sha: $workflow_head_sha,
-              event_key: $event_key
+              event_key: $event_key,
+              event_timestamp: $event_timestamp
             }')"
 
           curl --fail-with-body --silent --show-error \
