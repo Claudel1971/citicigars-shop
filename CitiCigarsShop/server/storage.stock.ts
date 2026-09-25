@@ -766,7 +766,9 @@ export class StockStorage {
 
       if (input.movementType === "RECEPTION" || input.movementType === "ENTREE_TRANSIT" || input.movementType === "ANNULATION_VENTE") {
         const lotId = input.lotId ?? LEGACY_UNKNOWN_LOT_ID;
-        await validateInboundLotIdentity(t, lotId, destinationId!, input.sku, input.type, input.packSize);
+        if (input.movementType !== "ANNULATION_VENTE") {
+          await validateInboundLotIdentity(t, lotId, destinationId!, input.sku, input.type, input.packSize);
+        }
         await ensureLot(destinationId!, lotId);
         lotActions.push({
           locationId: destinationId!,
@@ -840,11 +842,6 @@ export class StockStorage {
           case "RECEPTION_TRANSIT":
             plans = planAt(sourceId!, input.qty, (balance) => balance.transit);
             sourceFields = ["transit"];
-            destinationField = "onHand";
-            break;
-          case "TRANSFERT_INTERNE":
-            plans = planAt(sourceId!, input.qty, available);
-            sourceFields = ["onHand"];
             destinationField = "onHand";
             break;
           case "TRANSFERT_INTERNE":
