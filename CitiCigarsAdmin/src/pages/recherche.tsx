@@ -1,119 +1,47 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Layout } from '@/components/layout';
 import { Card, CardContent, Badge } from '@/components/ui/bespoke';
 import { Input } from '@/components/ui/input';
-import { FIXTURES } from '@/lib/fixtures';
+import { api } from '@/lib/api';
 import { Search as SearchIcon, ArrowRight } from 'lucide-react';
 import { Link } from 'wouter';
 
-type SearchResult = {
-  type: string;
-  id: string;
-  title: string;
-  sub: string;
-  link: string;
-};
+type Result = { type: string; id: string; title: string; sub: string; link: string };
 
 export default function Recherche() {
   const [query, setQuery] = useState('');
+  const enabled = query.trim().length > 2;
+  const customers = useQuery({ queryKey: ['search-customers', query], queryFn: () => api.customers(query), enabled });
+  const stock = useQuery({ queryKey: ['search-stock', query], queryFn: () => api.stock(query), enabled });
+  const suppliers = useQuery({ queryKey: ['search-suppliers'], queryFn: () => api.suppliers(), enabled });
 
-  const results: SearchResult[] = [];
-  if (query.length > 2) {
+  const results = useMemo<Result[]>(() => {
+    if (!enabled) return [];
     const q = query.toLowerCase();
-    FIXTURES.clients.forEach(c => {
-      if (c.identity.lastName.toLowerCase().includes(q) || c.identity.firstName.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)) {
-        results.push({ type: 'Client', id: c.id, title: `${c.identity.firstName} ${c.identity.lastName}`, sub: c.identity.email, link: `/clients?id=${c.id}` });
-      }
-    });
-    FIXTURES.stock.forEach(s => {
-      if (s.sku.toLowerCase().includes(q) || s.type.toLowerCase().includes(q) || s.brand.toLowerCase().includes(q)) {
-        results.push({ type: 'Stock', id: s.sku, title: `${s.brand} - ${s.type}`, sub: `Lot: ${s.lot}`, link: `/stock?sku=${s.sku}` });
-      }
-    });
-    FIXTURES.suppliers.forEach(s => {
-      if (s.supplierName.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)) {
-        results.push({ type: 'Fournisseur', id: s.id, title: s.supplierName, sub: `Confiance: ${s.confidence}%`, link: `/fournisseurs?id=${s.id}` });
-      }
-    });
-    FIXTURES.approvals.forEach(a => {
-      if (
-        a.id.toLowerCase().includes(q) ||
-        a.object.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q)
-      ) {
-        results.push({
-          type: 'Approbation',
-          id: a.id,
-          title: a.object,
-          sub: `${a.category} · risque ${a.risk}`,
-          link: `/approbations?id=${a.id}`,
-        });
-      }
-    });
-    FIXTURES.replay.forEach(r => {
-      if (r.id.toLowerCase().includes(q) || r.decision.toLowerCase().includes(q)) {
-        results.push({
-          type: 'Audit',
-          id: r.id,
-          title: r.decision,
-          sub: r.timestamp,
-          link: `/gouvernance?replay=${r.id}`,
-        });
-      }
-    });
-  }
+    const rows: Result[] = [];
+    for (const c of customers.data ?? []) {
+      rows.push({ type:'Client', id:c.customerId, title:[c.firstName,c.lastName].filter(Boolean).join(' ') || c.companyName || c.customerId, sub:c.phoneWhatsapp || c.email || c.companyName || '', link:`/clients?id=${c.customerId}` });
+    }
+    for (const p of stock.data?.positions ?? []) {
+      rows.push({ type:'Stock', id:p.sku.sku, title:[p.sku.marque,p.sku.ligne,p.sku.vitole].filter(Boolean).join(' · ') || p.sku.sku, sub:p.identity ? `${p.identity.type} · pack ${p.identity.packSize} · disponible ${p.availableQty ?? 0}` : 'Aucune position', link:`/stock?sku=${p.sku.sku}` });
+    }
+    for (const s of suppliers.data?.suppliers ?? []) {
+      const haystack=`${s.code ?? ''} ${s.name ?? ''}`.toLowerCase();
+      if (haystack.includes(q)) rows.push({ type:'Fournisseur', id:s.supplierId, title:s.name, sub:s.code || '', link:`/fournisseurs?id=${s.supplierId}` });
+    }
+    return rows;
+  }, [enabled, query, customers.data, stock.data, suppliers.data]);
 
-  return (
-    <Layout>
-      <div className="flex flex-col gap-6 max-w-3xl mx-auto mt-8">
-        <header className="text-center mb-4">
-          <h1 className="text-3xl font-serif tracking-tight">Recherche Globale</h1>
-          <p className="text-muted-foreground text-sm font-mono mt-2 uppercase tracking-widest">
-            Index des Signaux, Clients, Stocks et Gouvernance
-          </p>
-        </header>
-
-        <div className="relative">
-          <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-          <Input 
-            autoFocus
-            className="pl-12 h-14 text-lg border-2 border-border focus-visible:border-primary bg-card"
-            placeholder="Entrez un SKU, un nom de client, un ID..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-
-        {query.length > 2 && (
-          <div className="space-y-3 mt-4">
-            <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-4">
-              {results.length} Résultat{results.length > 1 ? 's' : ''} trouvé{results.length > 1 ? 's' : ''}
-            </p>
-            {results.map((r, i) => (
-              <Link key={i} href={r.link} className="block group">
-                <Card className="group-hover:border-primary/50 transition-colors cursor-pointer">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-3">
-                        <Badge variant="secondary">{r.type}</Badge>
-                        <span className="text-[10px] font-mono text-muted-foreground">{r.id}</span>
-                      </div>
-                      <p className="font-medium text-lg mt-1">{r.title}</p>
-                      <p className="text-sm text-muted-foreground">{r.sub}</p>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-            {results.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground border border-dashed border-border">
-                Aucun résultat pour "{query}"
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </Layout>
-  );
+  const loading=customers.isFetching || stock.isFetching || suppliers.isFetching;
+  return <Layout><div className="max-w-4xl mx-auto space-y-6">
+    <header className="text-center"><h1 className="text-3xl font-serif">Recherche Globale</h1><p className="text-sm text-muted-foreground mt-2">Clients, stock et fournisseurs réels.</p></header>
+    <div className="relative"><SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground"/><Input autoFocus className="pl-12 h-14" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nom, client ID, SKU, marque, fournisseur…"/></div>
+    {enabled && <div className="space-y-3">
+      <p className="text-xs font-mono text-muted-foreground uppercase">{loading ? 'Recherche…' : `${results.length} résultat(s)`}</p>
+      {results.map((r,i)=><Link key={`${r.type}-${r.id}-${i}`} href={r.link} className="block group"><Card><CardContent className="p-4 flex justify-between items-center"><div><div className="flex gap-2 items-center"><Badge variant="secondary">{r.type}</Badge><span className="text-[10px] font-mono text-muted-foreground">{r.id}</span></div><p className="font-medium mt-2">{r.title}</p><p className="text-sm text-muted-foreground">{r.sub}</p></div><ArrowRight className="w-4 h-4"/></CardContent></Card></Link>)}
+      {!loading && results.length===0 && <div className="border border-dashed p-10 text-center text-muted-foreground">Aucun résultat réel.</div>}
+    </div>}
+    <p className="text-xs text-muted-foreground">Approbations et Audit ne participent plus à la recherche globale : aucun endpoint de lecture réel n'existe actuellement pour ces domaines.</p>
+  </div></Layout>;
 }
