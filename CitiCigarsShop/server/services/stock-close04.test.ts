@@ -6,8 +6,9 @@ import {
   effectsForAnnulationVente,
   planDeterministicLotAllocation,
 } from "./stock-movement-processor";
-import { physicalBundlePackSize, planBundleComponents } from "./stock-close04";
-import { planSaleCompensationLegs } from "./manual-sale";
+process.env.MYSQL_URL = process.env.MYSQL_URL || "mysql://root@127.0.0.1:3399/not_used_by_pure_close04_tests";
+const { physicalBundlePackSize, planBundleComponents } = await import("./stock-close04");
+const { planSaleCompensationLegs } = await import("./manual-sale");
 
 describe("CLOSE-04 transfer interne", () => {
   it("keeps aggregate stock unchanged while requiring enough unreserved onHand", () => {
