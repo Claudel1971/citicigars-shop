@@ -16,6 +16,15 @@ export interface DecomposeBundleInput {
   movementDate?: Date;
 }
 
+export function physicalBundlePackSize(items: Array<{ quantite: number }>) {
+  const total = items.reduce((sum, item) => {
+    if (!Number.isInteger(item.quantite) || item.quantite <= 0) throw new StockRuleViolation("invalid_bundle_component_quantity");
+    return sum + item.quantite;
+  }, 0);
+  if (total <= 0) throw new StockRuleViolation("bundle_components_missing");
+  return total;
+}
+
 export function planBundleComponents(
   items: Array<{ productSku: string | null; quantite: number }>,
   quantity: number,
@@ -45,7 +54,7 @@ export async function decomposeBundle(input: DecomposeBundleInput) {
   }).from(bundleItems).where(eq(bundleItems.bundleSku, bundleSku));
   if (!items.length) throw new StockRuleViolation("bundle_components_missing");
   const components = planBundleComponents(items, input.quantity);
-  const expectedPackSize = items.reduce((sum, item) => sum + item.quantite, 0);
+  const expectedPackSize = physicalBundlePackSize(items);
   if (input.bundlePackSize !== expectedPackSize) {
     throw new StockRuleViolation("bundle_pack_size_mismatch", `packSize=${input.bundlePackSize}, composition=${expectedPackSize}`);
   }
