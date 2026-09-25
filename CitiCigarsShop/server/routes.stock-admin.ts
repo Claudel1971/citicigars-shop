@@ -98,7 +98,6 @@ function sendAdminStockError(res: Response, error: unknown) {
 const bundleDecompositionSchema = z.object({
   quantity: z.number().int().positive(),
   sourceLocationId: z.string().uuid(),
-  bundleStockType: z.enum(["Box", "Pack", "Loose", "Accessory"]),
   bundlePackSize: z.number().int().nonnegative(),
   sourceLotId: z.string().uuid().optional(),
   author: z.string().trim().min(1).max(100),
