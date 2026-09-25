@@ -18,7 +18,9 @@ This separation removes the former ambiguity where the application runtime used 
 | `MYSQL_URL` | yes for the current Commerce OS runtime | canonical MySQL connection string | yes |
 | `DATABASE_URL` | only when the historical PostgreSQL path/tooling is invoked | PostgreSQL connection string | yes |
 | `CMS_ADMIN_PASSWORD` | yes | bootstrap credential and server-side key material for expiring admin tokens | yes |
-| `ANTHROPIC_API_KEY` | no | enables AI-backed conversation analysis; absent => NullAiProvider | yes |
+| `ANTHROPIC_API_KEY` | no | enables Anthropic-backed CRM conversation analysis; absent => NullAiProvider | yes |
+| `OPENAI_API_KEY` | only when DNA Research Agent is enabled | credential used by `server/services/dna-research-agent.ts` | yes |
+| `OPENAI_DNA_MODEL` | optional | model override for DNA Research Agent; code default applies when absent | no |
 | `PORT` | platform/default | HTTP listener port | no |
 | `NODE_ENV` | platform/default | runtime mode | no |
 | `BASE_PATH` | optional | CitiCigarsAdmin Vite base path | no |
@@ -31,3 +33,7 @@ This separation removes the former ambiguity where the application runtime used 
 3. Admin tokens are signed and expiring; the bootstrap password itself is never embedded in a token.
 4. Replit-only variables (`REPL_ID`, `REPLIT_INTERNAL_APP_DOMAIN`) are optional development compatibility signals and are not part of the production secret contract.
 5. No deployment, database migration, or secret rotation is performed by this CLOSE-03 change.
+
+## Current RBAC bootstrap boundary
+
+`/api/content/login` remains the existing bootstrap login and issues an expiring `OWNER` token only after `CMS_ADMIN_PASSWORD` validation. Lower-privilege roles are enforced server-side by permission middleware but CLOSE-03 does not invent a new identity store or silently provision users. Distinct operator identity provisioning remains outside this restricted CLOSE-03 scope.
