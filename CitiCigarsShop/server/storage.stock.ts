@@ -519,6 +519,10 @@ function computeSimpleEffects(input: ApplyMovementInput, balance: Balance): Effe
     case "RECEPTION_TRANSIT":
       return effectsForReceptionTransit(input.qty);
     case "TRANSFERT_INTERNE":
+      return effectsForTransferInterne(input.qty);
+    case "ANNULATION_VENTE":
+      return effectsForAnnulationVente(input.qty);
+    case "TRANSFERT_INTERNE":
       return effectsForTransfertInterne(input.qty, balance);
     case "ANNULATION_VENTE":
       return effectsForAnnulationVente(input.qty);
@@ -836,6 +840,11 @@ export class StockStorage {
           case "RECEPTION_TRANSIT":
             plans = planAt(sourceId!, input.qty, (balance) => balance.transit);
             sourceFields = ["transit"];
+            destinationField = "onHand";
+            break;
+          case "TRANSFERT_INTERNE":
+            plans = planAt(sourceId!, input.qty, available);
+            sourceFields = ["onHand"];
             destinationField = "onHand";
             break;
           case "TRANSFERT_INTERNE":
