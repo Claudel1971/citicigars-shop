@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -25,6 +25,12 @@ function AuthGate({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState('');
   const [persist, setPersist] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const expire = () => setAuthenticated(false);
+    window.addEventListener('citicigars-auth-expired', expire);
+    return () => window.removeEventListener('citicigars-auth-expired', expire);
+  }, []);
 
   if (authenticated) return <>{children}</>;
 
