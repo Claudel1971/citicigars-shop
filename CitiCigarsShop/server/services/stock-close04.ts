@@ -10,7 +10,6 @@ export interface DecomposeBundleInput {
   bundleSku: string;
   quantity: number;
   sourceLocationId: string;
-  bundleStockType: StockType;
   bundlePackSize: number;
   sourceLotId?: string;
   author: string;
@@ -46,6 +45,10 @@ export async function decomposeBundle(input: DecomposeBundleInput) {
   }).from(bundleItems).where(eq(bundleItems.bundleSku, bundleSku));
   if (!items.length) throw new StockRuleViolation("bundle_components_missing");
   const components = planBundleComponents(items, input.quantity);
+  const expectedPackSize = items.reduce((sum, item) => sum + item.quantite, 0);
+  if (input.bundlePackSize !== expectedPackSize) {
+    throw new StockRuleViolation("bundle_pack_size_mismatch", `packSize=${input.bundlePackSize}, composition=${expectedPackSize}`);
+  }
   const componentSkus = components.map((item) => item.sku);
   const known = await db.select({ sku: skus.sku }).from(skus).where(inArray(skus.sku, componentSkus));
   if (known.length !== componentSkus.length) throw new StockRuleViolation("bundle_component_sku_not_in_stock_catalog");
@@ -54,7 +57,7 @@ export async function decomposeBundle(input: DecomposeBundleInput) {
   return db.transaction(async (tx: any) => {
     const source = await stockStorage.applyLocationMovement({
       sku: bundleSku,
-      type: input.bundleStockType,
+      type: "Pack",
       packSize: input.bundlePackSize,
       movementType: "DESASSEMBLAGE_COMPOSITE",
       qty: input.quantity,
