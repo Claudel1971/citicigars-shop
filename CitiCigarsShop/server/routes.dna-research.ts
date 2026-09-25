@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { and, eq, like, or } from "drizzle-orm";
 import { db } from "./db.mysql";
-import { requireAdminAuth } from "./middleware/auth";
+import { requirePermission } from "./middleware/auth";
 import { researchCigarDna } from "./services/dna-research-agent";
 import {
   cigarCatalog,
@@ -68,7 +68,7 @@ const SOURCING_REFERENCE_BY_ID = new Map(
 export function registerDnaResearchRoutes(app: Express): void {
   app.get(
     "/api/admin/dna-research",
-    requireAdminAuth,
+    requirePermission("product:read"),
     async (req: Request, res: Response) => {
       try {
         const filter =
@@ -183,7 +183,7 @@ export function registerDnaResearchRoutes(app: Express): void {
 
   app.get(
     "/api/admin/dna-research/:cigarId",
-    requireAdminAuth,
+    requirePermission("product:read"),
     async (req: Request, res: Response) => {
       try {
         const cigarId = req.params.cigarId.trim();
@@ -254,7 +254,7 @@ export function registerDnaResearchRoutes(app: Express): void {
 
   app.post(
     "/api/admin/dna-research/:cigarId/research",
-    requireAdminAuth,
+    requirePermission("product:write"),
     async (req: Request, res: Response) => {
       try {
         const cigarId = req.params.cigarId.trim();
@@ -382,7 +382,7 @@ export function registerDnaResearchRoutes(app: Express): void {
 
   app.put(
     "/api/admin/dna-research/:cigarId",
-    requireAdminAuth,
+    requirePermission("approvals:decide"),
     async (req: Request, res: Response) => {
       try {
         const cigarId = req.params.cigarId.trim();
@@ -472,7 +472,7 @@ export function registerDnaResearchRoutes(app: Express): void {
 
   app.post(
     "/api/admin/dna-research/:cigarId/approve",
-    requireAdminAuth,
+    requirePermission("approvals:decide"),
     async (req: Request, res: Response) => {
       try {
         const cigarId = req.params.cigarId.trim();
