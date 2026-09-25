@@ -57,9 +57,10 @@ export const PHYSICAL_TRANSFER_MOVEMENT_TYPES = [
   "SORTIE_EVENEMENT",
   "RETOUR_EVENEMENT",
   "RECEPTION_TRANSIT",
+  "TRANSFERT_INTERNE",
 ] as const satisfies readonly MovementType[];
 
-const EXTERNAL_INBOUND_MOVEMENT_TYPES = ["RECEPTION", "ENTREE_TRANSIT"] as const satisfies readonly MovementType[];
+const EXTERNAL_INBOUND_MOVEMENT_TYPES = ["RECEPTION", "ENTREE_TRANSIT", "ANNULATION_VENTE"] as const satisfies readonly MovementType[];
 const EXTERNAL_OUTBOUND_MOVEMENT_TYPES = ["VENTE", "CADEAU", "ECHANTILLON", "PERTE_CASSE"] as const satisfies readonly MovementType[];
 
 export function locationAwareEndpointsForMovement(
@@ -76,6 +77,12 @@ export function locationAwareEndpointsForMovement(
     if (!sourceLocationId) throw new StockRuleViolation("source_location_required");
     if (destinationLocationId) throw new StockRuleViolation("external_outbound_destination_must_be_null");
     return { sourceLocationId, destinationLocationId: null };
+  }
+  if (movementType === "DESASSEMBLAGE_COMPOSITE") {
+    const hasSource = Boolean(sourceLocationId);
+    const hasDestination = Boolean(destinationLocationId);
+    if (hasSource === hasDestination) throw new StockRuleViolation("composite_decomposition_requires_one_endpoint");
+    return { sourceLocationId: sourceLocationId ?? null, destinationLocationId: destinationLocationId ?? null };
   }
   if ((PHYSICAL_TRANSFER_MOVEMENT_TYPES as readonly MovementType[]).includes(movementType)) {
     if (!sourceLocationId) throw new StockRuleViolation("source_location_required");
@@ -318,6 +325,20 @@ export function effectsForReceptionTransit(qty: number): Effect[] {
     { balanceField: "transit", delta: -qty },
     { balanceField: "onHand", delta: qty },
   ];
+}
+
+export function effectsForTransfertInterne(qty: number, balance: Balance): Effect[] {
+  const { availableNow } = computeAvailability(balance);
+  if (qty > availableNow) throw new StockRuleViolation("insufficient_availability_for_transfer");
+  return [
+    { balanceField: "onHand", delta: -qty },
+    { balanceField: "onHand", delta: qty },
+  ];
+}
+
+export function effectsForAnnulationVente(qty: number): Effect[] {
+  if (!Number.isInteger(qty) || qty <= 0) throw new StockRuleViolation("invalid_sale_compensation_quantity");
+  return [{ balanceField: "onHand", delta: qty }];
 }
 
 // --- OUVERTURE_BOITE : validation dédiée (orchestration multi-lignes faite par storage.stock.ts) ---
