@@ -10,6 +10,7 @@ import {
   listStockPositions,
 } from "./services/stock-traceability";
 import { resolveIdentityFilter, TraceabilityNotFoundError } from "./services/stock-traceability-model";
+import { decomposeBundle } from "./services/stock-close04";
 
 export const ADMIN_STOCK_MOVEMENT_TYPES = [
   "RECEPTION",
@@ -21,6 +22,7 @@ export const ADMIN_STOCK_MOVEMENT_TYPES = [
   "SORTIE_EVENEMENT",
   "RETOUR_EVENEMENT",
   "CORRECTION_INVENTAIRE",
+  "TRANSFERT_INTERNE",
 ] as const;
 
 const movementSchema = z.object({
@@ -93,6 +95,16 @@ function sendAdminStockError(res: Response, error: unknown) {
   return res.status(500).json({ error: "stock_operation_failed" });
 }
 
+const bundleDecompositionSchema = z.object({
+  quantity: z.number().int().positive(),
+  sourceLocationId: z.string().uuid(),
+  bundleStockType: z.enum(["Box", "Pack", "Loose", "Accessory"]),
+  bundlePackSize: z.number().int().nonnegative(),
+  sourceLotId: z.string().uuid().optional(),
+  author: z.string().trim().min(1).max(100),
+  movementDate: z.string().datetime().optional(),
+}).strict();
+
 export function registerStockAdminRoutes(app: Express, dependencies: StockAdminDependencies = defaultDependencies) {
   app.get("/api/admin/stock", requirePermission("stock:read"), async (req, res) => {
     try {
@@ -122,6 +134,20 @@ export function registerStockAdminRoutes(app: Express, dependencies: StockAdminD
         packSize: identity.packSize!,
         destinationLocationId,
       }) });
+    } catch (error) {
+      sendAdminStockError(res, error);
+    }
+  });
+
+  app.post("/api/admin/stock/bundles/:sku/decompose", requirePermission("stock:write"), async (req, res) => {
+    try {
+      const parsed = bundleDecompositionSchema.parse(req.body);
+      const result = await decomposeBundle({
+        ...parsed,
+        bundleSku: req.params.sku,
+        movementDate: parsed.movementDate ? new Date(parsed.movementDate) : undefined,
+      });
+      res.status(201).json(result);
     } catch (error) {
       sendAdminStockError(res, error);
     }
