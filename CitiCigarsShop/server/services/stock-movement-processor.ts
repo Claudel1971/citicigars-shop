@@ -327,17 +327,6 @@ export function effectsForReceptionTransit(qty: number): Effect[] {
   ];
 }
 
-export function effectsForTransferInterne(qty: number): Effect[] {
-  return [
-    { balanceField: "onHand", delta: -qty },
-    { balanceField: "onHand", delta: qty },
-  ];
-}
-
-export function effectsForAnnulationVente(qty: number): Effect[] {
-  return [{ balanceField: "onHand", delta: qty }];
-}
-
 export function effectsForTransfertInterne(qty: number, balance: Balance): Effect[] {
   const { availableNow } = computeAvailability(balance);
   if (qty > availableNow) throw new StockRuleViolation("insufficient_availability_for_transfer");
