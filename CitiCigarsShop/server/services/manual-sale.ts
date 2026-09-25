@@ -162,6 +162,41 @@ function databaseCode(error: unknown): string {
   return "";
 }
 
+export interface SaleCompensationAllocation {
+  lotId: string;
+  locationId: string;
+  balanceField: string;
+  qtyDelta: number;
+  sku: string;
+  type: StockType;
+  packSize: number;
+}
+
+export function planSaleCompensationLegs(
+  line: { orderItemId: string; sku: string; stockType: StockType; stockPackSize: number },
+  allocations: SaleCompensationAllocation[],
+) {
+  const physical = allocations
+    .filter((row) => row.balanceField === "onHand" && row.qtyDelta < 0)
+    .sort((a, b) => `${a.locationId}\0${a.lotId}`.localeCompare(`${b.locationId}\0${b.lotId}`));
+
+  if (!physical.length) throw new Error(`Ligne ${line.orderItemId}: allocations physiques de vente introuvables`);
+
+  return physical.map((allocation) => {
+    if (allocation.sku !== line.sku || allocation.type !== line.stockType || allocation.packSize !== line.stockPackSize) {
+      throw new Error(`Ligne ${line.orderItemId}: identité allocation/vente incohérente`);
+    }
+    return {
+      sku: allocation.sku,
+      type: allocation.type,
+      packSize: allocation.packSize,
+      quantity: -allocation.qtyDelta,
+      destinationLocationId: allocation.locationId,
+      lotId: allocation.lotId,
+    };
+  });
+}
+
 export async function deleteManualSale(_orderId: string) {
   throw new Error("Suppression destructive désactivée: utiliser l'annulation compensatoire");
 }
@@ -211,23 +246,21 @@ export async function cancelManualSale(orderId: string, author: string) {
       }).from(stockMovementLotAllocations)
         .where(eq(stockMovementLotAllocations.groupId, line.stockMovementGroupId));
 
-      const physical = allocations
-        .filter((row: any) => row.balanceField === "onHand" && row.qtyDelta < 0)
-        .sort((a: any, b: any) => `${a.locationId}\0${a.lotId}`.localeCompare(`${b.locationId}\0${b.lotId}`));
+      const compensationLegs = planSaleCompensationLegs({
+        orderItemId: line.orderItemId,
+        sku: line.sku,
+        stockType: line.stockType,
+        stockPackSize: line.stockPackSize,
+      }, allocations as SaleCompensationAllocation[]);
 
-      if (!physical.length) throw new Error(`Ligne ${line.orderItemId}: allocations physiques de vente introuvables`);
-
-      for (const allocation of physical) {
-        if (allocation.sku !== line.sku || allocation.type !== line.stockType || allocation.packSize !== line.stockPackSize) {
-          throw new Error(`Ligne ${line.orderItemId}: identité allocation/vente incohérente`);
-        }
+      for (const allocation of compensationLegs) {
         const result = await stockStorage.applyLocationMovement({
           sku: allocation.sku,
           type: allocation.type,
           packSize: allocation.packSize,
           movementType: "ANNULATION_VENTE",
-          qty: -allocation.qtyDelta,
-          destinationLocationId: allocation.locationId,
+          qty: allocation.quantity,
+          destinationLocationId: allocation.destinationLocationId,
           lotId: allocation.lotId,
           author: actor,
           referenceType: "ORDER",
