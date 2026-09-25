@@ -104,8 +104,8 @@ Dans cPanel → Setup Node.js App → Environment variables :
 
 ```
 NODE_ENV=production
-DATABASE_URL=mysql://USERNAME_citicigars_user:PASSWORD@localhost/USERNAME_citicigars_db
-CMS_ADMIN_PASSWORD=votre_mot_de_passe_admin
+MYSQL_URL=<mysql-connection-string-from-platform-secret-store>
+CMS_ADMIN_PASSWORD=<secret-from-platform-secret-store>
 ```
 
 Remplacez :
@@ -153,7 +153,7 @@ Et importez vos produits via le panneau d'administration.
 - Assurez-vous que le fichier `app.js` existe
 
 ### Erreur de connexion MySQL
-- Vérifiez que DATABASE_URL est correct
+- Vérifiez que MYSQL_URL est correct
 - Format : `mysql://user:password@localhost/database`
 
 ### Problèmes de permissions

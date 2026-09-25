@@ -14,12 +14,12 @@ Ce mini système de gestion de contenu (CMS) permet de modifier les textes du si
 
 Le mot de passe CMS est défini par la variable d'environnement `CMS_ADMIN_PASSWORD`.
 
-- **Par défaut** : `citicigars2024`
-- **Pour le modifier** : Définir `CMS_ADMIN_PASSWORD` dans les secrets Replit
+- **Aucune valeur par défaut** : le serveur refuse de démarrer si `CMS_ADMIN_PASSWORD` est absent.
+- **Configuration** : définir `CMS_ADMIN_PASSWORD` uniquement dans le gestionnaire de secrets / variables d'environnement de la plateforme.
 
 ```bash
-# Dans les secrets Replit ou .env
-CMS_ADMIN_PASSWORD=VotreMotDePasseSecurise
+# Dans le gestionnaire de secrets de la plateforme ou un .env local non versionné
+CMS_ADMIN_PASSWORD=<secret-non-versionne>
 ```
 
 ## Structure du contenu
