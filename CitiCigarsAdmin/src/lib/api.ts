@@ -13,6 +13,7 @@ export function setAdminToken(token: string, persist = false) {
 export function clearAdminToken() {
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
+  window.dispatchEvent(new Event("citicigars-auth-expired"));
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
