@@ -90,7 +90,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <Lock className="w-4 h-4 text-warning" />
             <div className="flex flex-col">
               <span className="text-[10px] font-mono text-sidebar-foreground/60 uppercase tracking-widest">Opérateur</span>
-              <span className="text-xs text-sidebar-foreground font-medium">Owner (Lecture seule)</span>
+              <span className="text-xs text-sidebar-foreground font-medium">Owner · API réelle</span>
             </div>
           </div>
         </div>
@@ -104,12 +104,12 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-6 py-2.5">
             <div className="flex items-center gap-2 text-warning font-medium text-xs">
               <AlertTriangle className="w-4 h-4" />
-              <span className="uppercase tracking-wider font-mono">Environnement R1 (bac à sable) — Données de démonstration</span>
+              <span className="uppercase tracking-wider font-mono">CLOSE-02 — Données réelles connectées, mutations Admin non activées</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] font-mono uppercase tracking-widest">
                 <Database className="w-3.5 h-3.5" />
-                Sources simulées
+                Sources API réelles
               </div>
               <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
             </div>
