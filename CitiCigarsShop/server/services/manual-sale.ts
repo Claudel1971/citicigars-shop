@@ -4,7 +4,7 @@ import { db } from "../db.mysql";
 import { customers } from "../../shared/schema.crm";
 import { orders, orderItems } from "../../shared/schema.sales";
 import { products } from "../../shared/schema.mysql";
-import { STOCK_TYPES, skus, stockLocations, type StockType } from "../../shared/schema.stock";
+import { STOCK_TYPES, skus, stockLocations, stockMovementLotAllocations, stockMovementGroups, type StockType } from "../../shared/schema.stock";
 import { stockStorage } from "../storage.stock";
 import { StockRuleViolation } from "./stock-movement-processor";
 import { computeOrder, type CatalogLineInput } from "./sales";
@@ -162,15 +162,87 @@ function databaseCode(error: unknown): string {
   return "";
 }
 
-export async function deleteManualSale(orderId: string) {
-  const [order] = await db.select({ orderId: orders.orderId, source: orders.source }).from(orders).where(eq(orders.orderId, orderId));
-  if (!order) throw new Error("Vente introuvable");
-  if (order.source !== "manual") throw new Error("Seules les ventes saisies manuellement peuvent être supprimées");
-  const [stockLinkedLine] = await db.select({ orderItemId: orderItems.orderItemId }).from(orderItems)
-    .where(and(eq(orderItems.orderId, orderId), eq(orderItems.stockDisposition, "CONSUME"))).limit(1);
-  if (stockLinkedLine) throw new Error("Cette vente a consommé du stock; une opération compensatoire explicite est requise");
-  await db.delete(orders).where(eq(orders.orderId, orderId));
-  return { deleted: true };
+export async function deleteManualSale(_orderId: string) {
+  throw new Error("Suppression destructive désactivée: utiliser l'annulation compensatoire");
+}
+
+export async function cancelManualSale(orderId: string, author: string) {
+  const actor = String(author || "").trim();
+  if (!actor || actor.length > 100) throw new Error("Auteur opérateur requis (100 caractères maximum)");
+
+  return db.transaction(async (tx: any) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.orderId, orderId)).for("update");
+    if (!order) throw new Error("Vente introuvable");
+    if (order.source !== "manual") throw new Error("Seules les ventes manuelles sont annulables par CLOSE-04");
+    if (order.status === "CANCELLED") {
+      const existing = await tx.select({ groupId: stockMovementGroups.groupId })
+        .from(stockMovementGroups)
+        .where(and(eq(stockMovementGroups.movementType, "ANNULATION_VENTE"), eq(stockMovementGroups.referenceId, orderId)));
+      return { orderId, status: "CANCELLED", movementGroupIds: existing.map((row: any) => row.groupId), idempotentReplay: true };
+    }
+    if (Number(order.amountPaid || 0) > 0) {
+      throw new Error("Vente encaissée: remboursement/cash reversal requis dans CLOSE-05 avant annulation");
+    }
+
+    const lines = await tx.select({
+      orderItemId: orderItems.orderItemId,
+      sku: orderItems.itemSku,
+      stockType: orderItems.stockType,
+      stockPackSize: orderItems.stockPackSize,
+      stockMovementGroupId: orderItems.stockMovementGroupId,
+      stockDisposition: orderItems.stockDisposition,
+    }).from(orderItems).where(eq(orderItems.orderId, orderId));
+
+    const movementGroupIds: string[] = [];
+    for (const line of lines) {
+      if (line.stockDisposition !== "CONSUME") continue;
+      if (!line.stockMovementGroupId || !line.stockType || line.stockPackSize == null) {
+        throw new Error(`Ligne ${line.orderItemId}: lien Stock Central incomplet`);
+      }
+
+      const allocations = await tx.select({
+        lotId: stockMovementLotAllocations.lotId,
+        locationId: stockMovementLotAllocations.locationId,
+        balanceField: stockMovementLotAllocations.balanceField,
+        qtyDelta: stockMovementLotAllocations.qtyDelta,
+        sku: stockMovementLotAllocations.sku,
+        type: stockMovementLotAllocations.type,
+        packSize: stockMovementLotAllocations.packSize,
+      }).from(stockMovementLotAllocations)
+        .where(eq(stockMovementLotAllocations.groupId, line.stockMovementGroupId));
+
+      const physical = allocations
+        .filter((row: any) => row.balanceField === "onHand" && row.qtyDelta < 0)
+        .sort((a: any, b: any) => `${a.locationId}\0${a.lotId}`.localeCompare(`${b.locationId}\0${b.lotId}`));
+
+      if (!physical.length) throw new Error(`Ligne ${line.orderItemId}: allocations physiques de vente introuvables`);
+
+      for (const allocation of physical) {
+        if (allocation.sku !== line.sku || allocation.type !== line.stockType || allocation.packSize !== line.stockPackSize) {
+          throw new Error(`Ligne ${line.orderItemId}: identité allocation/vente incohérente`);
+        }
+        const result = await stockStorage.applyLocationMovement({
+          sku: allocation.sku,
+          type: allocation.type,
+          packSize: allocation.packSize,
+          movementType: "ANNULATION_VENTE",
+          qty: -allocation.qtyDelta,
+          destinationLocationId: allocation.locationId,
+          lotId: allocation.lotId,
+          author: actor,
+          referenceType: "ORDER",
+          referenceId: orderId,
+          referenceLabel: line.orderItemId,
+          comment: `Compensation append-only de vente ${orderId} / ${line.orderItemId}`,
+          movementDate: new Date(),
+        }, tx);
+        movementGroupIds.push(result.groupId);
+      }
+    }
+
+    await tx.update(orders).set({ status: "CANCELLED" }).where(eq(orders.orderId, orderId));
+    return { orderId, status: "CANCELLED", movementGroupIds, idempotentReplay: false };
+  });
 }
 
 /** Stock decrements only when this new manual order commits as CONFIRMED/PAID. */
