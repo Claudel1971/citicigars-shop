@@ -173,7 +173,7 @@ export interface SaleCompensationAllocation {
 }
 
 export function planSaleCompensationLegs(
-  line: { orderItemId: string; sku: string; stockType: StockType; stockPackSize: number },
+  line: { orderItemId: string; sku: string; stockType: StockType; stockPackSize: number; quantity: number },
   allocations: SaleCompensationAllocation[],
 ) {
   const physical = allocations
@@ -181,6 +181,8 @@ export function planSaleCompensationLegs(
     .sort((a, b) => `${a.locationId}\0${a.lotId}`.localeCompare(`${b.locationId}\0${b.lotId}`));
 
   if (!physical.length) throw new Error(`Ligne ${line.orderItemId}: allocations physiques de vente introuvables`);
+  const consumedQty = physical.reduce((sum, allocation) => sum + (-allocation.qtyDelta), 0);
+  if (consumedQty !== line.quantity) throw new Error(`Ligne ${line.orderItemId}: quantité allouée incohérente avec la vente`);
 
   return physical.map((allocation) => {
     if (allocation.sku !== line.sku || allocation.type !== line.stockType || allocation.packSize !== line.stockPackSize) {
@@ -201,9 +203,11 @@ export async function deleteManualSale(_orderId: string) {
   throw new Error("Suppression destructive désactivée: utiliser l'annulation compensatoire");
 }
 
-export async function cancelManualSale(orderId: string, author: string) {
+export async function cancelManualSale(orderId: string, author: string, reason: string) {
   const actor = String(author || "").trim();
   if (!actor || actor.length > 100) throw new Error("Auteur opérateur requis (100 caractères maximum)");
+  const motif = String(reason || "").trim();
+  if (!motif || motif.length > 2000) throw new Error("Motif d’annulation requis (2000 caractères maximum)");
 
   return db.transaction(async (tx: any) => {
     const [order] = await tx.select().from(orders).where(eq(orders.orderId, orderId)).for("update");
@@ -226,6 +230,7 @@ export async function cancelManualSale(orderId: string, author: string) {
       stockPackSize: orderItems.stockPackSize,
       stockMovementGroupId: orderItems.stockMovementGroupId,
       stockDisposition: orderItems.stockDisposition,
+      quantity: orderItems.quantity,
     }).from(orderItems).where(eq(orderItems.orderId, orderId));
 
     const movementGroupIds: string[] = [];
@@ -251,6 +256,7 @@ export async function cancelManualSale(orderId: string, author: string) {
         sku: line.sku,
         stockType: line.stockType,
         stockPackSize: line.stockPackSize,
+        quantity: line.quantity,
       }, allocations as SaleCompensationAllocation[]);
 
       for (const allocation of compensationLegs) {
@@ -266,6 +272,7 @@ export async function cancelManualSale(orderId: string, author: string) {
           referenceType: "ORDER",
           referenceId: orderId,
           referenceLabel: line.orderItemId,
+          motif,
           comment: `Compensation append-only de vente ${orderId} / ${line.orderItemId}`,
           movementDate: new Date(),
         }, tx);
