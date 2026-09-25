@@ -20,7 +20,7 @@ import { registerStockMonitoringRoutes } from "./routes.stock-monitoring";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
-import { getAdminPassword, isValidAdminToken, requireAdminAuth } from "./middleware/auth";
+import { getAdminPassword, isValidAdminToken, issueAdminToken, requirePermission } from "./middleware/auth";
 // No hardcoded fallback: middleware/auth.ts throws at startup if
 // CMS_ADMIN_PASSWORD is not set. See brief correction #5/#7.
 const ADMIN_PASSWORD = getAdminPassword();
@@ -164,7 +164,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", requirePermission("product:write"), async (req, res) => {
     try {
       const product = req.body;
       if (!product.sku || !product.marque) {
@@ -184,7 +184,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/products/:sku", async (req, res) => {
+  app.put("/api/products/:sku", requirePermission("product:write"), async (req, res) => {
     try {
       const updated = await storage.updateProduct(req.params.sku, req.body);
       if (!updated) {
@@ -197,7 +197,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/products/:sku", async (req, res) => {
+  app.delete("/api/products/:sku", requirePermission("product:write"), async (req, res) => {
     try {
       await storage.deleteProduct(req.params.sku);
       res.json({ success: true });
@@ -207,7 +207,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products/bulk-update-prices", async (req, res) => {
+  app.post("/api/products/bulk-update-prices", requirePermission("product:write"), async (req, res) => {
     try {
       const { updates } = req.body;
       if (!updates || !Array.isArray(updates)) {
@@ -236,7 +236,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products/bulk-update-puissance", async (req, res) => {
+  app.post("/api/products/bulk-update-puissance", requirePermission("product:write"), async (req, res) => {
     try {
       const { updates } = req.body;
       if (!updates || !Array.isArray(updates)) {
@@ -263,7 +263,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products/import", async (req, res) => {
+  app.post("/api/products/import", requirePermission("product:write"), async (req, res) => {
     try {
       const { products } = req.body;
       if (!products || !Array.isArray(products)) {
@@ -290,7 +290,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products/:sku/images", async (req, res) => {
+  app.post("/api/products/:sku/images", requirePermission("product:write"), async (req, res) => {
     try {
       const { sku } = req.params;
       const { images } = req.body;
@@ -308,7 +308,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/products/:sku/images", async (req, res) => {
+  app.delete("/api/products/:sku/images", requirePermission("product:write"), async (req, res) => {
     try {
       await storage.deleteImagesBySku(req.params.sku);
       res.json({ success: true });
@@ -318,7 +318,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/products/:sku/images/:type", async (req, res) => {
+  app.delete("/api/products/:sku/images/:type", requirePermission("product:write"), async (req, res) => {
     try {
       await storage.deleteImageByType(req.params.sku, req.params.type);
       res.json({ success: true });
@@ -328,7 +328,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/seed", async (req, res) => {
+  app.post("/api/seed", requirePermission("product:write"), async (req, res) => {
     try {
       const existingProducts = await storage.getAllProducts();
       if (existingProducts.length > 0) {
@@ -400,18 +400,14 @@ export async function registerRoutes(
   app.post("/api/content/login", (req, res) => {
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
-      res.json({ success: true, token: Buffer.from(ADMIN_PASSWORD).toString("base64") });
+      const session = issueAdminToken("OWNER");
+      res.json({ success: true, token: session.token, expiresInSeconds: session.expiresInSeconds });
     } else {
       res.status(401).json({ error: "Mot de passe incorrect" });
     }
   });
 
-  app.put("/api/content", (req, res) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.replace("Bearer ", "");
-    if (!token || Buffer.from(token, "base64").toString() !== ADMIN_PASSWORD) {
-      return res.status(401).json({ error: "Non autorisé" });
-    }
+  app.put("/api/content", requirePermission("content:write"), (req, res) => {
     try {
       const sanitized = sanitizeContent(req.body);
       writeContent(sanitized);
@@ -443,14 +439,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/cms/assets", cmsUpload.single("image"), (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.post("/api/cms/assets", requirePermission("content:write"), cmsUpload.single("image"), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Aucun fichier fourni" });
     res.json({ success: true, filename: req.file.filename, url: `/cms-assets/${req.file.filename}`, size: req.file.size });
   });
 
-  app.delete("/api/cms/assets/:filename", (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.delete("/api/cms/assets/:filename", requirePermission("content:write"), (req, res) => {
     const safeFilename = path.basename(req.params.filename);
     const filepath = path.join(CMS_ASSETS_DIR, safeFilename);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: "Fichier non trouvé" });
@@ -474,8 +468,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/technical-sheets/import", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.post("/api/admin/technical-sheets/import", requirePermission("product:write"), async (req, res) => {
     try {
       const { sku, fileContent, isPremium } = req.body;
       if (!sku || !fileContent) return res.status(400).json({ error: "SKU et contenu requis" });
@@ -509,8 +502,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/technical-sheets/:sku", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.delete("/api/admin/technical-sheets/:sku", requirePermission("product:write"), async (req, res) => {
     try {
       await storage.deleteTechnicalSheet(req.params.sku);
       res.json({ success: true });
@@ -543,8 +535,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/bundles", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.post("/api/bundles", requirePermission("product:write"), async (req, res) => {
     try {
       const { bundleData, items } = req.body;
       if (!bundleData?.sku || !bundleData?.nom) return res.status(400).json({ error: "SKU et nom sont requis" });
@@ -556,8 +547,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/bundles/:sku", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.put("/api/bundles/:sku", requirePermission("product:write"), async (req, res) => {
     try {
       const { bundleData, items } = req.body;
       const bundle = await bundleStorage.updateBundle(req.params.sku, bundleData || {}, items);
@@ -569,8 +559,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/bundles/:sku/availability", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.put("/api/bundles/:sku/availability", requirePermission("product:write"), async (req, res) => {
     try {
       const { availabilityStatus, soldOutAt } = req.body;
       const bundle = await bundleStorage.updateBundleAvailability(req.params.sku, availabilityStatus, soldOutAt ? new Date(soldOutAt) : undefined);
@@ -582,8 +571,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/bundles/:sku", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.delete("/api/bundles/:sku", requirePermission("product:write"), async (req, res) => {
     try {
       const deleted = await bundleStorage.deleteBundle(req.params.sku);
       if (!deleted) return res.status(404).json({ error: "Bundle not found" });

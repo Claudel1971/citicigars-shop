@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 import { z } from "zod";
-import { requireAdminAuth } from "./middleware/auth";
+import { requirePermission } from "./middleware/auth";
 import { stockStorage, type ApplyLocationMovementInput } from "./storage.stock";
 import { StockRuleViolation } from "./services/stock-movement-processor";
 import {
@@ -94,7 +94,7 @@ function sendAdminStockError(res: Response, error: unknown) {
 }
 
 export function registerStockAdminRoutes(app: Express, dependencies: StockAdminDependencies = defaultDependencies) {
-  app.get("/api/admin/stock", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/stock", requirePermission("stock:read"), async (req, res) => {
     try {
       res.json(await dependencies.listPositions(queryString(req.query.search)));
     } catch (error) {
@@ -102,7 +102,7 @@ export function registerStockAdminRoutes(app: Express, dependencies: StockAdminD
     }
   });
 
-  app.get("/api/admin/stock/locations", requireAdminAuth, async (_req, res) => {
+  app.get("/api/admin/stock/locations", requirePermission("stock:read"), async (_req, res) => {
     try {
       res.json({ locations: await dependencies.listLocations() });
     } catch (error) {
@@ -110,7 +110,7 @@ export function registerStockAdminRoutes(app: Express, dependencies: StockAdminD
     }
   });
 
-  app.get("/api/admin/stock/reception-lots", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/stock/reception-lots", requirePermission("stock:read"), async (req, res) => {
     try {
       const sku = queryString(req.query.sku);
       const destinationLocationId = queryString(req.query.destinationLocationId);
@@ -127,7 +127,7 @@ export function registerStockAdminRoutes(app: Express, dependencies: StockAdminD
     }
   });
 
-  app.post("/api/admin/stock/movements", requireAdminAuth, async (req, res) => {
+  app.post("/api/admin/stock/movements", requirePermission("stock:write"), async (req, res) => {
     try {
       const input = parseAdminStockMovement(req.body);
       await dependencies.assertSku(input.sku);

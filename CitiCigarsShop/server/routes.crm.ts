@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "./db.mysql";
 import { customers, customerInteractions, crmFollowups } from "../shared/schema.crm";
-import { requireAdminAuth } from "./middleware/auth";
+import { requirePermission } from "./middleware/auth";
 import * as crmService from "./services/crm";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
@@ -18,7 +18,7 @@ export function registerCrmRoutes(app: Express) {
   // Customers
   // -------------------------------------------------------------------
 
-  app.get("/api/crm/customers", requireAdminAuth, async (req, res) => {
+  app.get("/api/crm/customers", requirePermission("crm:read"), async (req, res) => {
     try {
       const { status, search } = req.query;
       const rows = await crmService.listCustomers({
@@ -32,7 +32,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.get("/api/crm/customers/:id", requireAdminAuth, async (req, res) => {
+  app.get("/api/crm/customers/:id", requirePermission("crm:read"), async (req, res) => {
     try {
       const detail = await crmService.getCustomerDetail(req.params.id);
       if (!detail) return res.status(404).json({ error: "Client introuvable" });
@@ -43,7 +43,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/customers", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/customers", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await crmService.createCustomer(req.body);
       res.status(result.wasExistingDuplicate ? 200 : 201).json(result);
@@ -53,7 +53,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.put("/api/crm/customers/:id", requireAdminAuth, async (req, res) => {
+  app.put("/api/crm/customers/:id", requirePermission("crm:write"), async (req, res) => {
     try {
       const updated = await crmService.updateCustomer(req.params.id, req.body);
       if (!updated) return res.status(404).json({ error: "Client introuvable" });
@@ -71,7 +71,7 @@ export function registerCrmRoutes(app: Express) {
   });
 
 
-  app.delete("/api/crm/customers/:id", requireAdminAuth, async (req, res) => {
+  app.delete("/api/crm/customers/:id", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await crmService.deleteOrBlacklistCustomer(
         req.params.id,
@@ -84,7 +84,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.put("/api/crm/customers/:id/blacklist", requireAdminAuth, async (req, res) => {
+  app.put("/api/crm/customers/:id/blacklist", requirePermission("crm:write"), async (req, res) => {
     try {
       const updated = await crmService.setCustomerBlacklist(
         req.params.id,
@@ -102,7 +102,7 @@ export function registerCrmRoutes(app: Express) {
   // Interactions
   // -------------------------------------------------------------------
 
-  app.post("/api/crm/customers/:id/interactions", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/customers/:id/interactions", requirePermission("crm:write"), async (req, res) => {
     try {
       const interaction = await crmService.addInteraction({
         ...req.body,
@@ -116,7 +116,7 @@ export function registerCrmRoutes(app: Express) {
   });
 
 
-  app.delete("/api/crm/interactions/:id", requireAdminAuth, async (req, res) => {
+  app.delete("/api/crm/interactions/:id", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await crmService.deleteManualInteraction(req.params.id);
       res.json(result);
@@ -130,7 +130,7 @@ export function registerCrmRoutes(app: Express) {
   // Followups
   // -------------------------------------------------------------------
 
-  app.get("/api/crm/followups", requireAdminAuth, async (req, res) => {
+  app.get("/api/crm/followups", requirePermission("crm:read"), async (req, res) => {
     try {
       const rawStatus = typeof req.query.status === "string" ? req.query.status.toUpperCase() : "OPEN";
       const status = ["OPEN", "DONE", "CANCELLED", "ALL"].includes(rawStatus)
@@ -144,7 +144,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/followups", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/followups", requirePermission("crm:write"), async (req, res) => {
     try {
       const followup = await crmService.createFollowup(req.body);
       res.status(201).json(followup);
@@ -154,7 +154,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.put("/api/crm/followups/:id/complete", requireAdminAuth, async (req, res) => {
+  app.put("/api/crm/followups/:id/complete", requirePermission("crm:write"), async (req, res) => {
     try {
       await crmService.completeFollowup(req.params.id);
       res.json({ success: true });
@@ -164,7 +164,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.put("/api/crm/followups/:id/cancel", requireAdminAuth, async (req, res) => {
+  app.put("/api/crm/followups/:id/cancel", requirePermission("crm:write"), async (req, res) => {
     try {
       await crmService.cancelFollowup(req.params.id);
       res.json({ success: true });
@@ -175,7 +175,7 @@ export function registerCrmRoutes(app: Express) {
   });
 
 
-  app.put("/api/crm/followups/:id/reopen", requireAdminAuth, async (req, res) => {
+  app.put("/api/crm/followups/:id/reopen", requirePermission("crm:write"), async (req, res) => {
     try {
       await crmService.reopenFollowup(req.params.id);
       res.json({ success: true });
@@ -189,7 +189,7 @@ export function registerCrmRoutes(app: Express) {
   // WhatsApp V1.5 analysis — AI proposes, human validates, then writes.
   // -------------------------------------------------------------------
 
-  app.post("/api/crm/analyze-conversation", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/analyze-conversation", requirePermission("crm:write"), async (req, res) => {
     try {
       const { rawText } = req.body;
       const existingCustomers = await db
@@ -235,7 +235,7 @@ export function registerCrmRoutes(app: Express) {
     };
   }
 
-  app.post("/api/crm/analyze-conversation/validate", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/analyze-conversation/validate", requirePermission("crm:write"), async (req, res) => {
     try {
       const { clientRequestId, customerId, newCustomer, customerUpdates, interaction, followup } = req.body;
 
@@ -334,7 +334,7 @@ export function registerCrmRoutes(app: Express) {
   // Historical import — dry-run first, always.
   // -------------------------------------------------------------------
 
-  app.post("/api/crm/import/dry-run", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/import/dry-run", requirePermission("crm:write"), async (req, res) => {
     try {
       const report = await dryRunHistoricalImport(req.body.rows ?? []);
       res.json(report);
@@ -344,7 +344,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/import/run", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/import/run", requirePermission("crm:write"), async (req, res) => {
     try {
       const importBatchId = req.body.importBatchId || crypto.randomUUID();
       const result = await runHistoricalImport({
@@ -362,7 +362,7 @@ export function registerCrmRoutes(app: Express) {
   // Manual sales — Phase 1 commercial capture.
   // -------------------------------------------------------------------
 
-  app.post("/api/crm/sales", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/sales", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await createManualSale(req.body || {});
       res.status(result.idempotentReplay ? 200 : 201).json(result);
@@ -373,7 +373,7 @@ export function registerCrmRoutes(app: Express) {
   });
 
 
-  app.delete("/api/crm/sales/:id", requireAdminAuth, async (req, res) => {
+  app.delete("/api/crm/sales/:id", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await deleteManualSale(req.params.id);
       res.json(result);
@@ -387,7 +387,7 @@ export function registerCrmRoutes(app: Express) {
   // Transaction Explorer — filter + export only, no BI/charts in the CRM.
   // -------------------------------------------------------------------
 
-  app.get("/api/crm/dashboard/top-products", requireAdminAuth, async (req, res) => {
+  app.get("/api/crm/dashboard/top-products", requirePermission("crm:read"), async (req, res) => {
     try {
       const limit = Number(req.query.limit) || 3;
       const rows = await getTopProductsByOrderCount(limit);
@@ -398,7 +398,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/transactions/search", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/transactions/search", requirePermission("crm:write"), async (req, res) => {
     try {
       const rows = await queryTransactions(req.body || {});
       res.json(rows);
@@ -408,7 +408,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/transactions/export", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/transactions/export", requirePermission("crm:write"), async (req, res) => {
     try {
       const rows = await queryTransactions(req.body || {});
       const buffer = buildTransactionExportWorkbook(rows, req.body?.viewMode === "orders" ? "orders" : "lines");
@@ -421,7 +421,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.get("/api/crm/saved-views", requireAdminAuth, async (_req, res) => {
+  app.get("/api/crm/saved-views", requirePermission("crm:read"), async (_req, res) => {
     try {
       const views = await db.select().from(crmSavedViews);
       res.json(views);
@@ -431,7 +431,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/saved-views", requireAdminAuth, async (req, res) => {
+  app.post("/api/crm/saved-views", requirePermission("crm:write"), async (req, res) => {
     try {
       const { name, filters } = req.body;
       if (!name || typeof name !== "string") return res.status(400).json({ error: "Nom requis" });
@@ -445,7 +445,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/crm/saved-views/:id", requireAdminAuth, async (req, res) => {
+  app.delete("/api/crm/saved-views/:id", requirePermission("crm:write"), async (req, res) => {
     try {
       await db.delete(crmSavedViews).where(eq(crmSavedViews.savedViewId, req.params.id));
       res.json({ success: true });

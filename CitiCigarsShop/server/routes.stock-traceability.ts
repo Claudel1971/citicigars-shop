@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { requireAdminAuth } from "./middleware/auth";
+import { requirePermission } from "./middleware/auth";
 import {
   getMovementGroup,
   getStockSummary,
@@ -29,7 +29,7 @@ function queryValue(req: Request, key: string) {
 }
 
 export function registerStockTraceabilityRoutes(app: Express) {
-  app.get("/api/admin/stock/movements/:groupId", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/stock/movements/:groupId", requirePermission("stock:read"), async (req, res) => {
     try {
       res.json(await getMovementGroup(req.params.groupId));
     } catch (error) {
@@ -37,7 +37,7 @@ export function registerStockTraceabilityRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/stock/:sku/traceability", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/stock/:sku/traceability", requirePermission("stock:read"), async (req, res) => {
     try {
       const identity = resolveIdentityFilter(queryValue(req, "type"), queryValue(req, "packSize"), true);
       const page = parseHistoryPage(queryValue(req, "limit"), queryValue(req, "offset"));
@@ -51,7 +51,7 @@ export function registerStockTraceabilityRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/stock/:sku", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/stock/:sku", requirePermission("stock:read"), async (req, res) => {
     try {
       const filter = resolveIdentityFilter(queryValue(req, "type"), queryValue(req, "packSize"), false);
       res.json(await getStockSummary(req.params.sku, filter));

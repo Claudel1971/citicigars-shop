@@ -116,3 +116,29 @@ Le rôle limite les capacités visibles et exécutables côté serveur.
 - revalidation juste avant exécution ;
 - emergency suspension conservant l’historique ;
 - revue périodique des accès.
+
+
+## 6. CLOSE-03 — server-enforced Admin RBAC
+
+Authentication alone is not authorization. The Admin server now exposes explicit permission scopes.
+
+| Role | Effective server scope |
+|---|---|
+| Owner | all Admin permissions |
+| Admin | CRM, Stock, Purchasing, Approvals, Governance read, CMS/Content, Product; no Owner-only governance mutation |
+| CRM Operator | CRM read/write + Stock/Product read |
+| Stock Operator | Stock read/write + Product read |
+| Purchasing Operator | Purchasing read/write + Stock/Product read |
+| Approver | Approvals read/decide + Governance read |
+| Auditor / Read Only | read-only across Admin domains |
+| Content Editor | Content read/write + Product read |
+
+CLOSE-03 route enforcement:
+- CRM reads require `crm:read`; CRM mutations require `crm:write`.
+- Stock Admin/traceability/monitoring reads require `stock:read`; stock movement mutations require `stock:write`.
+- Purchasing/Supplier reads require `purchasing:read`; supplier/PO/receipt mutations require `purchasing:write`.
+- Product/catalogue, image, technical-sheet, bundle and seed mutations require `product:write`.
+- CMS content/assets mutations require `content:write`.
+- Approvals and Governance/Audit permissions are defined for the Admin contract; no new domain endpoints are created by CLOSE-03.
+
+Admin tokens are HMAC-signed, server-validated and expire after eight hours. Legacy base64(password) tokens are intentionally rejected.
