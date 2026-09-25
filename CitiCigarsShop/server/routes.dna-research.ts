@@ -382,7 +382,7 @@ export function registerDnaResearchRoutes(app: Express): void {
 
   app.put(
     "/api/admin/dna-research/:cigarId",
-    requirePermission("approvals:decide"),
+    requirePermission("product:write"),
     async (req: Request, res: Response) => {
       try {
         const cigarId = req.params.cigarId.trim();
