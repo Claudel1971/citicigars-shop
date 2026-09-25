@@ -29,6 +29,8 @@ import {
   planOuvertureBoite,
   effectsForOuvertureBoiteSource,
   effectsForOuvertureBoiteDestination,
+  effectsForTransfertInterne,
+  effectsForAnnulationVente,
 } from "./stock-movement-processor";
 
 function b(partial: Partial<Balance>): Balance {
@@ -483,5 +485,33 @@ describe("Scénario bout-en-bout : ouverture de boîte onHand, packs+loose, puis
     // Vente directe d'un pack (sans réservation préalable)
     packBalance = applyEffects(packBalance, effectsForVente(1, packBalance, false));
     expect(packBalance).toEqual(b({ onHand: 5 }));
+  });
+});
+
+
+describe("CLOSE-04 generic transfer and sale compensation", () => {
+  it("keeps aggregate onHand unchanged for an internal transfer and refuses reserved stock", () => {
+    const before = b({ onHand: 8, reservedClient: 2 });
+    const effects = effectsForTransfertInterne(3, before);
+    expect(effects).toEqual([
+      { balanceField: "onHand", delta: -3 },
+      { balanceField: "onHand", delta: 3 },
+    ]);
+    expect(applyEffects(before, effects)).toEqual(before);
+    expect(() => effectsForTransfertInterne(7, before))
+      .toThrowError(expect.objectContaining({ code: "insufficient_availability_for_transfer" }));
+  });
+
+  it("requires distinct locations for TRANSFERT_INTERNE", () => {
+    expect(locationAwareEndpointsForMovement("TRANSFERT_INTERNE", "STORE", "DEPOT"))
+      .toEqual({ sourceLocationId: "STORE", destinationLocationId: "DEPOT" });
+    expect(() => locationAwareEndpointsForMovement("TRANSFERT_INTERNE", "STORE", "STORE"))
+      .toThrowError(expect.objectContaining({ code: "physical_transfer_requires_distinct_locations" }));
+  });
+
+  it("ANNULATION_VENTE is append-only positive stock compensation", () => {
+    expect(effectsForAnnulationVente(2)).toEqual([{ balanceField: "onHand", delta: 2 }]);
+    expect(() => effectsForAnnulationVente(0))
+      .toThrowError(expect.objectContaining({ code: "invalid_sale_compensation_quantity" }));
   });
 });
