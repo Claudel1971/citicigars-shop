@@ -9,6 +9,7 @@ ALTER TABLE stock_movement_groups
     'RECEPTION_TRANSIT','ASSEMBLAGE_COMPOSITE','DESASSEMBLAGE_COMPOSITE',
     'TRANSFERT_INTERNE','ANNULATION_VENTE'
   ) NOT NULL;
+--> statement-breakpoint
 
 ALTER TABLE stock_movements
   MODIFY COLUMN movement_type ENUM(
