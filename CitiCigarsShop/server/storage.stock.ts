@@ -519,10 +519,6 @@ function computeSimpleEffects(input: ApplyMovementInput, balance: Balance): Effe
     case "RECEPTION_TRANSIT":
       return effectsForReceptionTransit(input.qty);
     case "TRANSFERT_INTERNE":
-      return effectsForTransferInterne(input.qty);
-    case "ANNULATION_VENTE":
-      return effectsForAnnulationVente(input.qty);
-    case "TRANSFERT_INTERNE":
       return effectsForTransfertInterne(input.qty, balance);
     case "ANNULATION_VENTE":
       return effectsForAnnulationVente(input.qty);
