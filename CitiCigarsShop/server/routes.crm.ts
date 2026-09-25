@@ -375,7 +375,7 @@ export function registerCrmRoutes(app: Express) {
 
   app.post("/api/crm/sales/:id/cancel", requirePermission("crm:write"), async (req, res) => {
     try {
-      const result = await cancelManualSale(req.params.id, req.body?.author);
+      const result = await cancelManualSale(req.params.id, req.body?.author, req.body?.reason);
       res.status(result.idempotentReplay ? 200 : 201).json(result);
     } catch (error) {
       console.error("[POST /api/crm/sales/:id/cancel]", error);
