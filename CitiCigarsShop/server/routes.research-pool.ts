@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { and, desc, eq, inArray, isNull, like, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "./db.mysql";
-import { requireAdminAuth } from "./middleware/auth";
+import { requirePermission } from "./middleware/auth";
 import { researchCigarDna } from "./services/dna-research-agent";
 import {
   cigarCatalog,
@@ -89,7 +89,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     res.json({ rows });
   });
 
-  app.get("/api/admin/research-pool", requireAdminAuth, async (req: Request, res: Response) => {
+  app.get("/api/admin/research-pool", requirePermission("product:read"), async (req: Request, res: Response) => {
     try {
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
       const brand = typeof req.query.brand === "string" ? req.query.brand.trim() : "";
@@ -167,13 +167,13 @@ export function registerResearchPoolRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/admin/research-pool/brands", requireAdminAuth, async (_req, res) => {
+  app.get("/api/admin/research-pool/brands", requirePermission("product:read"), async (_req, res) => {
     const rows = await db.selectDistinct({ brand: cigarResearchPool.brand })
       .from(cigarResearchPool).orderBy(cigarResearchPool.brand).limit(500);
     res.json({ rows });
   });
 
-  app.get("/api/admin/research-pool/:poolId", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/research-pool/:poolId", requirePermission("product:read"), async (req, res) => {
     const [pool] = await db.select({
       pool: cigarResearchPool, cigarId: cigarCatalog.cigarId,
     }).from(cigarResearchPool).leftJoin(cigarCatalog, eq(cigarCatalog.poolId, cigarResearchPool.poolId))
@@ -192,7 +192,7 @@ export function registerResearchPoolRoutes(app: Express): void {
       hasExistingDna: Boolean(profile), currentProfile: profile, profileFields: DNA_PROFILE_FIELDS });
   });
 
-  app.post("/api/admin/research-pool", requireAdminAuth, async (req, res) => {
+  app.post("/api/admin/research-pool", requirePermission("product:write"), async (req, res) => {
     const brand = String(req.body?.brand ?? "").trim();
     const line = String(req.body?.line ?? "").trim();
     const vitole = String(req.body?.vitole ?? "").trim();
@@ -210,7 +210,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     res.status(201).json({ poolId: id, cigarId: null });
   });
 
-  app.post("/api/admin/dna-research-cases", requireAdminAuth, async (req, res) => {
+  app.post("/api/admin/dna-research-cases", requirePermission("product:write"), async (req, res) => {
     const requested: string[] = Array.isArray(req.body?.poolIds)
       ? Array.from(new Set<string>(req.body.poolIds.map(String))).slice(0, 50)
       : [];
@@ -233,7 +233,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     res.status(201).json({ cases: created });
   });
 
-  app.get("/api/admin/dna-research-cases/:caseId", requireAdminAuth, async (req, res) => {
+  app.get("/api/admin/dna-research-cases/:caseId", requirePermission("product:read"), async (req, res) => {
     const [row] = await db.select({ case: dnaResearchCases, pool: cigarResearchPool })
       .from(dnaResearchCases).innerJoin(cigarResearchPool, eq(cigarResearchPool.poolId, dnaResearchCases.poolId))
       .where(eq(dnaResearchCases.caseId, req.params.caseId)).limit(1);
@@ -249,7 +249,7 @@ export function registerResearchPoolRoutes(app: Express): void {
       evidence, changedFields: changedDnaFields(current, sanitizeDnaProfile(row.case.finalProfile)), profileFields: DNA_PROFILE_FIELDS });
   });
 
-  app.post("/api/admin/dna-research-cases/:caseId/update-direct", requireAdminAuth, async (req, res) => {
+  app.post("/api/admin/dna-research-cases/:caseId/update-direct", requirePermission("product:write"), async (req, res) => {
     const [item] = await db.select().from(dnaResearchCases).where(eq(dnaResearchCases.caseId, req.params.caseId)).limit(1);
     if (!item) return res.status(404).json({ error: "research_case_not_found" });
     const review = item.cigarId ? (await db.select().from(cigarDnaReviews)
@@ -262,7 +262,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     res.json({ caseId: item.caseId, status: "REVIEW", currentProfile: profile, finalProfile: profile });
   });
 
-  app.post("/api/admin/dna-research-cases/:caseId/research", requireAdminAuth, async (req, res) => {
+  app.post("/api/admin/dna-research-cases/:caseId/research", requirePermission("product:write"), async (req, res) => {
     try {
       const [row] = await db.select({ case: dnaResearchCases, pool: cigarResearchPool })
         .from(dnaResearchCases).innerJoin(cigarResearchPool, eq(cigarResearchPool.poolId, dnaResearchCases.poolId))
@@ -297,7 +297,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     }
   });
 
-  app.put("/api/admin/dna-research-cases/:caseId", requireAdminAuth, async (req, res) => {
+  app.put("/api/admin/dna-research-cases/:caseId", requirePermission("product:write"), async (req, res) => {
     const finalProfile = sanitizeDnaProfile(req.body?.finalProfile);
     if (!finalProfile) return res.status(400).json({ error: "final_profile_required" });
     await db.update(dnaResearchCases).set({ finalProfile, memoValidation: String(req.body?.memoValidation ?? ""), status: "REVIEW" })
@@ -305,7 +305,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     res.json({ ok: true, status: "REVIEW" });
   });
 
-  app.post("/api/admin/dna-research-cases/:caseId/approve", requireAdminAuth, async (req, res) => {
+  app.post("/api/admin/dna-research-cases/:caseId/approve", requirePermission("approvals:decide"), async (req, res) => {
     const [item] = await db.select().from(dnaResearchCases).where(eq(dnaResearchCases.caseId, req.params.caseId)).limit(1);
     if (!item) return res.status(404).json({ error: "research_case_not_found" });
     const finalProfile = sanitizeDnaProfile(req.body?.finalProfile ?? item.finalProfile);
@@ -330,7 +330,7 @@ export function registerResearchPoolRoutes(app: Express): void {
     ) });
   });
 
-  app.post("/api/admin/dna-research-cases/:caseId/admit", requireAdminAuth, async (_req, res) => {
+  app.post("/api/admin/dna-research-cases/:caseId/admit", requirePermission("product:write"), async (_req, res) => {
     // La doctrine actuelle dit explicitement que les CIGAR_ID sont importés du
     // Master externe et ne sont jamais générés par l'application. Inventer un
     // MAX()+1 ici serait une corruption; l'API expose donc clairement le gate.
