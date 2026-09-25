@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.mysql";
 import { bundles, bundleItems } from "../../shared/schema.bundles";
-import { skus, type StockType, LEGACY_UNKNOWN_LOT_ID } from "../../shared/schema.stock";
+import { skus, stockMovementLotAllocations } from "../../shared/schema.stock";
 import { stockStorage } from "../storage.stock";
 import { StockRuleViolation } from "./stock-movement-processor";
 
@@ -53,6 +53,7 @@ export async function decomposeBundle(input: DecomposeBundleInput) {
     quantite: bundleItems.quantite,
   }).from(bundleItems).where(eq(bundleItems.bundleSku, bundleSku));
   if (!items.length) throw new StockRuleViolation("bundle_components_missing");
+  const perBundleComponents = planBundleComponents(items, 1);
   const components = planBundleComponents(items, input.quantity);
   const expectedPackSize = physicalBundlePackSize(items);
   if (input.bundlePackSize !== expectedPackSize) {
@@ -80,24 +81,39 @@ export async function decomposeBundle(input: DecomposeBundleInput) {
       movementDate: input.movementDate,
     }, tx);
 
+    const sourceLotAllocations = await tx.select({
+      lotId: stockMovementLotAllocations.lotId,
+      balanceField: stockMovementLotAllocations.balanceField,
+      qtyDelta: stockMovementLotAllocations.qtyDelta,
+    }).from(stockMovementLotAllocations)
+      .where(eq(stockMovementLotAllocations.groupId, source.groupId));
+
+    const consumedBundleLots = sourceLotAllocations
+      .filter((row: any) => row.balanceField === "onHand" && row.qtyDelta < 0)
+      .map((row: any) => ({ lotId: row.lotId, bundleQty: -row.qtyDelta }));
+
+    if (!consumedBundleLots.length) throw new StockRuleViolation("bundle_source_lot_allocation_missing");
+
     const componentGroups: string[] = [];
-    for (const component of components) {
-      const result = await stockStorage.applyLocationMovement({
-        sku: component.sku,
-        type: "Loose",
-        packSize: 0,
-        movementType: "DESASSEMBLAGE_COMPOSITE",
-        qty: component.qty,
-        destinationLocationId: input.sourceLocationId,
-        lotId: LEGACY_UNKNOWN_LOT_ID,
-        author,
-        referenceType: "OTHER",
-        referenceId: operationId,
-        referenceLabel: bundleSku,
-        comment: `Bundle decomposition component from ${bundleSku}`,
-        movementDate: input.movementDate,
-      }, tx);
-      componentGroups.push(result.groupId);
+    for (const sourceLot of consumedBundleLots) {
+      for (const component of perBundleComponents) {
+        const result = await stockStorage.applyLocationMovement({
+          sku: component.sku,
+          type: "Loose",
+          packSize: 0,
+          movementType: "DESASSEMBLAGE_COMPOSITE",
+          qty: component.qty * sourceLot.bundleQty,
+          destinationLocationId: input.sourceLocationId,
+          lotId: sourceLot.lotId,
+          author,
+          referenceType: "OTHER",
+          referenceId: operationId,
+          referenceLabel: bundleSku,
+          comment: `Bundle decomposition component from ${bundleSku}; source lot ${sourceLot.lotId}`,
+          movementDate: input.movementDate,
+        }, tx);
+        componentGroups.push(result.groupId);
+      }
     }
     return { operationId, sourceGroupId: source.groupId, componentGroupIds: componentGroups, components };
   });
