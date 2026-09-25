@@ -7,6 +7,7 @@ process.env.MYSQL_URL = "mysql://root@127.0.0.1:3399/not_used_by_injected_routes
 
 const { registerStockAdminRoutes } = await import("./routes.stock-admin");
 const { StockRuleViolation } = await import("./services/stock-movement-processor");
+const { issueAdminToken } = await import("./middleware/auth");
 
 describe("Milestone 6 stock admin routes", () => {
   let server: Server;
@@ -19,7 +20,7 @@ describe("Milestone 6 stock admin routes", () => {
     assertSku: vi.fn(async () => ({})),
     applyMovement,
   };
-  const token = Buffer.from("stock-admin-test").toString("base64");
+  const token = issueAdminToken("OWNER").token;
   const request = (path: string, options: RequestInit = {}) => fetch(base + path, {
     ...options,
     headers: { "Content-Type": "application/json", "x-cms-token": token, ...(options.headers ?? {}) },
