@@ -61,6 +61,8 @@ import {
   effectsForCorrectionInventaire,
   effectsForEntreeTransit,
   effectsForReceptionTransit,
+  effectsForTransfertInterne,
+  effectsForAnnulationVente,
   planOuvertureBoite,
   effectsForOuvertureBoiteSource,
   effectsForOuvertureBoiteDestination,
@@ -342,7 +344,10 @@ export type SimpleMovementType =
   | "MISE_EN_DEPOT"
   | "RETOUR_DE_DEPOT"
   | "ENTREE_TRANSIT"
-  | "RECEPTION_TRANSIT";
+  | "RECEPTION_TRANSIT"
+  | "TRANSFERT_INTERNE"
+  | "ANNULATION_VENTE"
+  | "DESASSEMBLAGE_COMPOSITE";
 
 export interface ApplyMovementInput extends MovementMeta {
   sku: string;
@@ -366,7 +371,7 @@ type LocationMovementBase = Omit<ApplyMovementInput, "movementType"> & {
 
 export type ApplyLocationMovementInput =
   | (LocationMovementBase & {
-      movementType: "RECEPTION" | "ENTREE_TRANSIT";
+      movementType: "RECEPTION" | "ENTREE_TRANSIT" | "ANNULATION_VENTE";
       sourceLocationId?: never;
       destinationLocationId: string;
     })
@@ -376,7 +381,7 @@ export type ApplyLocationMovementInput =
       destinationLocationId?: never;
     })
   | (LocationMovementBase & {
-      movementType: "MISE_EN_DEPOT" | "RETOUR_DE_DEPOT" | "SORTIE_EVENEMENT" | "RETOUR_EVENEMENT" | "RECEPTION_TRANSIT";
+      movementType: "MISE_EN_DEPOT" | "RETOUR_DE_DEPOT" | "SORTIE_EVENEMENT" | "RETOUR_EVENEMENT" | "RECEPTION_TRANSIT" | "TRANSFERT_INTERNE";
       sourceLocationId: string;
       destinationLocationId: string;
     })
@@ -384,6 +389,11 @@ export type ApplyLocationMovementInput =
       movementType: "RESERVATION_CLIENT" | "LIBERATION_RESERVATION_CLIENT" | "RESERVATION_EVENEMENT" |
         "LIBERATION_RESERVATION_EVENEMENT" | "CORRECTION_INVENTAIRE";
       sourceLocationId: string;
+      destinationLocationId?: string;
+    })
+  | (LocationMovementBase & {
+      movementType: "DESASSEMBLAGE_COMPOSITE";
+      sourceLocationId?: string;
       destinationLocationId?: string;
     });
 
@@ -508,6 +518,12 @@ function computeSimpleEffects(input: ApplyMovementInput, balance: Balance): Effe
       return effectsForEntreeTransit(input.qty);
     case "RECEPTION_TRANSIT":
       return effectsForReceptionTransit(input.qty);
+    case "TRANSFERT_INTERNE":
+      return effectsForTransfertInterne(input.qty, balance);
+    case "ANNULATION_VENTE":
+      return effectsForAnnulationVente(input.qty);
+    case "DESASSEMBLAGE_COMPOSITE":
+      throw new StockRuleViolation("composite_effect_requires_location_direction");
     default: {
       const exhaustive: never = input.movementType;
       throw new StockRuleViolation("unknown_movement_type", `Mouvement non géré: ${exhaustive}`);
@@ -666,7 +682,11 @@ export class StockStorage {
       const ruleBalance = rowToBalance(locationRows.get(ruleLocationId));
       const effects: Effect[] = input.movementType === "CORRECTION_INVENTAIRE"
         ? [{ balanceField: "onHand", delta: input.qty - ruleBalance.onHand }]
-        : computeSimpleEffects(input, ruleBalance);
+        : input.movementType === "DESASSEMBLAGE_COMPOSITE"
+          ? (endpoints.sourceLocationId
+            ? [{ balanceField: "onHand", delta: -input.qty }]
+            : [{ balanceField: "onHand", delta: input.qty }])
+          : computeSimpleEffects(input, ruleBalance);
       for (const effect of effects) assertLooseNeverInTransit(input.type, effect.balanceField, effect.delta);
 
       const groupId = randomUUID();
@@ -740,15 +760,30 @@ export class StockStorage {
       const sourceId = endpoints.sourceLocationId;
       const destinationId = endpoints.destinationLocationId;
 
-      if (input.movementType === "RECEPTION" || input.movementType === "ENTREE_TRANSIT") {
+      if (input.movementType === "RECEPTION" || input.movementType === "ENTREE_TRANSIT" || input.movementType === "ANNULATION_VENTE") {
         const lotId = input.lotId ?? LEGACY_UNKNOWN_LOT_ID;
         await validateInboundLotIdentity(t, lotId, destinationId!, input.sku, input.type, input.packSize);
         await ensureLot(destinationId!, lotId);
         lotActions.push({
           locationId: destinationId!,
           lotId,
-          effect: { balanceField: input.movementType === "RECEPTION" ? "onHand" : "transit", delta: input.qty },
+          effect: { balanceField: input.movementType === "ENTREE_TRANSIT" ? "transit" : "onHand", delta: input.qty },
         });
+      } else if (input.movementType === "DESASSEMBLAGE_COMPOSITE") {
+        if (sourceId) {
+          const plans = input.lotId
+            ? [{ lotId: input.lotId, qty: input.qty }]
+            : planAt(sourceId, input.qty, available);
+          if (input.lotId) {
+            const selected = findLot(sourceId, input.lotId);
+            if (!selected || available(selected.balance) < input.qty) throw new StockRuleViolation("insufficient_selected_lot_stock");
+          }
+          addActions(sourceId, plans, "onHand", -1);
+        } else {
+          const lotId = input.lotId ?? LEGACY_UNKNOWN_LOT_ID;
+          await ensureLot(destinationId!, lotId);
+          lotActions.push({ locationId: destinationId!, lotId, effect: { balanceField: "onHand", delta: input.qty } });
+        }
       } else if (input.movementType === "RESERVATION_CLIENT" || input.movementType === "RESERVATION_EVENEMENT") {
         const field: BalanceField = input.movementType === "RESERVATION_CLIENT" ? "reservedClient" : "reservedEvent";
         addActions(sourceId!, planAt(sourceId!, input.qty, available), field, 1);
@@ -801,6 +836,17 @@ export class StockStorage {
           case "RECEPTION_TRANSIT":
             plans = planAt(sourceId!, input.qty, (balance) => balance.transit);
             sourceFields = ["transit"];
+            destinationField = "onHand";
+            break;
+          case "TRANSFERT_INTERNE":
+            plans = input.lotId
+              ? [{ lotId: input.lotId, qty: input.qty }]
+              : planAt(sourceId!, input.qty, available);
+            if (input.lotId) {
+              const selected = findLot(sourceId!, input.lotId);
+              if (!selected || available(selected.balance) < input.qty) throw new StockRuleViolation("insufficient_selected_lot_stock");
+            }
+            sourceFields = ["onHand"];
             destinationField = "onHand";
             break;
           default:
