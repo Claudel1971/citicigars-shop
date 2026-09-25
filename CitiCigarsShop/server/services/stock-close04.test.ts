@@ -60,7 +60,7 @@ describe("CLOSE-04 décomposition physique bundle/sampler", () => {
 describe("CLOSE-04 annulation compensatoire de vente", () => {
   it("restores the exact sold lots and locations instead of running a new FIFO", () => {
     const legs = planSaleCompensationLegs(
-      { orderItemId: "SALE-1-01", sku: "CTCG-NI-A", stockType: "Box", stockPackSize: 0 },
+      { orderItemId: "SALE-1-01", sku: "CTCG-NI-A", stockType: "Box", stockPackSize: 0, quantity: 3 },
       [
         { lotId: "LOT-B", locationId: "LOC-2", balanceField: "onHand", qtyDelta: -1, sku: "CTCG-NI-A", type: "Box", packSize: 0 },
         { lotId: "LOT-A", locationId: "LOC-1", balanceField: "onHand", qtyDelta: -2, sku: "CTCG-NI-A", type: "Box", packSize: 0 },
