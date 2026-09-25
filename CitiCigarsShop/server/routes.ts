@@ -20,7 +20,7 @@ import { registerStockMonitoringRoutes } from "./routes.stock-monitoring";
 
 const ROOT_DIR = process.cwd();
 const CONTENT_FILE = path.resolve(ROOT_DIR, "server", "content.json");
-import { getAdminPassword, isValidAdminToken, issueAdminToken, requirePermission } from "./middleware/auth";
+import { getAdminPassword, issueAdminToken, requirePermission } from "./middleware/auth";
 // No hardcoded fallback: middleware/auth.ts throws at startup if
 // CMS_ADMIN_PASSWORD is not set. See brief correction #5/#7.
 const ADMIN_PASSWORD = getAdminPassword();
@@ -418,12 +418,6 @@ export async function registerRoutes(
     }
   });
 
-  function checkCmsAuth(req: any): boolean {
-    const authHeader = req.headers.authorization;
-    const cmsToken = req.headers['x-cms-token'];
-    const token = cmsToken || authHeader?.replace("Bearer ", "");
-    return isValidAdminToken(token);
-  }
 
   app.get("/api/cms/assets", (req, res) => {
     try {
@@ -457,7 +451,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/products/skus", async (req, res) => {
+  app.get("/api/admin/products/skus", requirePermission("product:read"), async (req, res) => {
     try {
       const products = await storage.getAllProducts();
       const productList = products.map(p => ({ sku: p.sku, marque: p.marque, ligne: p.ligne, modele: p.modele })).sort((a, b) => a.sku.localeCompare(b.sku));
@@ -492,7 +486,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/technical-sheets", async (req, res) => {
+  app.get("/api/admin/technical-sheets", requirePermission("product:read"), async (req, res) => {
     try {
       const sheets = await storage.getAllTechnicalSheets();
       res.json(sheets);
@@ -582,8 +576,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/bundles/products", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.get("/api/admin/bundles/products", requirePermission("product:read"), async (req, res) => {
     try {
       const products = await bundleStorage.getProductsForSelection();
       res.json(products);
@@ -593,8 +586,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/bundles/calculate-price", async (req, res) => {
-    if (!checkCmsAuth(req)) return res.status(401).json({ error: "Non autorisé" });
+  app.post("/api/admin/bundles/calculate-price", requirePermission("product:read"), async (req, res) => {
     try {
       const { items } = req.body;
       const suggestedPrice = await bundleStorage.calculateSuggestedPrice(items || []);
