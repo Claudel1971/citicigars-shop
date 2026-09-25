@@ -7,7 +7,7 @@ import * as crmService from "./services/crm";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
 import { queryTransactions, buildTransactionExportWorkbook, getTopProductsByOrderCount } from "./services/transaction-explorer";
-import { createManualSale, deleteManualSale } from "./services/manual-sale";
+import { createManualSale, deleteManualSale, cancelManualSale } from "./services/manual-sale";
 import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
@@ -373,13 +373,24 @@ export function registerCrmRoutes(app: Express) {
   });
 
 
+  app.post("/api/crm/sales/:id/cancel", requirePermission("crm:write"), async (req, res) => {
+    try {
+      const result = await cancelManualSale(req.params.id, req.body?.author);
+      res.status(result.idempotentReplay ? 200 : 201).json(result);
+    } catch (error) {
+      console.error("[POST /api/crm/sales/:id/cancel]", error);
+      const message = error instanceof Error ? error.message : "Annulation impossible";
+      res.status(message.includes("CLOSE-05") ? 409 : 400).json({ error: message });
+    }
+  });
+
   app.delete("/api/crm/sales/:id", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await deleteManualSale(req.params.id);
       res.json(result);
     } catch (error) {
       console.error("[DELETE /api/crm/sales/:id]", error);
-      res.status(400).json({ error: error instanceof Error ? error.message : "Suppression impossible" });
+      res.status(409).json({ error: error instanceof Error ? error.message : "Suppression destructive désactivée" });
     }
   });
 
