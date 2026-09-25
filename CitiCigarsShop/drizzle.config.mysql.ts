@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set");
+if (!process.env.MYSQL_URL) {
+  throw new Error("MYSQL_URL must be set for the canonical MySQL runtime and MySQL migrations");
 }
 
 export default defineConfig({
@@ -13,6 +13,6 @@ export default defineConfig({
   schema: ["./shared/schema.stock.ts", "./shared/schema.mysql.ts", "./shared/schema.bundles.ts", "./shared/schema.crm.ts", "./shared/schema.sales.ts"],
   dialect: "mysql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: process.env.MYSQL_URL,
   },
 });
