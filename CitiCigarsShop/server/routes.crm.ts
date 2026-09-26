@@ -12,7 +12,7 @@ import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { grossMarginSummary } from "./services/finance-close05";
+import { getOrderCashState, grossMarginSummary } from "./services/finance-close05";
 
 export function registerCrmRoutes(app: Express) {
   // -------------------------------------------------------------------
@@ -373,6 +373,15 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
+
+  app.get("/api/crm/sales/:id/cash-journal", requirePermission("crm:read"), async (req, res) => {
+    try {
+      res.json(await getOrderCashState(req.params.id));
+    } catch (error) {
+      console.error("[GET /api/crm/sales/:id/cash-journal]", error);
+      res.status(500).json({ error: "Lecture du journal de caisse impossible" });
+    }
+  });
 
   app.post("/api/crm/sales/:id/refund", requirePermission("crm:write"), async (req, res) => {
     try {
