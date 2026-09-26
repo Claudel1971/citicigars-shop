@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, varchar, int, text, boolean, json, timestamp, date, mysqlEnum, primaryKey, index, uniqueIndex, foreignKey } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, int, text, boolean, json, timestamp, date, decimal, mysqlEnum, primaryKey, index, uniqueIndex, foreignKey } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
