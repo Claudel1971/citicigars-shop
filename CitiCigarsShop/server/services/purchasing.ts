@@ -55,9 +55,10 @@ export interface CreateReceiptInput {
 
 export function normalizeAcquisitionUnitCost(value: unknown): number | null {
   if (value == null) return null;
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount < 0) throw new PurchasingRuleError("invalid_acquisition_unit_cost");
-  return Math.round(amount * 10_000) / 10_000;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new PurchasingRuleError("invalid_acquisition_unit_cost");
+  }
+  return Math.round(value * 10_000) / 10_000;
 }
 
 function cleanText(value: unknown, max: number) {
