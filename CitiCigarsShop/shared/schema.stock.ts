@@ -480,7 +480,7 @@ export const stockLotLocationBalances = mysqlTable("stock_lot_location_balances"
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   lastMovementGroupId: varchar("last_movement_group_id", { length: 36 }),
 }, (table) => ({
-  pk: primaryKey({ columns: [table.lotId, table.locationId, table.sku, table.type, table.packSize] }),
+  pk: primaryKey({ name: "pk_stock_lot_location", columns: [table.lotId, table.locationId, table.sku, table.type, table.packSize] }),
   positionIdx: index("idx_stock_lot_location_position").on(table.locationId, table.sku, table.type, table.packSize),
 }));
 
