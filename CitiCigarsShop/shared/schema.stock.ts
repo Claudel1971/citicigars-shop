@@ -506,6 +506,26 @@ export const stockMovementLotAllocations = mysqlTable("stock_movement_lot_alloca
   identityIdx: index("idx_stock_movement_lot_identity").on(table.sku, table.type, table.packSize, table.createdAt),
 }));
 
+
+
+export const LOT_COST_SOURCES = ["RECEIPT", "BUNDLE_DERIVATION"] as const;
+export type LotCostSource = (typeof LOT_COST_SOURCES)[number];
+
+export const stockLotCostBasis = mysqlTable("stock_lot_cost_basis", {
+  lotId: varchar("lot_id", { length: 36 }).notNull()
+    .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
+  type: mysqlEnum("type", STOCK_TYPES).notNull(),
+  packSize: int("pack_size").notNull().default(0),
+  unitCostXaf: decimal("unit_cost_xaf", { precision: 14, scale: 4 }).notNull(),
+  source: mysqlEnum("source", LOT_COST_SOURCES).notNull(),
+  sourceReference: varchar("source_reference", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.lotId, table.sku, table.type, table.packSize] }),
+  identityIdx: index("idx_stock_lot_cost_identity").on(table.sku, table.type, table.packSize),
+}));
+
 // --- 7. dna_leads (amendements 4b, 6) ---
 export const dnaLeads = mysqlTable("dna_leads", {
   id: int("id").primaryKey().autoincrement(),
@@ -623,6 +643,7 @@ export type InsertStockReceiptItem = z.infer<typeof insertStockReceiptItemSchema
 export type StockLotLocationBalance = typeof stockLotLocationBalances.$inferSelect;
 export type StockMovementLotAllocation = typeof stockMovementLotAllocations.$inferSelect;
 export type StockMovement = typeof stockMovements.$inferSelect;
+export type StockLotCostBasis = typeof stockLotCostBasis.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type DnaLead = typeof dnaLeads.$inferSelect;
 export type InsertDnaLead = z.infer<typeof insertDnaLeadSchema>;
