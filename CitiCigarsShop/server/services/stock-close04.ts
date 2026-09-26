@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db.mysql";
 import { bundles, bundleItems } from "../../shared/schema.bundles";
-import { skus, stockMovementLotAllocations } from "../../shared/schema.stock";
+import { skus, stockLotCostBasis, stockMovementLotAllocations } from "../../shared/schema.stock";
 import { stockStorage } from "../storage.stock";
 import { StockRuleViolation } from "./stock-movement-processor";
 
@@ -37,6 +37,13 @@ export function planBundleComponents(
     totals.set(item.productSku, (totals.get(item.productSku) ?? 0) + item.quantite * quantity);
   }
   return Array.from(totals, ([sku, qty]) => ({ sku, qty })).sort((a, b) => a.sku.localeCompare(b.sku));
+}
+
+
+export function deriveBundleLooseUnitCost(bundleUnitCostXaf: number, bundlePackSize: number) {
+  if (!Number.isFinite(bundleUnitCostXaf) || bundleUnitCostXaf < 0) throw new StockRuleViolation("invalid_bundle_source_cost");
+  if (!Number.isInteger(bundlePackSize) || bundlePackSize <= 0) throw new StockRuleViolation("invalid_bundle_pack_size");
+  return Math.round((bundleUnitCostXaf / bundlePackSize) * 10_000) / 10_000;
 }
 
 export async function decomposeBundle(input: DecomposeBundleInput) {
@@ -96,7 +103,40 @@ export async function decomposeBundle(input: DecomposeBundleInput) {
 
     const componentGroups: string[] = [];
     for (const sourceLot of consumedBundleLots) {
+      const [bundleCost] = await tx.select().from(stockLotCostBasis).where(and(
+        eq(stockLotCostBasis.lotId, sourceLot.lotId),
+        eq(stockLotCostBasis.sku, bundleSku),
+        eq(stockLotCostBasis.type, "Pack"),
+        eq(stockLotCostBasis.packSize, input.bundlePackSize),
+      ));
+      const derivedUnitCost = bundleCost
+        ? deriveBundleLooseUnitCost(Number(bundleCost.unitCostXaf), input.bundlePackSize)
+        : null;
+
       for (const component of perBundleComponents) {
+        if (derivedUnitCost != null) {
+          const [existingCost] = await tx.select().from(stockLotCostBasis).where(and(
+            eq(stockLotCostBasis.lotId, sourceLot.lotId),
+            eq(stockLotCostBasis.sku, component.sku),
+            eq(stockLotCostBasis.type, "Loose"),
+            eq(stockLotCostBasis.packSize, 0),
+          ));
+          if (existingCost) {
+            if (Math.abs(Number(existingCost.unitCostXaf) - derivedUnitCost) > 0.0001) {
+              throw new StockRuleViolation("bundle_component_cost_basis_conflict", `lotId=${sourceLot.lotId}, sku=${component.sku}`);
+            }
+          } else {
+            await tx.insert(stockLotCostBasis).values({
+              lotId: sourceLot.lotId,
+              sku: component.sku,
+              type: "Loose",
+              packSize: 0,
+              unitCostXaf: String(derivedUnitCost),
+              source: "BUNDLE_DERIVATION",
+              sourceReference: operationId,
+            });
+          }
+        }
         const result = await stockStorage.applyLocationMovement({
           sku: component.sku,
           type: "Loose",
