@@ -2,13 +2,14 @@ import crypto from "crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db.mysql";
 import { customers } from "../../shared/schema.crm";
-import { orders, orderItems } from "../../shared/schema.sales";
+import { cashJournalEntries, orders, orderItems } from "../../shared/schema.sales";
 import { products } from "../../shared/schema.mysql";
 import { STOCK_TYPES, skus, stockLocations, stockMovementLotAllocations, stockMovementGroups, type StockType } from "../../shared/schema.stock";
 import { stockStorage } from "../storage.stock";
 import { StockRuleViolation } from "./stock-movement-processor";
 import { computeOrder, type CatalogLineInput } from "./sales";
 import { formatCtcgId, formatOrderItemId, nextSequenceFromExisting } from "./ctcg-id";
+import { appendCashEntry, finalizeOrderCogsAndMargin, orderCashState } from "./finance-close05";
 
 export type ManualSaleItemType = "PRODUCT" | "BUNDLE" | "ACCESSORY" | "SERVICE" | "CUSTOM";
 export type StockDisposition = "CONSUME" | "NON_STOCK";
@@ -203,6 +204,59 @@ export async function deleteManualSale(_orderId: string) {
   throw new Error("Suppression destructive désactivée: utiliser l'annulation compensatoire");
 }
 
+export async function refundManualSaleCash(input: {
+  orderId: string;
+  clientRequestId: string;
+  amountXaf: number;
+  author: string;
+  refundDate: string;
+  reason: string;
+}) {
+  const requestId = String(input.clientRequestId || "").trim();
+  if (!UUID_RE.test(requestId)) throw new Error("clientRequestId UUID requis pour le remboursement");
+  const actor = String(input.author || "").trim();
+  if (!actor || actor.length > 100) throw new Error("Auteur opérateur requis");
+  const reason = String(input.reason || "").trim();
+  if (!reason || reason.length > 2000) throw new Error("Motif de remboursement requis");
+  const occurredAt = new Date(input.refundDate);
+  if (Number.isNaN(occurredAt.getTime())) throw new Error("Date de remboursement invalide");
+  if (!Number.isInteger(input.amountXaf) || input.amountXaf <= 0) throw new Error("Montant de remboursement XAF entier positif requis");
+
+  return db.transaction(async (tx: any) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.orderId, input.orderId)).for("update");
+    if (!order) throw new Error("Vente introuvable");
+    if (order.source !== "manual") throw new Error("Seules les ventes manuelles sont remboursables par CLOSE-05");
+
+    const reference = `SALE_REFUND:${input.orderId}:${requestId}`;
+    const [existing] = await tx.select().from(cashJournalEntries).where(eq(cashJournalEntries.reference, reference));
+    if (existing) {
+      if (existing.entryType !== "REFUND" || existing.amountXaf !== input.amountXaf || existing.author !== actor) {
+        throw new Error("Référence remboursement réutilisée avec un contenu différent");
+      }
+      const state = await orderCashState(tx, input.orderId);
+      return { entry: existing, balanceXaf: state.balanceXaf, idempotentReplay: true };
+    }
+
+    const stateBefore = await orderCashState(tx, input.orderId);
+    if (stateBefore.entries.length === 0 && Number(order.amountPaid || 0) > 0) {
+      throw new Error("Vente encaissée legacy: journal de caisse absent, rapprochement manuel requis");
+    }
+    if (input.amountXaf > stateBefore.balanceXaf) throw new Error("Remboursement supérieur au solde encaissé non remboursé");
+
+    const appended = await appendCashEntry(tx, {
+      orderId: input.orderId,
+      entryType: "REFUND",
+      amountXaf: input.amountXaf,
+      occurredAt,
+      author: actor,
+      reference,
+      note: reason,
+    });
+    const stateAfter = await orderCashState(tx, input.orderId);
+    return { entry: appended.entry, balanceXaf: stateAfter.balanceXaf, idempotentReplay: false };
+  });
+}
+
 export async function cancelManualSale(orderId: string, author: string, reason: string) {
   const actor = String(author || "").trim();
   if (!actor || actor.length > 100) throw new Error("Auteur opérateur requis (100 caractères maximum)");
@@ -219,8 +273,12 @@ export async function cancelManualSale(orderId: string, author: string, reason: 
         .where(and(eq(stockMovementGroups.movementType, "ANNULATION_VENTE"), eq(stockMovementGroups.referenceId, orderId)));
       return { orderId, status: "CANCELLED", movementGroupIds: existing.map((row: any) => row.groupId), idempotentReplay: true };
     }
-    if (Number(order.amountPaid || 0) > 0) {
-      throw new Error("Vente encaissée: remboursement/cash reversal requis dans CLOSE-05 avant annulation");
+    const cashState = await orderCashState(tx, orderId);
+    if (Number(order.amountPaid || 0) > 0 && cashState.entries.length === 0) {
+      throw new Error("Vente encaissée legacy: journal de caisse absent, rapprochement manuel requis");
+    }
+    if (cashState.balanceXaf !== 0) {
+      throw new Error("Vente encaissée: remboursement append-only requis avant annulation");
     }
 
     const lines = await tx.select({
@@ -375,6 +433,18 @@ export async function createManualSale(input: CreateManualSaleInput) {
         notes: input.notes?.trim() || null,
       } as any);
 
+      if (amountPaid > 0) {
+        await appendCashEntry(tx, {
+          orderId,
+          entryType: "RECEIPT",
+          amountXaf: amountPaid,
+          occurredAt: normalizedPaymentDate!,
+          author,
+          reference: `SALE_RECEIPT:${orderId}:${clientRequestId}`,
+          note: "Encaissement saisi avec la vente manuelle",
+        });
+      }
+
       const lineRecords: Array<{ orderItemId: string; source: CleanManualSaleLine }> = [];
       for (let index = 0; index < computed.items.length; index += 1) {
         const item = computed.items[index];
@@ -463,6 +533,7 @@ export async function createManualSale(input: CreateManualSaleInput) {
         await tx.update(orderItems).set({ stockMovementGroupId: result.groupId }).where(eq(orderItems.orderItemId, line.orderItemId));
         movementGroupIds.push(result.groupId);
       }
+      const margin = await finalizeOrderCogsAndMargin(tx, orderId);
       await tx.update(customers).set({ status: "CUSTOMER" }).where(eq(customers.customerId, input.customerId));
       return {
         orderId,
@@ -474,6 +545,7 @@ export async function createManualSale(input: CreateManualSaleInput) {
         balanceDue,
         status,
         movementGroupIds,
+        cogsKnown: margin.known,
         idempotentReplay: false,
       };
     });
