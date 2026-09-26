@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
+process.env.MYSQL_URL = process.env.MYSQL_URL || "mysql://root@127.0.0.1:3399/not_used_by_close05_tests";
+
+const {
   assertCashClearedForCancellation,
   calculateFifoCogs,
   netCashBalance,
   signedCashAmount,
-} from "./finance-close05";
-
-process.env.MYSQL_URL = process.env.MYSQL_URL || "mysql://root@127.0.0.1:3399/not_used_by_close05_tests";
+} = await import("./finance-close05");
 const { deriveBundleLooseUnitCost } = await import("./stock-close04");
 const { normalizeAcquisitionUnitCost } = await import("./purchasing");
 
