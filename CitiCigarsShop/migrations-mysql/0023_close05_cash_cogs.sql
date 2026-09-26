@@ -68,3 +68,27 @@ FOR EACH ROW
 BEGIN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'lot_cost_basis_immutable';
 END;
+
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS `trg_cash_journal_entries_bi`;
+--> statement-breakpoint
+CREATE TRIGGER `trg_cash_journal_entries_bi` BEFORE INSERT ON `cash_journal_entries`
+FOR EACH ROW
+BEGIN
+  IF NEW.amount_xaf <= 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'cash_amount_must_be_positive';
+  END IF;
+END;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS `trg_stock_lot_cost_basis_bi`;
+--> statement-breakpoint
+CREATE TRIGGER `trg_stock_lot_cost_basis_bi` BEFORE INSERT ON `stock_lot_cost_basis`
+FOR EACH ROW
+BEGIN
+  IF NEW.unit_cost_xaf < 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'lot_cost_must_be_nonnegative';
+  END IF;
+  IF (NEW.type = 'Pack' AND NEW.pack_size <= 0) OR (NEW.type <> 'Pack' AND NEW.pack_size <> 0) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'pack_size_sentinel_violation';
+  END IF;
+END;
