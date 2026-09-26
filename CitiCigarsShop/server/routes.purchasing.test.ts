@@ -6,6 +6,7 @@ process.env.CMS_ADMIN_PASSWORD = "purchasing-test";
 process.env.MYSQL_URL = "mysql://root@127.0.0.1:3399/not_used_by_injected_routes";
 const { registerPurchasingRoutes } = await import("./routes.purchasing");
 const { PurchasingRuleError } = await import("./services/purchasing");
+const { issueAdminToken } = await import("./middleware/auth");
 
 describe("Milestone 8 purchasing routes", () => {
   let server: Server; let base = "";
@@ -16,7 +17,7 @@ describe("Milestone 8 purchasing routes", () => {
     listPurchaseOrders: vi.fn(async () => []), getPurchaseOrder: vi.fn(async () => ({})), createPurchaseOrder: createOrder,
     listReceipts: vi.fn(async () => []), getReceipt: vi.fn(async () => ({})), createReceipt,
   };
-  const token = Buffer.from("purchasing-test").toString("base64");
+  const token = issueAdminToken("OWNER").token;
   const request = (path: string, options: RequestInit = {}) => fetch(base + path, { ...options, headers: { "Content-Type": "application/json", "x-cms-token": token, ...(options.headers || {}) } });
   beforeAll(async () => { const app = express(); app.use(express.json()); registerPurchasingRoutes(app, dependencies as any); server = createServer(app); await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve)); const address = server.address(); if (!address || typeof address === "string") throw new Error("bind failed"); base = `http://127.0.0.1:${address.port}`; });
   afterAll(async () => { await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); });
