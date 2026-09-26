@@ -1,0 +1,44 @@
+name: CLOSE-07 Staging Bootstrap Dry Run
+
+on:
+  push:
+    branches:
+      - close07-staging-bootstrap
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: close07-ci
+          MYSQL_DATABASE: bwljrj22_citicigars_admin_staging
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pclose07-ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: CitiCigarsShop
+    env:
+      MYSQL_URL: mysql://root:close07-ci@127.0.0.1:3306/bwljrj22_citicigars_admin_staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: CitiCigarsShop/package-lock.json
+      - run: npm ci
+      - name: Push current schema into empty staging DB
+        run: npx drizzle-kit push --config=drizzle.config.mysql.ts --force
+      - name: Apply custom invariants and system rows
+        run: node scripts/close07-staging-bootstrap.mjs
