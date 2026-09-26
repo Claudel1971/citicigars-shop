@@ -17,6 +17,21 @@ export function netCashBalance(entries: Array<{ entryType: CashEntryType; amount
   return entries.reduce((sum, entry) => sum + signedCashAmount(entry.entryType, entry.amountXaf), 0);
 }
 
+
+export function assertCashClearedForCancellation(
+  orderAmountPaid: number,
+  entries: Array<{ entryType: CashEntryType; amountXaf: number }>,
+) {
+  if (orderAmountPaid > 0 && entries.length === 0) {
+    throw new Error("Vente encaissée legacy: journal de caisse absent, rapprochement manuel requis");
+  }
+  const balanceXaf = netCashBalance(entries);
+  if (balanceXaf !== 0) {
+    throw new Error("Vente encaissée: remboursement append-only requis avant annulation");
+  }
+  return balanceXaf;
+}
+
 export async function appendCashEntry(
   exec: DbOrTx,
   input: {
