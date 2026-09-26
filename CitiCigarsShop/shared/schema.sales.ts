@@ -227,7 +227,6 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type OrderItemComponent = typeof orderItemComponents.$inferSelect;
-export type CashJournalEntry = typeof cashJournalEntries.$inferSelect;
 export type InsertOrderItemComponent = z.infer<typeof insertOrderItemComponentSchema>;
 
 
@@ -253,6 +252,7 @@ export const cashJournalEntries = mysqlTable(
     referenceUq: unique("uq_cash_journal_reference").on(table.reference),
   })
 );
+export type CashJournalEntry = typeof cashJournalEntries.$inferSelect;
 
 // ---------------------------------------------------------------------------
 // SAVED VIEWS — Transaction Explorer
