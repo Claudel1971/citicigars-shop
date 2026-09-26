@@ -35,3 +35,36 @@ CREATE TABLE `stock_lot_cost_basis` (
     REFERENCES `skus` (`sku`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   KEY `idx_stock_lot_cost_identity` (`sku`,`type`,`pack_size`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS `trg_cash_journal_entries_bu`;
+--> statement-breakpoint
+CREATE TRIGGER `trg_cash_journal_entries_bu` BEFORE UPDATE ON `cash_journal_entries`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'cash_journal_append_only';
+END;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS `trg_cash_journal_entries_bd`;
+--> statement-breakpoint
+CREATE TRIGGER `trg_cash_journal_entries_bd` BEFORE DELETE ON `cash_journal_entries`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'cash_journal_append_only';
+END;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS `trg_stock_lot_cost_basis_bu`;
+--> statement-breakpoint
+CREATE TRIGGER `trg_stock_lot_cost_basis_bu` BEFORE UPDATE ON `stock_lot_cost_basis`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'lot_cost_basis_immutable';
+END;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS `trg_stock_lot_cost_basis_bd`;
+--> statement-breakpoint
+CREATE TRIGGER `trg_stock_lot_cost_basis_bd` BEFORE DELETE ON `stock_lot_cost_basis`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'lot_cost_basis_immutable';
+END;
