@@ -143,6 +143,16 @@ export function calculateFifoCogs(
   };
 }
 
+
+export function calculateGrossMargin(revenueXaf: number, cogsXaf: number) {
+  if (!Number.isInteger(revenueXaf) || !Number.isInteger(cogsXaf) || revenueXaf < 0 || cogsXaf < 0) {
+    throw new Error("Montants marge invalides");
+  }
+  const grossMarginXaf = revenueXaf - cogsXaf;
+  const grossMarginRate = revenueXaf === 0 ? null : grossMarginXaf / revenueXaf;
+  return { grossMarginXaf, grossMarginRate };
+}
+
 export async function finalizeOrderCogsAndMargin(exec: DbOrTx, orderId: string) {
   const lines = await exec.select().from(orderItems).where(eq(orderItems.orderId, orderId));
   let orderCost = 0;
@@ -186,8 +196,9 @@ export async function finalizeOrderCogsAndMargin(exec: DbOrTx, orderId: string) 
       continue;
     }
 
-    const lineMarginXaf = line.actualLineRevenueXaf - result.totalCostXaf;
-    const marginRate = line.actualLineRevenueXaf === 0 ? null : lineMarginXaf / line.actualLineRevenueXaf;
+    const lineMargin = calculateGrossMargin(line.actualLineRevenueXaf, result.totalCostXaf);
+    const lineMarginXaf = lineMargin.grossMarginXaf;
+    const marginRate = lineMargin.grossMarginRate;
     await exec.update(orderItems).set({
       unitCostAtSaleXaf: Math.round(result.weightedUnitCostXaf),
       totalCostXaf: result.totalCostXaf,
@@ -209,8 +220,9 @@ export async function finalizeOrderCogsAndMargin(exec: DbOrTx, orderId: string) 
     return { known: false as const };
   }
 
-  const grossMarginXaf = order.finalSaleTotalXaf - orderCost;
-  const grossMarginRate = order.finalSaleTotalXaf === 0 ? null : grossMarginXaf / order.finalSaleTotalXaf;
+  const orderMargin = calculateGrossMargin(order.finalSaleTotalXaf, orderCost);
+  const grossMarginXaf = orderMargin.grossMarginXaf;
+  const grossMarginRate = orderMargin.grossMarginRate;
   await exec.update(orders).set({
     totalCostXaf: orderCost,
     grossMarginXaf,
@@ -224,9 +236,10 @@ export async function grossMarginSummary(from: Date, to: Date) {
   const [summary] = await db.select({
     salesCount: sql<number>`COUNT(*)`,
     knownMarginCount: sql<number>`SUM(CASE WHEN ${orders.totalCostXaf} IS NOT NULL THEN 1 ELSE 0 END)`,
-    revenueXaf: sql<number>`COALESCE(SUM(${orders.finalSaleTotalXaf}), 0)`,
-    cogsXaf: sql<number>`COALESCE(SUM(${orders.totalCostXaf}), 0)`,
-    grossMarginXaf: sql<number>`COALESCE(SUM(${orders.grossMarginXaf}), 0)`,
+    totalRevenueXaf: sql<number>`COALESCE(SUM(${orders.finalSaleTotalXaf}), 0)`,
+    knownRevenueXaf: sql<number>`COALESCE(SUM(CASE WHEN ${orders.totalCostXaf} IS NOT NULL THEN ${orders.finalSaleTotalXaf} ELSE 0 END), 0)`,
+    cogsXaf: sql<number>`COALESCE(SUM(CASE WHEN ${orders.totalCostXaf} IS NOT NULL THEN ${orders.totalCostXaf} ELSE 0 END), 0)`,
+    grossMarginXaf: sql<number>`COALESCE(SUM(CASE WHEN ${orders.grossMarginXaf} IS NOT NULL THEN ${orders.grossMarginXaf} ELSE 0 END), 0)`,
   }).from(orders).where(and(
     gte(orders.orderDate, from),
     lt(orders.orderDate, to),
@@ -236,7 +249,9 @@ export async function grossMarginSummary(from: Date, to: Date) {
     ...summary,
     salesCount: Number(summary?.salesCount ?? 0),
     knownMarginCount: Number(summary?.knownMarginCount ?? 0),
-    revenueXaf: Number(summary?.revenueXaf ?? 0),
+    incompleteSalesCount: Number(summary?.salesCount ?? 0) - Number(summary?.knownMarginCount ?? 0),
+    totalRevenueXaf: Number(summary?.totalRevenueXaf ?? 0),
+    knownRevenueXaf: Number(summary?.knownRevenueXaf ?? 0),
     cogsXaf: Number(summary?.cogsXaf ?? 0),
     grossMarginXaf: Number(summary?.grossMarginXaf ?? 0),
   };
