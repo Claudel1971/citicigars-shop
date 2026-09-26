@@ -52,6 +52,14 @@ export interface CreateReceiptInput {
   lines: Array<PurchaseIdentityInput & { purchaseOrderItemId: string; receivedQuantity: number; acquisitionUnitCostXaf?: number | null }>;
 }
 
+
+export function normalizeAcquisitionUnitCost(value: unknown): number | null {
+  if (value == null) return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) throw new PurchasingRuleError("invalid_acquisition_unit_cost");
+  return Math.round(amount * 10_000) / 10_000;
+}
+
 function cleanText(value: unknown, max: number) {
   const text = String(value || "").trim();
   if (text.length > max) throw new PurchasingRuleError("text_too_long");
@@ -321,11 +329,7 @@ export async function createReceipt(input: CreateReceiptInput) {
   if (!Array.isArray(input.lines) || !input.lines.length) throw new PurchasingRuleError("receipt_lines_required");
   const lines = input.lines.map((line) => {
     const identity = validatePurchaseIdentity(line, line.receivedQuantity, "received_quantity_invalid");
-    const rawCost = line.acquisitionUnitCostXaf;
-    if (rawCost != null && (!Number.isFinite(rawCost) || rawCost <= 0)) {
-      throw new PurchasingRuleError("invalid_acquisition_unit_cost");
-    }
-    const acquisitionUnitCostXaf = rawCost == null ? null : Math.round(rawCost * 10_000) / 10_000;
+    const acquisitionUnitCostXaf = normalizeAcquisitionUnitCost(line.acquisitionUnitCostXaf);
     return { ...identity, purchaseOrderItemId: requireUuid(line.purchaseOrderItemId, "purchase_order_item_required"), receivedQuantity: identity.quantity, acquisitionUnitCostXaf };
   });
   assertNoDuplicateIdentities(lines);
