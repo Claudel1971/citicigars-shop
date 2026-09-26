@@ -7,11 +7,12 @@ import * as crmService from "./services/crm";
 import { analyzeConversation } from "./services/whatsapp-analysis";
 import { dryRunHistoricalImport, runHistoricalImport } from "./services/historical-import";
 import { queryTransactions, buildTransactionExportWorkbook, getTopProductsByOrderCount } from "./services/transaction-explorer";
-import { createManualSale, deleteManualSale, cancelManualSale } from "./services/manual-sale";
+import { createManualSale, deleteManualSale, cancelManualSale, refundManualSaleCash } from "./services/manual-sale";
 import { crmSavedViews } from "../shared/schema.sales";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
+import { grossMarginSummary } from "./services/finance-close05";
 
 export function registerCrmRoutes(app: Express) {
   // -------------------------------------------------------------------
@@ -373,6 +374,23 @@ export function registerCrmRoutes(app: Express) {
   });
 
 
+  app.post("/api/crm/sales/:id/refund", requirePermission("crm:write"), async (req, res) => {
+    try {
+      const result = await refundManualSaleCash({
+        orderId: req.params.id,
+        clientRequestId: req.body?.clientRequestId,
+        amountXaf: req.body?.amountXaf,
+        author: req.body?.author,
+        refundDate: req.body?.refundDate,
+        reason: req.body?.reason,
+      });
+      res.status(result.idempotentReplay ? 200 : 201).json(result);
+    } catch (error) {
+      console.error("[POST /api/crm/sales/:id/refund]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Remboursement impossible" });
+    }
+  });
+
   app.post("/api/crm/sales/:id/cancel", requirePermission("crm:write"), async (req, res) => {
     try {
       const result = await cancelManualSale(req.params.id, req.body?.author, req.body?.reason);
@@ -391,6 +409,17 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error("[DELETE /api/crm/sales/:id]", error);
       res.status(409).json({ error: error instanceof Error ? error.message : "Suppression destructive désactivée" });
+    }
+  });
+
+  app.get("/api/crm/finance/margin-summary", requirePermission("crm:read"), async (req, res) => {
+    try {
+      const from = new Date(String(req.query.from || ""));
+      const to = new Date(String(req.query.to || ""));
+      res.json(await grossMarginSummary(from, to));
+    } catch (error) {
+      console.error("[GET /api/crm/finance/margin-summary]", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Période invalide" });
     }
   });
 
