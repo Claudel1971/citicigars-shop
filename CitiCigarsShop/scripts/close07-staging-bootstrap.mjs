@@ -62,13 +62,24 @@ try {
 
   for (const file of files) {
     const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
-    const chunks = sql
+    const coarseChunks = sql
       .split("--> statement-breakpoint")
       .map((chunk) => chunk.trim())
       .filter(Boolean);
 
+    const chunks = [];
+    for (const rawChunk of coarseChunks) {
+      const normalized = stripLeadingComments(rawChunk);
+      if (!normalized) continue;
+      if (/^CREATE\\s+(TRIGGER|PROCEDURE)\\b/i.test(normalized)) {
+        chunks.push(normalized);
+      } else {
+        chunks.push(...normalized.split(/;\\s*(?=(?:CREATE|ALTER|INSERT|DROP|CALL|UPDATE|DELETE|TRUNCATE|REPLACE|RENAME)\\b)/i));
+      }
+    }
+
     for (const rawChunk of chunks) {
-      const chunk = stripLeadingComments(rawChunk);
+      const chunk = stripLeadingComments(rawChunk).replace(/;\\s*$/, "").trim();
       if (!chunk) continue;
 
       // CLOSE-07 staging invariant: execute no DROP of any kind.
