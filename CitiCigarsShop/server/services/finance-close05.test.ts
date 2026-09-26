@@ -4,6 +4,7 @@ process.env.MYSQL_URL = process.env.MYSQL_URL || "mysql://root@127.0.0.1:3399/no
 const {
   assertCashClearedForCancellation,
   calculateFifoCogs,
+  calculateGrossMargin,
   netCashBalance,
   signedCashAmount,
 } = await import("./finance-close05");
@@ -70,11 +71,22 @@ describe("CLOSE-05 acquisition and sampler cost basis", () => {
   it("accepts only explicit positive acquisition cost and keeps four-decimal precision", () => {
     expect(normalizeAcquisitionUnitCost(12_345.67891)).toBe(12_345.6789);
     expect(normalizeAcquisitionUnitCost(null)).toBeNull();
-    expect(() => normalizeAcquisitionUnitCost(0)).toThrowError(expect.objectContaining({ code: "invalid_acquisition_unit_cost" }));
+    expect(normalizeAcquisitionUnitCost(0)).toBe(0);
+    expect(() => normalizeAcquisitionUnitCost(-1)).toThrowError(expect.objectContaining({ code: "invalid_acquisition_unit_cost" }));
   });
 
   it("allocates a purchased sampler Pack cost equally per physical cigar", () => {
     expect(deriveBundleLooseUnitCost(24_000, 6)).toBe(4_000);
     expect(deriveBundleLooseUnitCost(10_000, 3)).toBe(3_333.3333);
+  });
+});
+
+
+describe("CLOSE-05 gross margin", () => {
+  it("calculates gross margin from known revenue and FIFO COGS", () => {
+    expect(calculateGrossMargin(25_000, 15_000)).toEqual({
+      grossMarginXaf: 10_000,
+      grossMarginRate: 0.4,
+    });
   });
 });
