@@ -5,6 +5,7 @@ import {
   STOCK_TYPES,
   skus,
   stockLocations,
+  stockLotCostBasis,
   stockMovementGroups,
   stockProvenanceLots,
   stockPurchaseOrderItems,
@@ -48,7 +49,7 @@ export interface CreateReceiptInput {
   invoiceReference?: string | null;
   shipmentReference?: string | null;
   notes?: string | null;
-  lines: Array<PurchaseIdentityInput & { purchaseOrderItemId: string; receivedQuantity: number }>;
+  lines: Array<PurchaseIdentityInput & { purchaseOrderItemId: string; receivedQuantity: number; acquisitionUnitCostXaf?: number | null }>;
 }
 
 function cleanText(value: unknown, max: number) {
@@ -320,7 +321,12 @@ export async function createReceipt(input: CreateReceiptInput) {
   if (!Array.isArray(input.lines) || !input.lines.length) throw new PurchasingRuleError("receipt_lines_required");
   const lines = input.lines.map((line) => {
     const identity = validatePurchaseIdentity(line, line.receivedQuantity, "received_quantity_invalid");
-    return { ...identity, purchaseOrderItemId: requireUuid(line.purchaseOrderItemId, "purchase_order_item_required"), receivedQuantity: identity.quantity };
+    const rawCost = line.acquisitionUnitCostXaf;
+    if (rawCost != null && (!Number.isFinite(rawCost) || rawCost <= 0)) {
+      throw new PurchasingRuleError("invalid_acquisition_unit_cost");
+    }
+    const acquisitionUnitCostXaf = rawCost == null ? null : Math.round(rawCost * 10_000) / 10_000;
+    return { ...identity, purchaseOrderItemId: requireUuid(line.purchaseOrderItemId, "purchase_order_item_required"), receivedQuantity: identity.quantity, acquisitionUnitCostXaf };
   });
   assertNoDuplicateIdentities(lines);
   if (new Set(lines.map((line) => line.purchaseOrderItemId)).size !== lines.length) throw new PurchasingRuleError("duplicate_purchase_order_item");
@@ -365,6 +371,17 @@ export async function createReceipt(input: CreateReceiptInput) {
         const lotCode = `LOT-${receiptCode}-${String(index + 1).padStart(2, "0")}`;
         await tx.insert(stockProvenanceLots).values({ lotId, lotCode, originKind: "RECEIPT", receiptId, sourceReference: normalized.invoiceReference || normalized.shipmentReference, isSystem: false });
         await tx.insert(stockReceiptItems).values({ receiptItemId, receiptId, purchaseOrderItemId: line.purchaseOrderItemId, lotId, sku: line.sku, type: line.type, packSize: line.packSize, quantity: line.receivedQuantity });
+        if (line.acquisitionUnitCostXaf != null) {
+          await tx.insert(stockLotCostBasis).values({
+            lotId,
+            sku: line.sku,
+            type: line.type,
+            packSize: line.packSize,
+            unitCostXaf: String(line.acquisitionUnitCostXaf),
+            source: "RECEIPT",
+            sourceReference: receiptId,
+          });
+        }
         const result = await stockStorage.applyLocationMovement({
           sku: line.sku, type: line.type, packSize: line.packSize, movementType: "RECEPTION", qty: line.receivedQuantity,
           destinationLocationId, lotId, author, referenceType: "RECEIPT", referenceId: receiptId,
