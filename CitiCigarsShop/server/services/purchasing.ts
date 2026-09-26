@@ -56,7 +56,7 @@ export interface CreateReceiptInput {
 export function normalizeAcquisitionUnitCost(value: unknown): number | null {
   if (value == null) return null;
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) throw new PurchasingRuleError("invalid_acquisition_unit_cost");
+  if (!Number.isFinite(amount) || amount < 0) throw new PurchasingRuleError("invalid_acquisition_unit_cost");
   return Math.round(amount * 10_000) / 10_000;
 }
 
@@ -287,10 +287,17 @@ async function loadReceipt(reader: any, receiptId: string) {
     type: stockReceiptItems.type,
     packSize: stockReceiptItems.packSize,
     quantity: stockReceiptItems.quantity,
+    acquisitionUnitCostXaf: stockLotCostBasis.unitCostXaf,
     lotId: stockProvenanceLots.lotId,
     lotCode: stockProvenanceLots.lotCode,
   }).from(stockReceiptItems)
     .innerJoin(stockProvenanceLots, eq(stockProvenanceLots.lotId, stockReceiptItems.lotId))
+    .leftJoin(stockLotCostBasis, and(
+      eq(stockLotCostBasis.lotId, stockReceiptItems.lotId),
+      eq(stockLotCostBasis.sku, stockReceiptItems.sku),
+      eq(stockLotCostBasis.type, stockReceiptItems.type),
+      eq(stockLotCostBasis.packSize, stockReceiptItems.packSize),
+    ))
     .where(eq(stockReceiptItems.receiptId, receiptId))
     .orderBy(asc(stockReceiptItems.sku), asc(stockReceiptItems.type), asc(stockReceiptItems.packSize));
   const groups = await reader.select({ groupId: stockMovementGroups.groupId, referenceLabel: stockMovementGroups.referenceLabel })
