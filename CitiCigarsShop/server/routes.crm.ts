@@ -398,7 +398,8 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error("[POST /api/crm/sales/:id/cancel]", error);
       const message = error instanceof Error ? error.message : "Annulation impossible";
-      res.status(message.includes("CLOSE-05") ? 409 : 400).json({ error: message });
+      const conflict = message.includes("remboursement append-only") || message.includes("journal de caisse absent") || message.includes("legacy");
+      res.status(conflict ? 409 : 400).json({ error: message });
     }
   });
 
