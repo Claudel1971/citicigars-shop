@@ -72,7 +72,11 @@ try {
       if (!chunk) continue;
 
       // CLOSE-07 staging invariant: execute no DROP of any kind.
-      if (/^DROP\s+(TRIGGER|PROCEDURE)\s+IF\s+EXISTS\b/i.test(chunk)) {
+      if (/^DROP\s+(TRIGGER|PROCEDURE)\s+(IF\s+EXISTS\s+)?/i.test(chunk)) {
+        skippedDropTriggerGuards += 1;
+        continue;
+      }
+      if (/^CREATE\s+PROCEDURE\b/i.test(chunk) || /^CALL\b/i.test(chunk)) {
         skippedDropTriggerGuards += 1;
         continue;
       }
