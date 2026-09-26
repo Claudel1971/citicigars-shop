@@ -9,7 +9,7 @@ import { stockStorage } from "../storage.stock";
 import { StockRuleViolation } from "./stock-movement-processor";
 import { computeOrder, type CatalogLineInput } from "./sales";
 import { formatCtcgId, formatOrderItemId, nextSequenceFromExisting } from "./ctcg-id";
-import { appendCashEntry, finalizeOrderCogsAndMargin, orderCashState } from "./finance-close05";
+import { appendCashEntry, assertCashClearedForCancellation, finalizeOrderCogsAndMargin, orderCashState } from "./finance-close05";
 
 export type ManualSaleItemType = "PRODUCT" | "BUNDLE" | "ACCESSORY" | "SERVICE" | "CUSTOM";
 export type StockDisposition = "CONSUME" | "NON_STOCK";
@@ -274,12 +274,10 @@ export async function cancelManualSale(orderId: string, author: string, reason: 
       return { orderId, status: "CANCELLED", movementGroupIds: existing.map((row: any) => row.groupId), idempotentReplay: true };
     }
     const cashState = await orderCashState(tx, orderId);
-    if (Number(order.amountPaid || 0) > 0 && cashState.entries.length === 0) {
-      throw new Error("Vente encaissée legacy: journal de caisse absent, rapprochement manuel requis");
-    }
-    if (cashState.balanceXaf !== 0) {
-      throw new Error("Vente encaissée: remboursement append-only requis avant annulation");
-    }
+    assertCashClearedForCancellation(Number(order.amountPaid || 0), cashState.entries.map((entry) => ({
+      entryType: entry.entryType,
+      amountXaf: entry.amountXaf,
+    })));
 
     const lines = await tx.select({
       orderItemId: orderItems.orderItemId,
