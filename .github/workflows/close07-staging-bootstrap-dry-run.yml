@@ -38,7 +38,5 @@ jobs:
           cache: npm
           cache-dependency-path: CitiCigarsShop/package-lock.json
       - run: npm ci
-      - name: Push current schema into empty staging DB
-        run: npx drizzle-kit push --config=drizzle.config.mysql.ts --force
-      - name: Apply custom invariants and system rows
+      - name: Bootstrap empty staging DB using fail-closed helper only
         run: node scripts/close07-staging-bootstrap.mjs
