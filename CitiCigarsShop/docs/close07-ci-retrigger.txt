@@ -1,0 +1,4 @@
+CLOSE-07 CI retrigger marker
+
+Purpose: force a fresh GitHub Actions run after the regex parser fix.
+No runtime or migration behavior is changed by this file.
