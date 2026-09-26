@@ -227,7 +227,32 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type OrderItemComponent = typeof orderItemComponents.$inferSelect;
+export type CashJournalEntry = typeof cashJournalEntries.$inferSelect;
 export type InsertOrderItemComponent = z.infer<typeof insertOrderItemComponentSchema>;
+
+
+
+export const cashEntryTypeValues = ["RECEIPT", "REFUND"] as const;
+
+export const cashJournalEntries = mysqlTable(
+  "cash_journal_entries",
+  {
+    cashEntryId: varchar("cash_entry_id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull()
+      .references(() => orders.orderId, { onDelete: "restrict" }),
+    entryType: mysqlEnum("entry_type", cashEntryTypeValues).notNull(),
+    amountXaf: int("amount_xaf").notNull(),
+    occurredAt: timestamp("occurred_at").notNull(),
+    author: varchar("author", { length: 100 }).notNull(),
+    reference: varchar("reference", { length: 255 }).notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    orderIdx: index("idx_cash_journal_order").on(table.orderId, table.occurredAt),
+    referenceUq: unique("uq_cash_journal_reference").on(table.reference),
+  })
+);
 
 // ---------------------------------------------------------------------------
 // SAVED VIEWS — Transaction Explorer
