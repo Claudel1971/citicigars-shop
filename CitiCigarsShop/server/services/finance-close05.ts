@@ -8,6 +8,31 @@ type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type CashEntryType = "RECEIPT" | "REFUND";
 
+function databaseCode(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  if ("code" in error) return String((error as any).code);
+  if ("cause" in error) return databaseCode((error as any).cause);
+  return "";
+}
+
+function sameCashEntry(existing: typeof cashJournalEntries.$inferSelect, input: {
+  orderId: string;
+  entryType: CashEntryType;
+  amountXaf: number;
+  occurredAt: Date;
+  author: string;
+  note?: string | null;
+}) {
+  return existing.orderId === input.orderId &&
+    existing.entryType === input.entryType &&
+    existing.amountXaf === input.amountXaf &&
+    existing.author === input.author &&
+    existing.occurredAt.getTime() === input.occurredAt.getTime() &&
+    (existing.note ?? null) === (input.note?.trim() || null);
+}
+
+
+
 export function signedCashAmount(entryType: CashEntryType, amountXaf: number) {
   if (!Number.isInteger(amountXaf) || amountXaf <= 0) throw new Error("Montant de caisse XAF entier positif requis");
   return entryType === "RECEIPT" ? amountXaf : -amountXaf;
@@ -53,28 +78,32 @@ export async function appendCashEntry(
 
   const [existing] = await exec.select().from(cashJournalEntries).where(eq(cashJournalEntries.reference, reference));
   if (existing) {
-    if (
-      existing.orderId !== input.orderId ||
-      existing.entryType !== input.entryType ||
-      existing.amountXaf !== input.amountXaf ||
-      existing.author !== author
-    ) {
+    if (!sameCashEntry(existing, { ...input, author })) {
       throw new Error("Référence caisse déjà utilisée avec un contenu différent");
     }
     return { entry: existing, idempotentReplay: true };
   }
 
   const cashEntryId = randomUUID();
-  await exec.insert(cashJournalEntries).values({
-    cashEntryId,
-    orderId: input.orderId,
-    entryType: input.entryType,
-    amountXaf: input.amountXaf,
-    occurredAt: input.occurredAt,
-    author,
-    reference,
-    note: input.note?.trim() || null,
-  });
+  try {
+    await exec.insert(cashJournalEntries).values({
+      cashEntryId,
+      orderId: input.orderId,
+      entryType: input.entryType,
+      amountXaf: input.amountXaf,
+      occurredAt: input.occurredAt,
+      author,
+      reference,
+      note: input.note?.trim() || null,
+    });
+  } catch (error) {
+    if (databaseCode(error) !== "ER_DUP_ENTRY") throw error;
+    const [winner] = await exec.select().from(cashJournalEntries).where(eq(cashJournalEntries.reference, reference));
+    if (!winner || !sameCashEntry(winner, { ...input, author })) {
+      throw new Error("Référence caisse concurrente avec un contenu différent");
+    }
+    return { entry: winner, idempotentReplay: true };
+  }
   const [entry] = await exec.select().from(cashJournalEntries).where(eq(cashJournalEntries.cashEntryId, cashEntryId));
   return { entry, idempotentReplay: false };
 }
@@ -87,6 +116,10 @@ export async function orderCashState(exec: DbOrTx, orderId: string) {
     amountXaf: entry.amountXaf,
   })));
   return { entries, balanceXaf };
+}
+
+export async function getOrderCashState(orderId: string) {
+  return orderCashState(db, orderId);
 }
 
 export type CogsAllocation = {
