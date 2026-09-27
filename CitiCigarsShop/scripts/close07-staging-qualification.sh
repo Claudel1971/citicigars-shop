@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== CLOSE-07 staging qualification =="
+echo "== CLOSE-07 staging qualification =="\necho "0/4 Ensure test dependencies"\nnpm install --include=dev
 echo "1/4 RBAC/Admin"
 npx tsx scripts/close07-staging-rbac.ts
 
