@@ -93,3 +93,5 @@ try {
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
 }
+
+process.exit(0);
