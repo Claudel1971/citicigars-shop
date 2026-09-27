@@ -90,5 +90,6 @@ try {
     secretValuesLogged: false,
   }, null, 2));
 } finally {
+  server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
 }
