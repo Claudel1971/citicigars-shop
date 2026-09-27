@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - replit-commerce-os-v2
+      - v6-staging-import-job
     paths:
       - "CitiCigarsShop/**"
       - ".github/workflows/close06-neutral-validation.yml"
@@ -59,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: V6 preflight safety tests
+        run: node --test server/jobs/v6-preflight.node-test.mjs
+
       - name: Typecheck
         run: npm run check
 
@@ -70,3 +74,4 @@ jobs:
 
       - name: Build
         run: npm run build
+
