@@ -16,7 +16,7 @@ CREATE TABLE `cash_journal_entries` (
     REFERENCES `orders` (`order_id`) ON DELETE RESTRICT,
   CONSTRAINT `uq_cash_journal_reference` UNIQUE (`reference`),
   KEY `idx_cash_journal_order` (`order_id`,`occurred_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB;
 --> statement-breakpoint
 
 CREATE TABLE `stock_lot_cost_basis` (
