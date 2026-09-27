@@ -9,7 +9,7 @@ echo "1/4 RBAC/Admin"
 npx tsx scripts/close07-staging-rbac.ts
 
 echo "2/4 CLOSE-06 real staging integration"
-npx vitest run server/services/close06-interclose.integration.test.ts --reporter=verbose
+npx vitest run server/services/close06-interclose.integration.test.ts --reporter=verbose --testTimeout=60000
 
 echo "3/4 Admin UI targeted regression"
 npx vitest run \
