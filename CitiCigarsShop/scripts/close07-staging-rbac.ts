@@ -8,13 +8,29 @@ const dbName = new URL(mysqlUrl).pathname.replace(/^\//, "");
 if (dbName !== EXPECTED_DB) throw new Error(`FAIL-CLOSED unexpected DB: ${dbName}`);
 if (!process.env.CMS_ADMIN_PASSWORD) throw new Error("CMS_ADMIN_PASSWORD missing");
 
-const { registerRoutes } = await import("../server/routes");
-const { issueAdminToken } = await import("../server/middleware/auth");
+const {
+  getAdminPassword,
+  issueAdminToken,
+} = await import("../server/middleware/auth");
+const { registerStockAdminRoutes } = await import("../server/routes.stock-admin");
+const { registerPurchasingRoutes } = await import("../server/routes.purchasing");
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
+
+app.post("/api/content/login", (req, res) => {
+  const { password } = req.body || {};
+  if (password !== getAdminPassword()) {
+    return res.status(401).json({ success: false, error: "Mot de passe incorrect" });
+  }
+  const issued = issueAdminToken("OWNER");
+  return res.json({ success: true, token: issued.token, expiresInSeconds: issued.expiresInSeconds });
+});
+
+registerStockAdminRoutes(app);
+registerPurchasingRoutes(app);
+
 const server = createServer(app);
-await registerRoutes(server, app);
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const address = server.address();
 if (!address || typeof address === "string") throw new Error("local server failed");
