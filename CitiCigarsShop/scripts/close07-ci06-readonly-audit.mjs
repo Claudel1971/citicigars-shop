@@ -12,7 +12,7 @@ const connection = await mysql.createConnection(mysqlUrl);
 
 async function rows(sql, params = []) {
   const [result] = await connection.execute(sql, params);
-  return result as any[];
+  return result;
 }
 
 try {
