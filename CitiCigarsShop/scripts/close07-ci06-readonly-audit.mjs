@@ -10,7 +10,7 @@ if (dbFromUrl !== EXPECTED_DB) throw new Error(`FAIL-CLOSED unexpected DB in MYS
 
 const connection = await mysql.createConnection(mysqlUrl);
 
-async function rows(sql: string, params: unknown[] = []) {
+async function rows(sql, params = []) {
   const [result] = await connection.execute(sql, params);
   return result as any[];
 }
@@ -164,7 +164,7 @@ try {
     ORDER BY c.order_id, c.occurred_at, c.created_at, c.cash_entry_id
   `);
 
-  const cashByOrder = new Map<string, { receiptXaf: number; refundXaf: number; balanceXaf: number; entryTypes: string[] }>();
+  const cashByOrder = new Map();
   for (const entry of cash) {
     const current = cashByOrder.get(entry.order_id) ?? { receiptXaf: 0, refundXaf: 0, balanceXaf: 0, entryTypes: [] };
     const amount = Number(entry.amount_xaf || 0);
@@ -207,7 +207,7 @@ try {
       cash: cashByOrder.get(sale.order_id) ?? { receiptXaf: 0, refundXaf: 0, balanceXaf: 0, entryTypes: [] },
     }));
 
-    const issues: string[] = [];
+    const issues = [];
     if (skuPos.some((po) => po.status !== "RECEIVED")) issues.push("purchase_order_not_fully_received");
     if (skuReceipts.length === 0) issues.push("no_receipt");
     if (skuCosts.length === 0) issues.push("no_cost_basis");
