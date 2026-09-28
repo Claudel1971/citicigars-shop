@@ -686,7 +686,7 @@ export class StockStorage {
           ? (endpoints.sourceLocationId
             ? [{ balanceField: "onHand", delta: -input.qty }]
             : [{ balanceField: "onHand", delta: input.qty }])
-          : computeSimpleEffects(input, ruleBalance);
+          : computeSimpleEffects({ ...input, movementType: input.movementType }, ruleBalance);
       for (const effect of effects) assertLooseNeverInTransit(input.type, effect.balanceField, effect.delta);
 
       const groupId = randomUUID();
