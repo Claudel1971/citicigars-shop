@@ -1,69 +1,11 @@
-# V6 staging job — draft, no business writes implemented
+# V6 staging migration — retired administrative capability
 
-## First executable gate
+The temporary importer is retained as versioned audit source in server/jobs, but is no longer imported or invoked by server/index.ts. There is no execution HTTP route. Runtime V6_WRITE_* and V6_JOB_* configuration must be disabled and private payloads cleared after qualification.
 
-The read-only preflight runs inside the existing staging API process, using its
-existing pool. No HTTP route, external MySQL access, extra infrastructure or
-credentials are introduced. Render administration is the activation control.
-It is disabled unless explicitly enabled, pinned to the deployed commit, service
-ID/name, exact database URL path and actual SELECT DATABASE() result. A two-hour
-maximum expiry bounds reactivation on restarts. No raw errors, credentials,
-customer names or payloads enter logs. Every source fact emits a hashed identity,
-payload hash and qualification status. The manifest is supplied privately through
-Render configuration, not committed to this public repository.
+The attended run used an exact Render service ID, database name bwljrj22_citicigars_admin_staging, deployed commit, expiry, plan hash, baseline hash and schema hash. Dry-run executes the plan transactionally and rolls it back. Operations are journaled by source_record_id with immutable payload hashes; mismatched replay fails closed. Business writes and journal markers share a transaction. Reconciliation follows each new commit and the complete replay. Unknown source dates, historical locations and unsupported costs remain explicitly unknown.
 
-PS0 restoration was reported successful by the owner on 2026-09-27 in an isolated
-restore-test database (258 queries). Do not require direct WHC access again.
+PS2 imports purchase receipts and original gross/discount/net costs. PS3 reconstructs transformations and documented legacy opening bridges. PS4 imports commercial orders, cash and deposits separately. PS5 reconciles current stock to the source controls and qualifies authenticated read views. Source payloads and detailed evidence belong only in the private Control Pack, never this public repository.
 
-Configuration: V6_JOB_ENABLED=true; V6_JOB_MODE=preflight;
-V6_JOB_COMMIT=the deployed 40-character commit;
-V6_JOB_EXPIRES_AT=an ISO timestamp within two hours;
-V6_JOB_MANIFEST_GZIP=base64 gzip of the private metadata manifest;
-V6_JOB_MANIFEST_SHA256=SHA-256 of its uncompressed JSON bytes.
-MYSQL_URL is reused without reading or changing its secret value.
+Persistent historical audit views remain authenticated. They expose original source costs alongside corrected inventory valuation. Unresolved cost is null, never silently replaced by a source estimate. Deposits and advances remain distinct from sales revenue.
 
-This version rejects every write mode. IDENTITY_PASS proves only the database
-identity for this read-only connection. DRY_RUN_COMPLETE reports source/model
-blockers; it is not an executable PS2–PS5 simulation, mutation approval or UAT PASS.
-
-## Required write implementation and qualification
-
-Do not enable business writes until the phase adapters are implemented, tested,
-and the source exceptions have explicit dispositions. Reuse purchasing, stock
-and cash services, adding an injected shared transaction where required. Never
-disable ledger triggers, truncate fixture data, or force paid balances to totals.
-
-Use an InnoDB import operation registry with a unique (source_system,
-source_record_id), payload hash, phase, result identity, actor and audit timestamps.
-For each operation, acquire its row lock in the same transaction as the business
-writes; a matching committed hash skips, a conflicting hash stops, and a rollback
-leaves no completed marker. Serialize the batch with a database advisory lock on
-the same connection. Request UUIDs derive from the source ID; they do not replace
-the unique source-record constraint. DDL is a separately reviewed staging-only
-migration outside transactional replay.
-
-Dry-run must compile the exact typed operation plan, validate all dependencies and
-schema, compare existing source hashes, simulate stock conservation and produce
-an immutable plan hash. Apply must bind that hash to a fresh identity/schema and
-baseline check. Read-only preflight alone is insufficient for apply.
-
-PS2: Hilands, Casa, Drugstore purchases and receipts. One global Casa receipt.
-Resolve quantity unit mappings and preserve uncertain cost/date provenance.
-PS3: chronological transformations, movements, deposits and explicitly authorized
-legacy bridges. Inferred initial stock is a control, never an extra receipt.
-PS4: real sales, free market-penetration transactions, dated receipts, receivables
-and separate deposit advances. A deposit is not a sale.
-PS5: per-source purchase/stock/sales/cash/ledger reconciliation; verify unchanged
-pre-existing fixtures; rerun with zero business changes; run existing tests and UI.
-
-Critical unresolved model issues: purchase dates currently require a precise day,
-cash entries require an order, and some source acquisition costs are disputed or
-missing. Do not invent dates, sales or costs to satisfy these fields.
-
-Pause between operations/phases, persist progress transactionally, and stop on
-any exception or reconciliation mismatch. Resume only through the same hashes
-and operation registry. Logs identify start, dry-run, apply, skip, rollback,
-reconciliation and completion without secrets; detailed private evidence remains
-in the protected audit store. Disable the flag immediately after each attended
-session. After qualification remove the startup hook/job, clear private job
-configuration, deploy and verify removal. Retain append-only historical evidence.
+Reactivation requires a new reviewed code change restoring an entry point, fresh technical identity proof, a new dry-run, and freshly approved expected hashes. Production is outside this mandate.

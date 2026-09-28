@@ -99,9 +99,14 @@ function SortableHeader({
   );
 }
 
+function lineCostXaf(row) {
+  return 'valuationLineCostXaf' in row ? row.valuationLineCostXaf : row.actualLineCostXaf;
+}
+
 function lineMarginXaf(row) {
-  if (row.actualLineCostXaf == null || row.actualLineCostXaf === '') return null;
-  return Number(row.actualLineRevenueXaf || 0) - Number(row.actualLineCostXaf);
+  const cost = lineCostXaf(row);
+  if (cost == null || cost === '') return null;
+  return Number(row.actualLineRevenueXaf || 0) - Number(cost);
 }
 
 
@@ -131,7 +136,7 @@ const LINE_TABLE_COLUMNS = [
   { key: 'itemType', label: 'Type', index: 8, width: 105 },
   { key: 'quantity', label: 'Qté', index: 9, width: 70 },
   { key: 'actualLineRevenueXaf', label: 'CA ligne', index: 10, width: 115 },
-  { key: 'actualLineCostXaf', label: 'Coût réel', index: 11, width: 115 },
+  { key: 'actualLineCostXaf', label: 'Coût valorisé', index: 11, width: 115 },
   { key: 'lineMarginXaf', label: 'Marge ligne', index: 12, width: 115 },
 ];
 
@@ -443,6 +448,10 @@ const TransactionExplorer = () => {
         av = lineMarginXaf(a);
         bv = lineMarginXaf(b);
       }
+      if (lineSort.key === 'actualLineCostXaf') {
+        av = lineCostXaf(a);
+        bv = lineCostXaf(b);
+      }
       const cmp = compareValues(av, bv);
       return lineSort.direction === 'asc' ? cmp : -cmp;
     });
@@ -725,7 +734,7 @@ const TransactionExplorer = () => {
                                   <th className="p-2">Type</th>
                                   <th className="p-2 text-right">Qté</th>
                                   <th className="p-2 text-right">CA ligne</th>
-                                  <th className="p-2 text-right">Coût réel</th>
+                                  <th className="p-2 text-right">Coût valorisé</th>
                                   <th className="p-2 text-right">Marge ligne</th>
                                 </tr>
                               </thead>
@@ -739,7 +748,7 @@ const TransactionExplorer = () => {
                                     <td className="p-2">{line.itemType}</td>
                                     <td className="p-2 text-right">{line.quantity}</td>
                                     <td className="p-2 text-right">{fmtXaf(line.actualLineRevenueXaf)}</td>
-                                    <td className="p-2 text-right">{fmtXaf(line.actualLineCostXaf)}</td>
+                                    <td className="p-2 text-right"><span title={`Coût source : ${fmtXaf(line.actualLineCostXaf)} XAF`}>{fmtXaf(lineCostXaf(line))}</span></td>
                                     <td className="p-2 text-right">{fmtXaf(lineMarginXaf(line))}</td>
                                   </tr>
                                 ))}
@@ -773,7 +782,7 @@ const TransactionExplorer = () => {
                 <SortableHeader label="Type" sortKey="itemType" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'itemType')} onResize={(e) => startColumnResize(e, 'lines', 'itemType')} />
                 <SortableHeader label="Qté" sortKey="quantity" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'quantity')} onResize={(e) => startColumnResize(e, 'lines', 'quantity')} />
                 <SortableHeader label="CA ligne" sortKey="actualLineRevenueXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineRevenueXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineRevenueXaf')} />
-                <SortableHeader label="Coût réel" sortKey="actualLineCostXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineCostXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineCostXaf')} />
+                <SortableHeader label="Coût valorisé" sortKey="actualLineCostXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineCostXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineCostXaf')} />
                 <SortableHeader label="Marge ligne" sortKey="lineMarginXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'lineMarginXaf')} onResize={(e) => startColumnResize(e, 'lines', 'lineMarginXaf')} />
               </tr>
             </thead>
@@ -790,7 +799,7 @@ const TransactionExplorer = () => {
                   <td className="p-2">{r.itemType}</td>
                   <td className="p-2 text-right">{r.quantity}</td>
                   <td className="p-2 text-right">{fmtXaf(r.actualLineRevenueXaf)}</td>
-                  <td className="p-2 text-right">{fmtXaf(r.actualLineCostXaf)}</td>
+                  <td className="p-2 text-right"><span title={`Coût source : ${fmtXaf(r.actualLineCostXaf)} XAF`}>{fmtXaf(lineCostXaf(r))}</span></td>
                   <td className="p-2 text-right">{fmtXaf(lineMarginXaf(r))}</td>
                 </tr>
               ))}
