@@ -323,7 +323,9 @@ export async function runV6Import() {
       const result=await journalOperation(db,op,tx=>executeOperation(tx,op));
       if(result.replay)skipped++;else applied++;
       audit(result.replay?"SKIP":"COMMIT",{record_key_sha256:hash(op.source_record_id),payload_sha256:hash(op),phase:op.phase});
-      audit("RECONCILIATION",await reconcile(db,config.plan));
+      // A matching replay has no business writes. Reconcile after each new
+      // commit and once at completion, not repeatedly for every skipped record.
+      if(!result.replay)audit("RECONCILIATION",await reconcile(db,config.plan));
     }
     const after=await takeSnapshot(db);
     if(applied===0&&before.digest!==after.digest)refuse("REPLAY_MUTATED_DATA");
