@@ -1,6 +1,10 @@
 # UAT V2 — proposition de corrections back-office
 
-Statut : WORKING_NON_CANONICAL / NON_DÉPLOYÉ. Classe cible : GH_ONLY.
+Statut : WORKING_NON_CANONICAL / LIVRAISON PARTIELLE STAGING. Classe cible : GH_ONLY.
+
+Mise à jour : 28 septembre 2026. Publication publique explicitement autorisée par Claudel.
+Premier lot sans migration : commit `20fc5f1565c9dd3635b816afafce92cb24301c4c`, CI [36377411648](https://github.com/Claudel1971/citicigars-shop/actions/runs/36377411648) entièrement PASS ; déploiement Render `dep-dasurjgjo6nc73dhulj0` LIVE.
+Compléments 0024 : branche de travail uniquement, non promus en staging.
 Autorité : demande explicite de Claudel ; staging exclusivement.
 Ce rapport ne constitue ni une qualification complète V2 ni une déclaration de livraison.
 
@@ -10,7 +14,7 @@ Ce rapport ne constitue ni une qualification complète V2 ni une déclaration de
 - Branche locale : `uat-v2-backoffice-20260928`.
 - Cible autorisée : service Render `citicigars-api-staging`, My Workspace ; auto-deploy désactivé.
 - La qualification V6 antérieure a été vérifiée dans les logs Render. Aucune relance de l’import.
-- Aucune écriture en base, migration, suppression d’historique, promotion ou modification de production effectuée.
+- Aucune écriture en base staging, migration, suppression d’historique ou modification de production effectuée. Le premier lot applicatif a été promu exclusivement vers la branche et le service staging.
 - Les pièces sources, données nominatives, coûts réels et secrets ne sont pas ajoutés à ce dépôt public.
 
 ## Corrections préparées
@@ -51,24 +55,31 @@ Chemins UI abrégés dans le tableau : `client/src/components/admin/`.
 
 Les capacités déjà présentes dans la baseline sont conservées ; les exclusions ci-dessus ne signifient pas qu’elles ont été supprimées.
 
-## Travail autorisé restant — ne pas confondre avec les exclusions
+## Compléments préparés sur la branche de travail — migration requise
 
-- UAT-08 : association/consultation interne des fiches techniques par CigarID, source/date et lien depuis le référentiel : non réalisée.
-- UAT-11 : attribution persistante, déterministe et unique des IDs CUST/SUPP sans modification des PK/FK : non réalisée ; nécessite une migration versionnée et sa vérification. Aucun identifiant calculé par rang instable n’a été substitué.
-- UAT-09 : couverture complète des IDs métier dans fiches, menus, exports et recherche dépend d’UAT-11. Vérification réelle de toutes les identités importées encore requise ; aucun découpage arbitraire des noms existants.
-- UAT-14 : clarification/couverture des seules tâches administratives, responsable et intégration au Dashboard/fiche client : non réalisée. L’erreur UAT initiale n’a pas été reproduite.
-- UAT-03/12 : vérifier en staging les métadonnées de tous les conditionnements et la lisibilité complète de la provenance des deux cas UAT.
-- Revue indépendante fonctionnelle et coût du Gardien : non obtenue ; aucun statut prêt à production revendiqué.
+- UAT-08 : `InternalSheets.tsx`, `routes.internal-admin.ts` et `internal-admin.ts` : Association/Consultation, recherche par dimensions métier, analyse déterministe des seuls champs factuels, correction humaine, source/date/contenu conservé, versions append-only et consultation des fiches historiques structurées. Les associations écrivent uniquement dans le référentiel interne, jamais dans le catalogue public. Lien depuis Cigar Master.
+- UAT-11 : table de correspondance persistante CUST/SUPP et séquences verrouillées ; backfill ordonné déterministe, conservation des codes métier historiques et des PK/FK ; triggers d’allocation transactionnelle pour les nouvelles entités. Les listes/fiches administratives et la recherche client reçoivent `businessId`. Pas de rang calculé à chaque lecture. Les parcours de vente exclus restent inchangés ; couverture de tous les anciens exports non revendiquée.
+- UAT-14 : `AdministrativeTasks.tsx` et tables dédiées : trois catégories strictement administratives (coordonnées, document administratif, rapprochement de compte), date, responsable, états Ouvert/Terminé/Annulé, Fait/Annuler/Réouvrir, échéance/retard, lien client, intégration fiche client/Dashboard/page Relances. Historique des changements et contrôle de version contre les mises à jour concurrentes. Aucune relance commerciale générée ni aucun message envoyé.
+- Scripts versionnés : `migrations-mysql/0024_uat_internal_admin.sql`, `0024b_uat_identifier_triggers.sql`, rollback par archivage des tables et `scripts/apply-uat-internal-admin.ts`.
+- Identité de l’auteur : session admin/rôle existants. Le responsable est une attribution déclarative ; aucune identité employé individuelle authentifiée n’est inventée.
 
-## Vérification et blocage
+## Vérification et limites
 
-- TypeScript : PASS local.
-- Tests hors base : 199 PASS, 2 ignorés ; les tests d’intégration MySQL sont exclus de ce résultat.
-- Préflight V6 de la baseline : 15/15 PASS.
-- Build local : PASS via `node --import tsx script/build.ts` ; le lanceur `tsx` CLI rencontre une erreur IPC EPERM dans cet environnement. Aucun problème de compilation du bundle observé.
-- Tests ajoutés : refus économiques par rôle, absence de lecture de données avant autorisation, non-substitution des coûts inconnus, SQL de lecture à exécuter sur MySQL CI.
-- Tests MySQL, non-régression complète, navigateur staging, déploiement et qualification : NON EXÉCUTÉS.
-- Le push GitHub a été rejeté par la revue automatique : publication de code potentiellement sensible dans un dépôt public, autorisation explicite jugée manquante. Aucune autre voie de publication n’a été utilisée pour contourner ce rejet.
-- La branche reste locale. Autorisation nécessaire pour publier le code de cette proposition dans `Claudel1971/citicigars-shop` PUBLIC, puis poursuivre la CI et les travaux restants.
+- Premier lot : CI complète MySQL 8.4, préflight V6 15/15, TypeScript, tests et build PASS. Déploiement staging LIVE confirmé par Render.
+- Compléments : TypeScript et 204 tests hors base PASS, 2 ignorés. CI MySQL des nouveaux compléments à vérifier avant toute promotion.
+- Tests complémentaires : stabilité et concurrence des IDs, attribution atomique/rollback, collision PK technique/code métier, source/version des fiches, conflits des tâches et RBAC. Base CI dédiée temporaire ; aucune donnée réelle chargée dans GitHub Actions.
+- Le navigateur staging atteint le formulaire Admin. Qualification authentifiée non exécutée : connexion nécessaire.
+- Aucun accès d’administration MySQL staging ni sauvegarde récente vérifiée disponible dans cette session. La migration 0024 n’a donc pas été exécutée et ces compléments ne sont pas déployés.
+- La couverture UAT reste partielle tant que la migration, la qualification navigateur et les cas économiques réels (dont SALE-000006) ne sont pas vérifiés.
+- Les métadonnées absentes des conditionnements et les ventilations de coûts non documentées restent inconnues.
+- Revue indépendante fonctionnelle et coût du Gardien non obtenue ; aucun statut prêt à production revendiqué.
 
-Après autorisation : vérifier l’absence de changement concurrent, publier la branche isolée, exécuter MySQL/CLOSE-06, résoudre les écarts, poursuivre les UAT autorisées restantes, puis seulement promouvoir sur la branche de staging et déployer la cible vérifiée. Aucune promotion vers `main`.
+## Suite exacte
+
+1. Achever la CI MySQL des compléments et corriger tout écart.
+2. Avec l’accès d’administration à la seule base staging : suspendre les écritures administratives, produire une sauvegarde récente avec le script existant `scripts/staging-phase2-db-gate.mjs` et la vérifier.
+3. Exécuter `node --import tsx scripts/apply-uat-internal-admin.ts --apply --administrative-writes-paused --backup-file=<fichier-gzip> --backup-sha256=<sha256>`, avec `MYSQL_URL` injecté par un canal secret, jamais dans le rapport ou une commande publiée. Le script refuse toute autre base, toute sauvegarde trop ancienne ou de hash/contenu incompatible.
+4. Vérifier correspondances, invariants et triggers ; promouvoir uniquement le commit CI vert sur la branche staging ; déployer le même service.
+5. Qualifier les écrans authentifiés et les cas réels, puis obtenir les deux revues du Gardien. Aucune promotion vers `main`.
+
+Le rejet automatique initial concernait la publication dans le dépôt public. Il a été levé par l’autorisation explicite de Claudel. Le push CLI n’avait pas d’identifiants locaux ; la publication autorisée a été réalisée via le connecteur GitHub. Aucun secret, pièce source ou donnée métier nominative n’est inclus dans les nouveaux fichiers.

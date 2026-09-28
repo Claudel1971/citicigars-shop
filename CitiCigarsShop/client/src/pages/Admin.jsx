@@ -14,6 +14,7 @@ import PackConfig from '@/components/admin/PackConfig';
 import ProductManager from '@/components/admin/ProductManager';
 import ContentManager from '@/components/admin/ContentManager';
 import ImportFiches from '@/components/admin/ImportFiches';
+import InternalSheets from '@/components/admin/InternalSheets';
 import CrmList from '@/components/admin/crm/CrmList';
 import CustomerDetail from '@/components/admin/crm/CustomerDetail';
 import ConversationAnalyzer from '@/components/admin/crm/ConversationAnalyzer';
@@ -189,7 +190,8 @@ const Admin = () => {
               <Route path="/admin/config" component={PackConfig} />
               <Route path="/admin/products" component={ProductManager} />
               <Route path="/admin/content" component={ContentManager} />
-              <Route path="/admin/fiches" component={ImportFiches} />
+              <Route path="/admin/fiches" component={InternalSheets} />
+              <Route path="/admin/fiches/legacy" component={ImportFiches} />
               <Route path="/admin/dna-research" component={DnaResearchApproval} />
               <Route path="/admin/stock" component={StockAdmin} />
               <Route path="/admin/stock/monitoring" component={StockMonitoring} />

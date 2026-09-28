@@ -17,6 +17,7 @@ import { registerStockTraceabilityRoutes } from "./routes.stock-traceability";
 import { registerStockAdminRoutes } from "./routes.stock-admin";
 import { registerPurchasingRoutes } from "./routes.purchasing";
 import { registerStockMonitoringRoutes } from "./routes.stock-monitoring";
+import { registerInternalAdminRoutes } from "./routes.internal-admin";
 import { registerBackofficeRoutes } from "./routes.backoffice";
 
 const ROOT_DIR = process.cwd();
@@ -60,6 +61,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   registerResearchPoolRoutes(app);
   registerBackofficeRoutes(app);
+  registerInternalAdminRoutes(app);
 
   app.use('/cms-assets', express.static(CMS_ASSETS_DIR, {
     maxAge: '1d',

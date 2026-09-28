@@ -460,7 +460,7 @@ const CrmList = () => {
       <div className="flex flex-wrap gap-3 mb-4">
         <input
           type="text"
-          placeholder="Rechercher (ID, nom, téléphone, entreprise)..."
+          placeholder="Nom, téléphone ou ID métier — Rechercher (ID, nom, téléphone, entreprise)..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded-md px-3 py-2 flex-1 min-w-[220px]"

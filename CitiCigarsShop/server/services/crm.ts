@@ -1,3 +1,4 @@
+import { withBusinessIds } from "./business-identifiers";
 import crypto from "crypto";
 import { eq, and, desc, asc, sql as sqlOp } from "drizzle-orm";
 import { db } from "../db.mysql";
@@ -184,12 +185,12 @@ export async function listCustomers(filters: CustomerListFilters = {}) {
     balanceRows.map((r) => [r.customerId, Number(r.balanceDueXaf ?? 0)])
   );
 
-  return rows
+  return (await withBusinessIds(rows,"CUST","customerId"))
     .filter((c) => {
       if (filters.status && c.status !== filters.status) return false;
       if (filters.search) {
         const q = filters.search.toLowerCase();
-        const haystack = `${c.customerId ?? ""} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.phoneWhatsapp ?? ""} ${
+        const haystack = `${c.businessId ?? ""} ${c.customerId ?? ""} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.phoneWhatsapp ?? ""} ${
           c.companyName ?? ""
         }`.toLowerCase();
         if (!haystack.includes(q)) return false;
@@ -209,7 +210,8 @@ export async function listCustomers(filters: CustomerListFilters = {}) {
  * recent interactions. This backs the "fiche client" screen (brief 8.B).
  */
 export async function getCustomerDetail(customerId: string) {
-  const [customer] = await db.select().from(customers).where(eq(customers.customerId, customerId));
+  const rawCustomers = await db.select().from(customers).where(eq(customers.customerId, customerId));
+  const [customer] = await withBusinessIds(rawCustomers,"CUST","customerId");
   if (!customer) return undefined;
 
   const [interactions, dnaResults, customerOrders] = await Promise.all([
@@ -219,7 +221,7 @@ export async function getCustomerDetail(customerId: string) {
       .where(eq(customerInteractions.customerId, customerId))
       .orderBy(desc(customerInteractions.interactionDate)),
     db.select().from(customerDna).where(eq(customerDna.customerId, customerId)).orderBy(desc(customerDna.testedAt)),
-    db.select().from(orders).where(eq(orders.customerId, customerId)).orderBy(desc(orders.orderDate)),
+    db.select().from(orders).where(and(eq(orders.customerId, customerId),sqlOp`NOT EXISTS (SELECT 1 FROM order_items t WHERE t.order_id=${orders.orderId} AND (t.item_sku LIKE 'CLOSE06%' OR t.item_sku LIKE 'CI06-%'))`)).orderBy(desc(orders.orderDate)),
   ]);
 
   const commercialOrders = customerOrders.filter(o=>['CONFIRMED','PAID'].includes(o.status) && !o.orderId.startsWith('CLOSE06'));

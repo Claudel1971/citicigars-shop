@@ -1,3 +1,4 @@
+import AdministrativeTasks from '../AdministrativeTasks';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import { crmFetch } from './crmApi';
@@ -81,6 +82,7 @@ const Followups = () => {
 
   return (
     <div>
+      <AdministrativeTasks />
       <h1 className="text-2xl font-serif font-bold text-primary mb-4">Relances</h1>
 
       <div className="flex flex-wrap gap-2 mb-4">

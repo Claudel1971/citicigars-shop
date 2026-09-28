@@ -1,3 +1,4 @@
+import { withBusinessIds } from "./business-identifiers";
 import crypto, { randomUUID } from "crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db.mysql";
@@ -135,7 +136,7 @@ async function receivedByPurchaseItem(reader: any, purchaseOrderId: string) {
 }
 
 export async function listSuppliers() {
-  return db.select().from(stockSuppliers).orderBy(asc(stockSuppliers.code), asc(stockSuppliers.supplierId));
+  return withBusinessIds(await db.select().from(stockSuppliers).orderBy(asc(stockSuppliers.code), asc(stockSuppliers.supplierId)),"SUPP","supplierId");
 }
 
 export function validateSupplierInput(input: { code: string; name: string; notes?: string | null }) {

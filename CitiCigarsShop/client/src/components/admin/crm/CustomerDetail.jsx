@@ -1,3 +1,4 @@
+import AdministrativeTasks from '../AdministrativeTasks';
 import InlineCustomerField from './InlineCustomerField';
 import React, { useEffect, useState } from 'react';
 import { useRoute, Link } from 'wouter';
@@ -157,7 +158,7 @@ const CustomerDetail = () => {
           <h1 className="text-2xl font-serif font-bold text-primary mb-1">
             {[customer.firstName, customer.lastName].filter(Boolean).join(' ') ||
               customer.companyName ||
-              customer.customerId}
+              customer.businessId || "Client"}
           </h1>
           <p className="text-gray-500 mb-4">
             {customer.phoneWhatsapp || 'Aucun téléphone'} · {TYPE_LABELS[customer.customerType] || customer.customerType}
@@ -216,7 +217,7 @@ const CustomerDetail = () => {
         </div>
       )}
 
-      <section className="grid gap-3 md:grid-cols-3 mb-6">{[['firstName','Prénom'],['lastName','Nom'],['phoneWhatsapp','WhatsApp / téléphone'],['email','Email'],['city','Ville'],['country','Pays'],['customerType','Type'],['companyName','Entreprise'],['jobTitle','Fonction']].map(([field,label])=><InlineCustomerField key={field} customer={customer} field={field} label={label} options={field==='customerType'?['B2C','CORPORATE','PARTNER','OTHER']:undefined} onSaved={updated=>setDetail(d=>({...d,customer:updated}))}/>)}<details className="p-3 text-xs"><summary>Identifiant technique</summary>{customer.customerId}</details></section>
+      <section className="grid gap-3 md:grid-cols-3 mb-6">{[['firstName','Prénom'],['lastName','Nom'],['phoneWhatsapp','WhatsApp / téléphone'],['email','Email'],['city','Ville'],['country','Pays'],['customerType','Type'],['companyName','Entreprise'],['jobTitle','Fonction']].map(([field,label])=><InlineCustomerField key={field} customer={customer} field={field} label={label} options={field==='customerType'?['B2C','CORPORATE','PARTNER','OTHER']:undefined} onSaved={updated=>setDetail(d=>({...d,customer:{...d.customer,...updated}}))}/>)}<p className="p-3 text-sm">Référence métier : {customer.businessId || "Attribution en attente"}</p><details className="p-3 text-xs"><summary>Identifiant technique</summary>{customer.customerId}</details></section>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-white border rounded-md p-4"><div className="text-xs text-gray-500">Balance</div><div className="text-xl font-bold">{fmtXaf(summary.balanceDueXaf)}</div></div>
         <div className="bg-white border rounded-md p-4">
@@ -301,7 +302,8 @@ const CustomerDetail = () => {
       </div>
 
       <div className="bg-white border rounded-md p-4">
-        <h2 className="font-semibold mb-3">Interactions</h2>
+        <AdministrativeTasks customerId={customer.customerId} />
+        <h2 className="font-semibold mb-3 mt-5">Interactions</h2>
 
         <div className="flex gap-2 mb-4">
           <input

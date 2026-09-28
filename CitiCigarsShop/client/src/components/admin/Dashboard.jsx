@@ -1,3 +1,4 @@
+import AdministrativeTasks from './AdministrativeTasks';
 import React, { useEffect, useState } from "react";
 import { crmFetch } from "./crm/crmApi";
 import BackofficeTable, { amount, dateLabel } from "./BackofficeTable";
@@ -50,6 +51,7 @@ export default function Dashboard() {
       <p className="text-sm">
         {data.stockUnit} {data.heldFormula}
       </p>
+      <AdministrativeTasks compact />
       <h2 className="text-xl font-semibold">Transactions récentes</h2>
       <BackofficeTable
         rows={data.activity}

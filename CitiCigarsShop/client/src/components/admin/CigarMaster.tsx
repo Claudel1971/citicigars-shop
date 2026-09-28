@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import React, { useEffect, useState } from "react";
 import BackofficeTable, { AuditProof } from "./BackofficeTable";
 import { crmFetch } from "./crm/crmApi";
@@ -40,6 +41,7 @@ export default function CigarMaster() {
             { key: "format", label: "Format" },
             { key: "dimensions", label: "Dimensions" },
             { key: "pays", label: "Pays" },
+            {key:"sheet",label:"Fiche interne",render:r=><Link href={"/admin/fiches?cigarId="+encodeURIComponent(r.cigar_id)}>Consulter / associer</Link>},
             {
               key: "cigar_id",
               label: "Référence interne",
