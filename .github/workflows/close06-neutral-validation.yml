@@ -7,6 +7,7 @@ on:
       - v6-staging-import-job
       - v6-ps2-transactional-import
       - uat-v2-backoffice-20260928
+      - uat-v2-presentation-20260928
     paths:
       - "CitiCigarsShop/**"
       - ".github/workflows/close06-neutral-validation.yml"

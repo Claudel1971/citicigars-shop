@@ -136,3 +136,10 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--secondary));
 }
+
+/* Admin-wide typography, including login, dialogs, tables and portal content.
+   Aptos is selected from the device; no unlicensed font binary is redistributed. */
+body.admin-typography,
+body.admin-typography * {
+  font-family: 'Aptos', 'Segoe UI', Arial, sans-serif !important;
+}
