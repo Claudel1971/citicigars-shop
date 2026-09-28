@@ -135,7 +135,14 @@ export async function updateCustomer(
   updates: Partial<InsertCustomer>,
   exec: DbOrTx = db
 ): Promise<typeof customers.$inferSelect | undefined> {
-  const patch: Partial<typeof customers.$inferInsert> = { ...updates };
+  if (exec === db) return db.transaction(tx=>updateCustomer(customerId,updates,tx));
+  const [existing] = await exec.select().from(customers).where(eq(customers.customerId,customerId)).for('update');
+  if (!existing) return undefined;
+  const identity = {...existing,...updates};
+  if (![identity.firstName,identity.lastName,identity.companyName].some(v=>typeof v==='string'&&v.trim())) throw new Error('Une identité client est requise');
+  const allowed = ['firstName','lastName','phoneWhatsapp','email','city','country','customerType','companyName','jobTitle','source','status','notes'] as const;
+  const patch: Partial<typeof customers.$inferInsert> = Object.fromEntries(Object.entries(updates).filter(([key])=>allowed.includes(key as any)));
+  if (!Object.keys(patch).length) throw new Error('Aucun champ administratif modifiable');
   if (typeof updates.phoneWhatsapp === "string") {
     patch.phoneWhatsapp = normalizePhone(updates.phoneWhatsapp);
     patch.phoneRaw = updates.phoneWhatsapp;
@@ -165,8 +172,11 @@ export async function listCustomers(filters: CustomerListFilters = {}) {
       .select({
         customerId: orders.customerId,
         balanceDueXaf: sqlOp<number>`COALESCE(SUM(${orders.balanceDue}), 0)`,
+        totalOrderedXaf: sqlOp<number>`COALESCE(SUM(${orders.finalSaleTotalXaf}), 0)`,
+        lastOrderDate: sqlOp<string>`MAX(${orders.orderDate})`,
       })
       .from(orders)
+      .where(sqlOp`${orders.status} IN ('CONFIRMED','PAID') AND ${orders.orderId} NOT LIKE 'CLOSE06%' AND NOT EXISTS (SELECT 1 FROM order_items t WHERE t.order_id=${orders.orderId} AND (t.item_sku LIKE 'CLOSE06%' OR t.item_sku LIKE 'CI06-%'))`)
       .groupBy(orders.customerId),
   ]);
 
@@ -189,6 +199,8 @@ export async function listCustomers(filters: CustomerListFilters = {}) {
     .map((c) => ({
       ...c,
       balanceDueXaf: balanceByCustomer.get(c.customerId) ?? 0,
+      totalOrderedXaf: Number(balanceRows.find(r=>r.customerId===c.customerId)?.totalOrderedXaf ?? 0),
+      lastOrderDate: balanceRows.find(r=>r.customerId===c.customerId)?.lastOrderDate ?? null,
     }));
 }
 
@@ -210,10 +222,11 @@ export async function getCustomerDetail(customerId: string) {
     db.select().from(orders).where(eq(orders.customerId, customerId)).orderBy(desc(orders.orderDate)),
   ]);
 
-  const orderCount = customerOrders.length;
-  const totalRevenueXaf = customerOrders.reduce((s, o) => s + o.finalSaleTotalXaf, 0);
+  const commercialOrders = customerOrders.filter(o=>['CONFIRMED','PAID'].includes(o.status) && !o.orderId.startsWith('CLOSE06'));
+  const orderCount = commercialOrders.length;
+  const totalRevenueXaf = commercialOrders.reduce((s, o) => s + o.finalSaleTotalXaf, 0);
   const averageBasketXaf = orderCount > 0 ? Math.round(totalRevenueXaf / orderCount) : 0;
-  const lastOrder = customerOrders[0] ?? null;
+  const lastOrder = commercialOrders[0] ?? null;
 
   return {
     customer,
@@ -223,6 +236,7 @@ export async function getCustomerDetail(customerId: string) {
     orders: customerOrders,
     summary: {
       orderCount,
+      balanceDueXaf: commercialOrders.reduce((s,o)=>s+o.balanceDue,0),
       totalRevenueXaf,
       averageBasketXaf,
       lastOrderDate: lastOrder?.orderDate ?? null,
@@ -368,36 +382,8 @@ export async function deleteOrBlacklistCustomer(customerId: string, reason?: str
   if (!customer) throw new Error("Client introuvable");
   if (customer.isInternal) throw new Error("Le client interne CitiCigars ne peut pas être supprimé");
 
-  const [interactionRows, dnaRows, followupRows, orderRows] = await Promise.all([
-    db.select({ id: customerInteractions.interactionId })
-      .from(customerInteractions)
-      .where(eq(customerInteractions.customerId, customerId))
-      .limit(1),
-    db.select({ id: customerDna.dnaId })
-      .from(customerDna)
-      .where(eq(customerDna.customerId, customerId))
-      .limit(1),
-    db.select({ id: crmFollowups.followupId })
-      .from(crmFollowups)
-      .where(eq(crmFollowups.customerId, customerId))
-      .limit(1),
-    db.select({ id: orders.orderId })
-      .from(orders)
-      .where(eq(orders.customerId, customerId))
-      .limit(1),
-  ]);
-
-  const hasHistory =
-    interactionRows.length > 0 ||
-    dnaRows.length > 0 ||
-    followupRows.length > 0 ||
-    orderRows.length > 0;
-
-  if (!hasHistory) {
-    await db.delete(customers).where(eq(customers.customerId, customerId));
-    return { deleted: true, blacklisted: false };
-  }
-
+  // Administrative deactivation only. No physical delete, including a client
+  // whose first transaction/consignment may be committing concurrently.
   await setCustomerBlacklist(customerId, true, reason || "Client conservé pour préserver son historique CRM");
   return { deleted: false, blacklisted: true };
 }

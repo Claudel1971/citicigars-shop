@@ -28,6 +28,18 @@ afterEach(() => {
 });
 
 describe("admin auth security", () => {
+  it("reserves purchases and costing to CT/OWNER for every signed role", async () => {
+    const auth = await loadAuth();
+    for (const role of ['OWNER','ADMIN','CRM_OPERATOR','STOCK_OPERATOR','PURCHASING_OPERATOR','APPROVER','AUDITOR','CONTENT_EDITOR'] as const) {
+      for (const permission of ['purchasing:read','purchasing:write','costing:read'] as const) {
+        const token=auth.issueAdminToken(role).token;
+        const res=responseStub(); let next=false;
+        auth.requirePermission(permission)({headers:{'x-cms-token':token}} as any,res as any,()=>{next=true;});
+        expect(next).toBe(role==='OWNER');
+        expect(res.statusCode).toBe(role==='OWNER'?200:403);
+      }
+    }
+  });
   it("issues signed tokens that expire and rejects the legacy base64 password token", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-25T12:00:00Z"));

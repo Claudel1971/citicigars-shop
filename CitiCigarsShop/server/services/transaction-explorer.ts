@@ -14,7 +14,7 @@
  * new optional filter keys later without reshaping this module, since each
  * filter is an independent, optional WHERE clause fragment.
  */
-import { and, eq, gte, lte, like, or, sql, desc } from "drizzle-orm";
+import { and, eq, gte, lte, like, or, sql, desc, type SQL } from "drizzle-orm";
 import { db } from "../db.mysql";
 import { customers } from "../../shared/schema.crm";
 import { orders, orderItems } from "../../shared/schema.sales";
@@ -56,6 +56,7 @@ export interface TransactionExplorerRow {
   series: string | null;
   vitole: string | null;
   quantity: number;
+  stockDisposition?: string | null;
   actualUnitPriceXaf: number;
   actualLineRevenueXaf: number;
   standardUnitCostXaf: string | null;
@@ -79,7 +80,7 @@ export interface TransactionExplorerRow {
  * OR/logic-builder in V1 (per brief).
  */
 export async function queryTransactions(filters: TransactionExplorerFilters): Promise<TransactionExplorerRow[]> {
-  const conditions = [];
+  const conditions: (SQL | undefined)[] = [sql`${orders.orderId} NOT LIKE 'CLOSE06%'`, sql`${orderItems.itemSku} NOT LIKE 'CLOSE06%' AND ${orderItems.itemSku} NOT LIKE 'CI06-%'`];
 
   if (filters.dateFrom) conditions.push(gte(orders.orderDate, new Date(filters.dateFrom)));
   if (filters.dateTo) conditions.push(lte(orders.orderDate, new Date(filters.dateTo)));
@@ -152,6 +153,7 @@ export async function queryTransactions(filters: TransactionExplorerFilters): Pr
       vitole: orderItems.vitole,
       customLabel: orderItems.customLabel,
       quantity: orderItems.quantity,
+      stockDisposition: orderItems.stockDisposition,
       actualUnitPriceXaf: orderItems.actualUnitPriceXaf,
       actualLineRevenueXaf: orderItems.actualLineRevenueXaf,
       standardUnitCostXaf: orderItems.standardUnitCostXaf,
@@ -191,6 +193,7 @@ export async function queryTransactions(filters: TransactionExplorerFilters): Pr
     series: r.series,
     vitole: r.vitole,
     quantity: r.quantity,
+    stockDisposition: r.stockDisposition,
     actualUnitPriceXaf: r.actualUnitPriceXaf,
     actualLineRevenueXaf: r.actualLineRevenueXaf,
     standardUnitCostXaf: r.standardUnitCostXaf,

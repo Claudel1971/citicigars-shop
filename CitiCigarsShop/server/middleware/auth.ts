@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { Request, Response, NextFunction } from "express";
+import { redactEconomicData } from "../services/backoffice-model";
 
 const CMS_ADMIN_PASSWORD = process.env.CMS_ADMIN_PASSWORD;
 
@@ -20,6 +21,7 @@ const TOKEN_SIGNING_KEY = crypto
   .digest();
 
 export type AdminPermission =
+  | "costing:read"
   | "crm:read"
   | "crm:write"
   | "stock:read"
@@ -159,6 +161,8 @@ export function isValidAdminToken(token: string | undefined | null): boolean {
 }
 
 function roleHasPermission(role: AdminRole, permission: AdminPermission): boolean {
+  // UAT-06: CT's existing OWNER session is the only economic authority.
+  if (permission.startsWith("purchasing:") || permission === "costing:read") return role === "OWNER";
   const permissions = ROLE_PERMISSIONS[role] || [];
   return permissions.includes("*") || permissions.includes(permission);
 }
@@ -178,6 +182,10 @@ export function requirePermission(permission: AdminPermission) {
       return res.status(403).json({ error: "Permission insuffisante", permission });
     }
     req.adminAuth = payload;
+    if (payload.role !== "OWNER") {
+      const json = res.json.bind(res);
+      res.json = ((body: unknown) => json(redactEconomicData(body))) as typeof res.json;
+    }
     next();
   };
 }

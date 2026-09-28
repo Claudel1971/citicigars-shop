@@ -16,7 +16,7 @@ import { z } from "zod";
 import { getOrderCashState, grossMarginSummary } from "./services/finance-close05";
 
 export function registerCrmRoutes(app: Express) {
-  app.get("/api/crm/historical-audit",requirePermission("crm:read"),async(_req,res)=>{
+  app.get("/api/crm/historical-audit",requirePermission("costing:read"),async(_req,res)=>{
     try{res.json(await getHistoricalAudit());}catch{res.status(503).json({error:"Audit historique indisponible"});}
   });
   // -------------------------------------------------------------------
@@ -426,7 +426,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.get("/api/crm/finance/margin-summary", requirePermission("crm:read"), async (req, res) => {
+  app.get("/api/crm/finance/margin-summary", requirePermission("costing:read"), async (req, res) => {
     try {
       const from = new Date(String(req.query.from || ""));
       const to = new Date(String(req.query.to || ""));
@@ -452,7 +452,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/transactions/search", requirePermission("crm:write"), async (req, res) => {
+  app.post("/api/crm/transactions/search", requirePermission("costing:read"), async (req, res) => {
     try {
       const rows = await queryTransactions(req.body || {});
       res.json(rows);
@@ -462,7 +462,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 
-  app.post("/api/crm/transactions/export", requirePermission("crm:write"), async (req, res) => {
+  app.post("/api/crm/transactions/export", requirePermission("costing:read"), async (req, res) => {
     try {
       const rows = await queryTransactions(req.body || {});
       const buffer = buildTransactionExportWorkbook(rows, req.body?.viewMode === "orders" ? "orders" : "lines");

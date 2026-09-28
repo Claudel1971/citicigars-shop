@@ -20,8 +20,11 @@ const Followups = () => {
     setError(null);
     try {
       const res = await crmFetch(`/api/crm/followups?status=${nextStatus}`);
-      if (!res.ok) throw new Error('Erreur de chargement');
-      setFollowups(await res.json());
+      if (!res.ok) throw new Error(res.status===401?'Session expirée. Reconnecte-toi.':`Relances indisponibles (HTTP ${res.status}).`);
+      if (!res.headers.get('content-type')?.includes('application/json')) throw new Error('Réponse API invalide : vérifie la cible staging.');
+      const data=await res.json();
+      if (!Array.isArray(data)) throw new Error('Format de réponse inattendu.');
+      setFollowups(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,7 +99,7 @@ const Followups = () => {
       </div>
 
       {loading && <p className="text-gray-500">Chargement...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {error && <div role="alert" className="text-red-600">{error} <button onClick={()=>load()}>Réessayer</button></div>}
 
       {!loading && !error && (
         <div className="bg-white border rounded-md divide-y">

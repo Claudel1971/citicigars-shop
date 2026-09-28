@@ -25,7 +25,9 @@ describe("Milestone 6 operational stock UI", () => {
       { sku: { sku: "NONE", kind: "ACCESSORY" }, identity: null, hasPosition: false, isZero: true, buckets: { ...buckets, onHand: 0, reservedClient: 0 }, availableNow: 0 },
     ]}/>);
     expect(html).toContain("ACTIVE");
-    expect(html).toContain("Position zéro");
+    expect(html).toContain("Rupture");
+    expect(html).toContain("Satisfaisant");
+    expect(html).toContain("Qté / conditionnement");
     expect(html).toContain("Sans position");
   });
 

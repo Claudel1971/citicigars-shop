@@ -1,3 +1,4 @@
+import InlineCustomerField from './InlineCustomerField';
 import React, { useEffect, useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { crmFetch } from './crmApi';
@@ -15,11 +16,6 @@ const CustomerDetail = () => {
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState(null);
-  const [editError, setEditError] = useState(null);
-  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -109,74 +105,6 @@ const CustomerDetail = () => {
     }
   };
 
-  const openEdit = () => {
-    setEditForm({
-      firstName: customer.firstName || '',
-      lastName: customer.lastName || '',
-      phoneWhatsapp: customer.phoneWhatsapp || '',
-      email: customer.email || '',
-      city: customer.city || '',
-      country: customer.country || 'Cameroun',
-      customerType: customer.customerType || 'B2C',
-      companyName: customer.companyName || '',
-      jobTitle: customer.jobTitle || '',
-    });
-    setEditError(null);
-    setEditing(true);
-  };
-
-  const closeEdit = () => {
-    setEditing(false);
-    setEditForm(null);
-  };
-
-  const setEditField = (key, value) =>
-    setEditForm((f) => ({ ...f, [key]: value }));
-
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    setEditError(null);
-
-    const hasIdentity =
-      editForm.firstName.trim() ||
-      editForm.lastName.trim() ||
-      editForm.companyName.trim();
-
-    if (!hasIdentity) {
-      setEditError('Renseigne au moins un prénom, un nom ou une entreprise.');
-      return;
-    }
-
-    setSavingEdit(true);
-    try {
-      const payload = {
-        firstName: editForm.firstName.trim() || null,
-        lastName: editForm.lastName.trim() || null,
-        phoneWhatsapp: editForm.phoneWhatsapp.trim() || null,
-        email: editForm.email.trim() || null,
-        city: editForm.city.trim() || null,
-        country: editForm.country.trim() || null,
-        customerType: editForm.customerType,
-        companyName: editForm.companyName.trim() || null,
-        jobTitle: editForm.jobTitle.trim() || null,
-      };
-
-      const res = await crmFetch(`/api/crm/customers/${params.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Mise à jour impossible');
-
-      closeEdit();
-      await load();
-    } catch (err) {
-      setEditError(err.message);
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
   const deleteCustomer = async () => {
     if (!confirm(
       "Supprimer ce client ? S'il possède déjà un historique CRM, il sera conservé et placé en blacklist."
@@ -240,14 +168,7 @@ const CustomerDetail = () => {
 
         {!customer.isInternal && (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={openEdit}
-              disabled={busy}
-              className="rounded-md border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
-            >
-              Modifier
-            </button>
+
 
             {customer.isBlacklisted ? (
               <button
@@ -295,7 +216,9 @@ const CustomerDetail = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <section className="grid gap-3 md:grid-cols-3 mb-6">{[['firstName','Prénom'],['lastName','Nom'],['phoneWhatsapp','WhatsApp / téléphone'],['email','Email'],['city','Ville'],['country','Pays'],['customerType','Type'],['companyName','Entreprise'],['jobTitle','Fonction']].map(([field,label])=><InlineCustomerField key={field} customer={customer} field={field} label={label} options={field==='customerType'?['B2C','CORPORATE','PARTNER','OTHER']:undefined} onSaved={updated=>setDetail(d=>({...d,customer:updated}))}/>)}<details className="p-3 text-xs"><summary>Identifiant technique</summary>{customer.customerId}</details></section>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-white border rounded-md p-4"><div className="text-xs text-gray-500">Balance</div><div className="text-xl font-bold">{fmtXaf(summary.balanceDueXaf)}</div></div>
         <div className="bg-white border rounded-md p-4">
           <div className="text-xs text-gray-500">Commandes</div>
           <div className="text-xl font-bold">{summary.orderCount}</div>
@@ -427,102 +350,6 @@ const CustomerDetail = () => {
         )}
       </div>
 
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 md:items-center">
-          <div className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h2 className="text-xl font-serif font-bold text-primary">
-                Modifier le client
-              </h2>
-
-              <button
-                type="button"
-                onClick={closeEdit}
-                className="text-2xl leading-none text-gray-400 hover:text-gray-700"
-                aria-label="Fermer"
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={saveEdit} className="p-5">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Prénom</span>
-                  <input value={editForm.firstName} onChange={(e) => setEditField('firstName', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Nom</span>
-                  <input value={editForm.lastName} onChange={(e) => setEditField('lastName', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">WhatsApp / téléphone</span>
-                  <input value={editForm.phoneWhatsapp} onChange={(e) => setEditField('phoneWhatsapp', e.target.value)} placeholder="+237..." className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Email</span>
-                  <input type="email" value={editForm.email} onChange={(e) => setEditField('email', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Ville</span>
-                  <input value={editForm.city} onChange={(e) => setEditField('city', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Pays</span>
-                  <input value={editForm.country} onChange={(e) => setEditField('country', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Type</span>
-                  <select value={editForm.customerType} onChange={(e) => setEditField('customerType', e.target.value)} className="w-full rounded-md border px-3 py-2">
-                    {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Entreprise</span>
-                  <input value={editForm.companyName} onChange={(e) => setEditField('companyName', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium">Fonction</span>
-                  <input value={editForm.jobTitle} onChange={(e) => setEditField('jobTitle', e.target.value)} className="w-full rounded-md border px-3 py-2" />
-                </label>
-              </div>
-
-              {editError && (
-                <p className="mt-3 text-sm text-red-600">{editError}</p>
-              )}
-
-              <div className="mt-5 flex justify-end gap-2 border-t pt-4">
-                <button
-                  type="button"
-                  onClick={closeEdit}
-                  disabled={savingEdit}
-                  className="rounded-md bg-gray-100 px-4 py-2 text-sm disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                >
-                  {savingEdit ? 'Enregistrement...' : 'Enregistrer'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

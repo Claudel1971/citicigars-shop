@@ -13,6 +13,8 @@ import {
   type StockAdminMovementType,
 } from "./stock-admin-model";
 
+import BackofficeTable from "./BackofficeTable";
+
 const BUCKETS = [
   ["onHand", "En main"], ["reservedClient", "Réservé client"], ["reservedEvent", "Réservé événement"],
   ["atEvent", "À l’événement"], ["deposit", "En dépôt"], ["transit", "En transit"],
@@ -50,17 +52,15 @@ function BucketGrid({ balance }: { balance: any }) {
 }
 
 export function StockPositionsTable({ positions, onOpen }: { positions: any[]; onOpen: (identity: any) => void }) {
-  if (!positions.length) return <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">Aucun SKU ne correspond à la recherche.</div>;
-  return <div className="overflow-x-auto rounded-xl border bg-white shadow-sm"><table className="w-full min-w-[1050px] text-sm">
-    <thead className="bg-muted/60 text-left"><tr>{["SKU / produit", "Identité", "En main", "Rés. client", "Rés. événement", "Événement", "Dépôt", "Transit", "Disponible", "État"].map((title) => <th key={title} className="px-3 py-3 font-semibold">{title}</th>)}</tr></thead>
-    <tbody className="divide-y">{positions.map((row, index) => <tr key={`${row.sku.sku}-${row.identity?.type || "NONE"}-${row.identity?.packSize || index}`} className={row.hasPosition ? "hover:bg-muted/30" : "bg-slate-50 text-muted-foreground"}>
-      <td className="px-3 py-3"><div className="font-semibold text-foreground">{row.sku.sku}</div><div className="text-xs">{[row.sku.marque, row.sku.ligne, row.sku.vitole].filter(Boolean).join(" · ") || row.sku.kind}</div></td>
-      <td className="px-3 py-3">{row.identity ? <button className="font-semibold text-primary hover:underline" onClick={() => onOpen(row.identity)}>{row.identity.type}{row.identity.type === "Pack" ? ` ${row.identity.packSize}` : ""}</button> : "—"}</td>
-      {BUCKETS.map(([key]) => <td key={key} className="px-3 py-3 tabular-nums">{row.buckets[key]}</td>)}
-      <td className="px-3 py-3 font-bold tabular-nums">{row.availableNow}</td>
-      <td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${!row.hasPosition ? "bg-slate-200" : row.isZero ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`}>{!row.hasPosition ? "Sans position" : row.isZero ? "Position zéro" : "Active"}</span></td>
-    </tr>)}</tbody>
-  </table></div>;
+  const [threshold, setThreshold] = useState(() => { try {const n=Number(localStorage.getItem('ctcg.stock.lowThreshold') ?? 3); return Number.isFinite(n)&&n>=0?n:3;}catch{return 3;} });
+  const [filters,setFilters]=useState<Record<string,string>>({});
+  const dimensions=[['marque','Marque'],['ligne','Ligne / Série'],['vitole','Vitole'],['format','Format'],['dimension','Dimension']];
+  const rows=positions.map(r=>({...r,...r.sku,...r.buckets,dimension:[r.sku.longueur,r.sku.diametre].filter(Boolean).join(' × ')||null,packaging:r.sku.kind==='BUNDLE'?'Bundle':({Box:'Boîte',Pack:'Pack',Loose:'Unité',Accessory:'Accessoire'} as any)[r.identity?.type]||'Non documenté',perPack:r.identity?.type==='Pack'?r.identity.packSize:r.identity?.type==='Box'?r.sku.cigarsPerBox:r.identity?1:null,state:!r.identity?'Sans position':r.availableNow<=0?'Rupture':r.availableNow<=threshold?'Bas':'Satisfaisant'}));
+  const filtered=rows.filter(r=>Object.entries(filters).every(([k,v])=>!v||String(r[k]??'')===v));
+  return <div className="space-y-4"><p className="text-sm text-muted-foreground">Disponible = max(0, En main − Rés. client − Rés. événement). Événement, dépôt et transit sont exclus. Quantités en objets stockables, pas en cigares.</p><label className="text-sm">Seuil bas de cette vue <input aria-label="Seuil stock bas" type="number" min="0" step="1" value={threshold} onChange={e=>{const n=Math.max(0,Math.floor(Number(e.target.value)||0));setThreshold(n);try{localStorage.setItem('ctcg.stock.lowThreshold',String(n));}catch{}}} className="ml-2 w-20 rounded border p-2"/></label><div className="flex flex-wrap gap-2">{dimensions.map(([key,label],index)=>{
+    const eligible=rows.filter(r=>dimensions.slice(0,index).every(([k])=>!filters[k]||String(r[k]??'')===filters[k]));
+    return <label key={key} className="text-xs">{label}<select className="block rounded border p-2" value={filters[key]||''} onChange={e=>setFilters(f=>({...Object.fromEntries(Object.entries(f).filter(([k])=>dimensions.findIndex(([d])=>d===k)<index)),[key]:e.target.value}))}><option value="">Tous</option>{Array.from(new Set<string>(eligible.map(r=>String(r[key]??'')).filter(Boolean))).sort().map(v=><option key={v}>{v}</option>)}</select></label>;
+  })}</div><BackofficeTable rows={filtered} columns={[...dimensions.map(([key,label])=>({key,label})),{key:'packaging',label:'Conditionnement',render:r=><><div>{r.identity?<button className="text-primary underline" onClick={()=>onOpen(r.identity)}>{r.packaging}</button>:r.packaging}</div><details className="text-xs text-muted-foreground"><summary>Identifiants</summary>{r.sku}{r.cigarId&&<div>{r.cigarId}</div>}</details></>},{key:'perPack',label:'Qté / conditionnement'},...BUCKETS.map(([key,label])=>({key,label})),{key:'availableNow',label:'Disponible'},{key:'state',label:'État'}]}/></div>;
 }
 
 export function StockDetailPanel({ trace }: { trace: any }) {
@@ -143,7 +143,7 @@ export default function StockAdmin() {
 
   const loadList = useCallback(async () => {
     setLoading(true); setMessage("");
-    try { const data = await stockRequest(`/api/admin/stock?search=${encodeURIComponent(search.trim())}`); setPositions(data.positions || []); }
+    try { const data = await stockRequest(`/api/admin/stock?search=${encodeURIComponent(search.trim())}`); setPositions(data.positions || []); if(data.truncated)setMessage("Résultat limité à 5 000 positions. Affine la recherche pour couvrir le périmètre souhaité."); }
     catch (reason) { const error = reason as StockApiError; setMessage(operationalErrorMessage(error.code, error.message)); }
     finally { setLoading(false); }
   }, [search]);
@@ -183,6 +183,6 @@ export default function StockAdmin() {
     {movementDetail && <div role="dialog" aria-label="Détail groupe de mouvement" className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"><div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6"><div className="flex justify-between gap-3"><div><h2 className="text-xl font-bold">{movementDetail.movementType}</h2><p className="text-xs text-muted-foreground">{movementDetail.groupId}</p></div><button onClick={() => setMovementDetail(null)}><X/></button></div><div className="mt-4 grid gap-3 md:grid-cols-2"><div className="rounded border p-3"><strong>Détails ledger</strong>{movementDetail.details.map((row: any) => <div key={row.id} className="mt-2 text-sm">{row.balanceField}: {row.qtyBefore} → {row.qtyAfter} ({row.qtyDelta > 0 ? "+" : ""}{row.qtyDelta})</div>)}</div><div className="rounded border p-3"><strong>Allocations lots</strong>{movementDetail.lotAllocations.map((row: any) => <div key={row.id} className="mt-2 text-sm">{row.lotCode} · {row.locationCode}: {row.qtyDelta > 0 ? "+" : ""}{row.qtyDelta} {row.balanceField}</div>)}</div></div></div></div>}
   </div>;
 
-  return <div className="mx-auto max-w-7xl space-y-6 pb-12"><header><p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Back-office opérationnel</p><h1 className="text-3xl font-serif font-bold">Stock Central</h1><p className="mt-1 text-muted-foreground">Inspecter ce que CitiCigars détient, où cela se trouve et d’où cela vient.</p></header><div className="relative max-w-2xl"><Search className="absolute left-3 top-3 text-muted-foreground" size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-3 shadow-sm" placeholder="Rechercher SKU, marque, ligne ou vitole…"/></div>{message && <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-red-900">{message}</div>}<StockPositionsTable positions={positions} onOpen={openIdentity}/>{loading && <div className="text-sm text-muted-foreground">Recherche…</div>}<div className="text-xs text-muted-foreground">Maximum 100 lignes. Les SKU sans position sont affichés explicitement; ouvrez une identité matérialisée pour agir.</div></div>;
+  return <div className="mx-auto max-w-7xl space-y-6 pb-12"><header><p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Back-office opérationnel</p><h1 className="text-3xl font-serif font-bold">Stock Central</h1><p className="mt-1 text-muted-foreground">Inspecter ce que CitiCigars détient, où cela se trouve et d’où cela vient.</p></header><div className="relative max-w-2xl"><Search className="absolute left-3 top-3 text-muted-foreground" size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-xl border bg-white py-2.5 pl-10 pr-3 shadow-sm" placeholder="Rechercher marque, ligne, vitole, format, dimension ou SKU…"/></div>{message && <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-red-900">{message}</div>}<StockPositionsTable positions={positions} onOpen={openIdentity}/>{loading && <div className="text-sm text-muted-foreground">Recherche…</div>}<div className="text-xs text-muted-foreground">Maximum 5 000 lignes. Les SKU sans position sont affichés explicitement; ouvrez une identité matérialisée pour agir.</div></div>;
 }
 

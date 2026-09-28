@@ -114,13 +114,13 @@ const ORDER_TABLE_COLUMNS = [
   { key: 'orderId', label: 'SALE ID', index: 2, width: 145 },
   { key: 'orderDate', label: 'Date', index: 3, width: 105 },
   { key: 'customerName', label: 'Client', index: 4, width: 180 },
-  { key: 'lineCount', label: 'Lignes', index: 5, width: 80 },
+  { key: 'lineCount', label: '# Articles commandés', index: 5, width: 80 },
   { key: 'itemQuantity', label: 'Qté', index: 6, width: 70 },
   { key: 'finalSaleTotalXaf', label: 'Net commande', index: 7, width: 130 },
   { key: 'amountPaid', label: 'Payé', index: 8, width: 115 },
   { key: 'balanceDue', label: 'Balance', index: 9, width: 115 },
   { key: 'paymentStatus', label: 'Statut', index: 10, width: 100 },
-  { key: 'orderCostXaf', label: 'Coût commande', index: 11, width: 130 },
+  { key: 'orderCostXaf', label: 'CMV', index: 11, width: 130 },
   { key: 'marginXaf', label: 'Marge XAF', index: 12, width: 120 },
   { key: 'marginRate', label: 'Marge %', index: 13, width: 100 },
 ];
@@ -136,7 +136,7 @@ const LINE_TABLE_COLUMNS = [
   { key: 'itemType', label: 'Type', index: 8, width: 105 },
   { key: 'quantity', label: 'Qté', index: 9, width: 70 },
   { key: 'actualLineRevenueXaf', label: 'CA ligne', index: 10, width: 115 },
-  { key: 'actualLineCostXaf', label: 'Coût valorisé', index: 11, width: 115 },
+  { key: 'actualLineCostXaf', label: 'CMV ligne', index: 11, width: 115 },
   { key: 'lineMarginXaf', label: 'Marge ligne', index: 12, width: 115 },
 ];
 
@@ -405,7 +405,7 @@ const TransactionExplorer = () => {
         grouped.set(row.orderId, order);
       }
 
-      order.lineCount += 1;
+      order.lineCount += row.stockDisposition === 'CONSUME' ? Number(row.quantity || 0) : 0;
       order.itemQuantity += Number(row.quantity || 0);
       order.revenueFromVisibleLines += Number(row.actualLineRevenueXaf || 0);
       const cost = 'valuationLineCostXaf' in row ? row.valuationLineCostXaf : row.actualLineCostXaf;
@@ -675,13 +675,13 @@ const TransactionExplorer = () => {
                 <SortableHeader label="SALE ID" sortKey="orderId" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderId')} onResize={(e) => startColumnResize(e, 'orders', 'orderId')} />
                 <SortableHeader label="Date" sortKey="orderDate" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderDate')} onResize={(e) => startColumnResize(e, 'orders', 'orderDate')} />
                 <SortableHeader label="Client" sortKey="customerName" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'customerName')} onResize={(e) => startColumnResize(e, 'orders', 'customerName')} />
-                <SortableHeader label="Lignes" sortKey="lineCount" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'lineCount')} onResize={(e) => startColumnResize(e, 'orders', 'lineCount')} />
+                <SortableHeader label="# Articles commandés" sortKey="lineCount" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'lineCount')} onResize={(e) => startColumnResize(e, 'orders', 'lineCount')} />
                 <SortableHeader label="Qté" sortKey="itemQuantity" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'itemQuantity')} onResize={(e) => startColumnResize(e, 'orders', 'itemQuantity')} />
                 <SortableHeader label="Net commande" sortKey="finalSaleTotalXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'finalSaleTotalXaf')} onResize={(e) => startColumnResize(e, 'orders', 'finalSaleTotalXaf')} />
                 <SortableHeader label="Payé" sortKey="amountPaid" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'amountPaid')} onResize={(e) => startColumnResize(e, 'orders', 'amountPaid')} />
                 <SortableHeader label="Balance" sortKey="balanceDue" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'balanceDue')} onResize={(e) => startColumnResize(e, 'orders', 'balanceDue')} />
                 <SortableHeader label="Statut" sortKey="paymentStatus" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'paymentStatus')} onResize={(e) => startColumnResize(e, 'orders', 'paymentStatus')} />
-                <SortableHeader label="Coût commande" sortKey="orderCostXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderCostXaf')} onResize={(e) => startColumnResize(e, 'orders', 'orderCostXaf')} />
+                <SortableHeader label="CMV" sortKey="orderCostXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'orderCostXaf')} onResize={(e) => startColumnResize(e, 'orders', 'orderCostXaf')} />
                 <SortableHeader label="Marge XAF" sortKey="marginXaf" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'marginXaf')} onResize={(e) => startColumnResize(e, 'orders', 'marginXaf')} />
                 <SortableHeader label="Marge %" sortKey="marginRate" sortState={orderSort} onSort={(k) => toggleSort('orders', k)} width={columnWidth('orders', 'marginRate')} onResize={(e) => startColumnResize(e, 'orders', 'marginRate')} />
               </tr>
@@ -734,7 +734,7 @@ const TransactionExplorer = () => {
                                   <th className="p-2">Type</th>
                                   <th className="p-2 text-right">Qté</th>
                                   <th className="p-2 text-right">CA ligne</th>
-                                  <th className="p-2 text-right">Coût valorisé</th>
+                                  <th className="p-2 text-right">CMV ligne</th>
                                   <th className="p-2 text-right">Marge ligne</th>
                                 </tr>
                               </thead>
@@ -782,7 +782,7 @@ const TransactionExplorer = () => {
                 <SortableHeader label="Type" sortKey="itemType" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'itemType')} onResize={(e) => startColumnResize(e, 'lines', 'itemType')} />
                 <SortableHeader label="Qté" sortKey="quantity" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'quantity')} onResize={(e) => startColumnResize(e, 'lines', 'quantity')} />
                 <SortableHeader label="CA ligne" sortKey="actualLineRevenueXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineRevenueXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineRevenueXaf')} />
-                <SortableHeader label="Coût valorisé" sortKey="actualLineCostXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineCostXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineCostXaf')} />
+                <SortableHeader label="CMV ligne" sortKey="actualLineCostXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'actualLineCostXaf')} onResize={(e) => startColumnResize(e, 'lines', 'actualLineCostXaf')} />
                 <SortableHeader label="Marge ligne" sortKey="lineMarginXaf" sortState={lineSort} onSort={(k) => toggleSort('lines', k)} width={columnWidth('lines', 'lineMarginXaf')} onResize={(e) => startColumnResize(e, 'lines', 'lineMarginXaf')} />
               </tr>
             </thead>

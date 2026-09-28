@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Package, Upload, Image as ImageIcon, Percent, Settings, LogOut, X, Link2, DollarSign, Flame, FileText, Edit3, Users, MessageSquare, Bell, Table, ChevronDown, ChevronRight, ShoppingCart, Archive, Dna, Warehouse, Truck } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+import { crmFetch } from './crm/crmApi';
 import { cn } from '@/lib/utils';
 
 const AdminSidebar = ({ className, onNavigate, onClose }) => {
   const [location] = useLocation();
+  const [ct, setCt] = useState(false);
+  useEffect(() => { let active=true; crmFetch('/api/admin/session').then(r=>r.ok?r.json():null).then(data=>{if(active)setCt(data?.ct===true);}).catch(()=>{}); return()=>{active=false;}; }, []);
 
   const crmSubLinks = [
     { path: '/admin/crm', icon: Users, label: 'Clients' },
@@ -36,8 +39,9 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
     { path: '/admin/stock', icon: Warehouse, label: 'Stock Central' },
     { path: '/admin/stock/monitoring', icon: LayoutDashboard, label: 'Pilotage Stock' },
     { path: '/admin/purchasing', icon: Truck, label: 'Achats & Réceptions' },
+    ...(ct ? [{ path: '/admin/costing', icon: DollarSign, label: 'Costing' }] : []),
     { path: '/admin/products', icon: Package, label: 'Prix_Produits' },
-    { path: '/admin/characteristics', icon: Edit3, label: 'Produits' },
+    { path: '/admin/characteristics', icon: Edit3, label: 'Cigar Master' },
     { path: '/admin/content', icon: FileText, label: 'Contenu (CMS)' },
     { path: '/admin/fiches', icon: FileText, label: 'Fiches Techniques' },
     { path: '/admin/dna-research', icon: Dna, label: 'DNA Research & Approval' },
@@ -80,7 +84,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
         </button>
         {crmOpen && (
           <div className="ml-4 space-y-1 border-l border-white/10 pl-2">
-            {crmSubLinks.map((link) => (
+            {crmSubLinks.filter(link=>ct || link.path!=='/admin/crm-transactions').map((link) => (
               <Link
                 key={link.path}
                 href={link.path}
@@ -99,7 +103,7 @@ const AdminSidebar = ({ className, onNavigate, onClose }) => {
           </div>
         )}
 
-        {links.map(link => (
+        {links.filter(link=>ct || link.path!=='/admin/purchasing').map(link => (
           <Link key={link.path} href={link.path} className={cn(
                "flex items-center gap-3 px-4 py-3 rounded-md transition-colors text-sm font-medium cursor-pointer",
                isActive(link.path)

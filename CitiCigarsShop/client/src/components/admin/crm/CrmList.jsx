@@ -33,15 +33,15 @@ const EMPTY_FORM = {
 };
 
 const COLUMNS = [
-  { key: 'customerId', label: 'ID Client', defaultWidth: 155 },
   { key: 'lastName', label: 'Nom', defaultWidth: 160 },
   { key: 'firstName', label: 'Pr\u00e9nom', defaultWidth: 140 },
   { key: 'phoneWhatsapp', label: 'T\u00e9l\u00e9phone', defaultWidth: 170 },
   { key: 'customerType', label: 'Type', defaultWidth: 105 },
   { key: 'status', label: 'Statut', defaultWidth: 110 },
   { key: 'city', label: 'Ville', defaultWidth: 120 },
+  { key: 'totalOrderedXaf', label: 'Total commandé ACJ', defaultWidth: 155 },
   { key: 'balanceDueXaf', label: 'Balance', defaultWidth: 145 },
-  { key: 'actions', label: 'Actions', defaultWidth: 100, sortable: false },
+  { key: 'lastOrderDate', label: 'Dernière commande', defaultWidth: 160 },
 ];
 
 const DEFAULT_PREFS = {
@@ -77,7 +77,7 @@ const CrmList = () => {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState('customerId');
+  const [sortKey, setSortKey] = useState('lastName');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -183,6 +183,8 @@ const CrmList = () => {
           return c.status ?? '';
         case 'city':
           return (c.city ?? '').toLocaleLowerCase('fr');
+        case 'totalOrderedXaf': return Number(c.totalOrderedXaf ?? 0);
+        case 'lastOrderDate': return c.lastOrderDate ?? '';
         case 'balanceDueXaf':
           return Number(c.balanceDueXaf ?? 0);
         case 'customerId':
@@ -504,12 +506,8 @@ const CrmList = () => {
                     c.isBlacklisted ? 'bg-red-50/60' : ''
                   }`}
                 >
-                  <Cell columnKey="customerId" className="font-mono text-xs whitespace-nowrap">
-                    {c.customerId}
-                  </Cell>
-
                   <Cell columnKey="lastName" className="font-medium">
-                    {c.lastName || (!c.firstName ? c.companyName : null) || '?'}
+                    <Link href={`/admin/crm/${c.customerId}`} className="text-primary underline">{c.lastName || (!c.firstName ? c.companyName : null) || 'Nom non renseigné'}</Link>
                     {c.companyName && (c.firstName || c.lastName) ? (
                       <div className="text-xs text-gray-500">{c.companyName}</div>
                     ) : null}
@@ -544,6 +542,7 @@ const CrmList = () => {
                     {c.city || '?'}
                   </Cell>
 
+                  <Cell columnKey="totalOrderedXaf">{fmtXaf(c.totalOrderedXaf)}</Cell>
                   <Cell
                     columnKey="balanceDueXaf"
                     className={`text-right whitespace-nowrap ${
@@ -555,14 +554,7 @@ const CrmList = () => {
                     {fmtXaf(c.balanceDueXaf)}
                   </Cell>
 
-                  <Cell columnKey="actions" className="whitespace-nowrap">
-                    <Link
-                      href={`/admin/crm/${c.customerId}`}
-                      className="text-primary hover:underline"
-                    >
-                      Voir la fiche
-                    </Link>
-                  </Cell>
+                  <Cell columnKey="lastOrderDate">{c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleDateString('fr-CA',{timeZone:'UTC'}) : '—'}</Cell>
                 </tr>
               ))}
 

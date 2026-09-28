@@ -47,6 +47,10 @@ async function getSkuIdentity(sku: string, reader: ReadTx) {
     marque: products.marque,
     ligne: products.ligne,
     vitole: products.vitole,
+    format: products.format,
+    longueur: products.longueur,
+    diametre: products.diametre,
+    cigarsPerBox: products.cigarsPerBox,
   }).from(skus).leftJoin(products, eq(products.sku, skus.sku)).where(eq(skus.sku, sku)).limit(1);
   if (!row) throw new TraceabilityNotFoundError("sku_not_found");
   return row;
@@ -92,6 +96,10 @@ export async function listStockPositions(searchValue = "") {
     marque: products.marque,
     ligne: products.ligne,
     vitole: products.vitole,
+    format: products.format,
+    longueur: products.longueur,
+    diametre: products.diametre,
+    cigarsPerBox: products.cigarsPerBox,
     type: stockBalances.type,
     packSize: stockBalances.packSize,
     onHandQty: stockBalances.onHandQty,
@@ -110,14 +118,19 @@ export async function listStockPositions(searchValue = "") {
       like(products.marque, pattern),
       like(products.ligne, pattern),
       like(products.vitole, pattern),
+      like(products.format, pattern),
+      like(products.longueur, pattern),
+      like(products.diametre, pattern),
+      like(products.cigarId, pattern),
     ) : undefined)
     .orderBy(asc(skus.sku), asc(stockBalances.type), asc(stockBalances.packSize))
-    .limit(100);
+    .limit(5001);
   return {
     search,
-    limit: 100,
-    positions: rows.map((row) => ({
-      sku: { sku: row.sku, kind: row.kind, cigarId: row.cigarId, marque: row.marque, ligne: row.ligne, vitole: row.vitole },
+    limit: 5000,
+    truncated: rows.length > 5000,
+    positions: rows.slice(0, 5000).filter(row => !row.sku.startsWith("CLOSE06") && !row.sku.startsWith("CI06-")).map((row) => ({
+      sku: { sku: row.sku, kind: row.kind, cigarId: row.cigarId, marque: row.marque, ligne: row.ligne, vitole: row.vitole, format: row.format, longueur: row.longueur, diametre: row.diametre, cigarsPerBox: row.cigarsPerBox },
       identity: row.type ? { sku: row.sku, type: row.type, packSize: row.packSize ?? 0 } : null,
       hasPosition: Boolean(row.type),
       ...describeBalance(row.type ? projectionRowToBalance({

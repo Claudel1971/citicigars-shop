@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Switch, Route, Router } from 'wouter';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import CigarMaster from '@/components/admin/CigarMaster';
+import Costing from '@/components/admin/Costing';
 import Dashboard from '@/components/admin/Dashboard';
 import ImportExcel from '@/components/admin/ImportExcel';
 import UpdatePricesExcel from '@/components/admin/UpdatePricesExcel';
@@ -175,10 +177,12 @@ const Admin = () => {
             {/* Use explicit matching for admin routes */}
             <Switch>
               <Route path="/admin" component={Dashboard} />
+              <Route path="/admin/costing" component={Costing} />
               <Route path="/admin/import" component={ImportExcel} />
               <Route path="/admin/prices" component={UpdatePricesExcel} />
               <Route path="/admin/puissance" component={UpdatePuissanceExcel} />
-              <Route path="/admin/characteristics" component={UpdateCharacteristicsExcel} />
+              <Route path="/admin/characteristics" component={CigarMaster} />
+              <Route path="/admin/characteristics/edit" component={UpdateCharacteristicsExcel} />
               <Route path="/admin/promotions" component={PromotionManager} />
               <Route path="/admin/images" component={UploadImages} />
               <Route path="/admin/associations" component={GestionAssociations} />
