@@ -4,7 +4,9 @@ Statut : WORKING_NON_CANONICAL / LIVRAISON PARTIELLE STAGING. Classe cible : GH_
 
 Mise à jour : 28 septembre 2026. Publication publique explicitement autorisée par Claudel.
 Premier lot sans migration : commit `20fc5f1565c9dd3635b816afafce92cb24301c4c`, CI [36377411648](https://github.com/Claudel1971/citicigars-shop/actions/runs/36377411648) entièrement PASS ; déploiement Render `dep-dasurjgjo6nc73dhulj0` LIVE.
-Compléments 0024 : branche de travail uniquement, non promus en staging.
+Lot de présentation sans migration : `b4f6545b78e32bc46c775ec4211a0bdcb3505c70`, CI [36379003725](https://github.com/Claudel1971/citicigars-shop/actions/runs/36379003725) PASS ; cible de déploiement `dep-dasv2pnpn0mc73a7ahm0`.
+
+Compléments 0024 : branche de travail uniquement, non promus en staging. CI complète [36378783976](https://github.com/Claudel1971/citicigars-shop/actions/runs/36378783976) PASS sur `43b9603d75cf11c523aff8c19385f845bb4ef2ef` : 232 tests réussis, 2 ignorés.
 Autorité : demande explicite de Claudel ; staging exclusivement.
 Ce rapport ne constitue ni une qualification complète V2 ni une déclaration de livraison.
 
@@ -66,9 +68,9 @@ Les capacités déjà présentes dans la baseline sont conservées ; les exclusi
 ## Vérification et limites
 
 - Premier lot : CI complète MySQL 8.4, préflight V6 15/15, TypeScript, tests et build PASS. Déploiement staging LIVE confirmé par Render.
-- Compléments : TypeScript et 204 tests hors base PASS, 2 ignorés. CI MySQL des nouveaux compléments à vérifier avant toute promotion.
+- Compléments : TypeScript, build et 232 tests incluant MySQL/rollback PASS, 2 ignorés. Le premier essai avait détecté un défaut du lecteur de commentaires SQL dans le test de rollback ; corrigé puis rejoué avec succès.
 - Tests complémentaires : stabilité et concurrence des IDs, attribution atomique/rollback, collision PK technique/code métier, source/version des fiches, conflits des tâches et RBAC. Base CI dédiée temporaire ; aucune donnée réelle chargée dans GitHub Actions.
-- Le navigateur staging atteint le formulaire Admin. Qualification authentifiée non exécutée : connexion nécessaire.
+- Session Admin ouverte par le formulaire sécurisé. Dashboard : cinq totaux conformes à la baseline ; Stock Central : chargement, filtres en cascade et états contrôlés ; Pilotage : six onglets et totaux contrôlés ; réceptions historiques chargées avec précision des dates ; Costing : inconnues conservées et traçabilité du cas UAT vérifiée jusqu’au fournisseur/source monétaire. La qualification exhaustive des écritures et rôles réels reste à faire.
 - Aucun accès d’administration MySQL staging ni sauvegarde récente vérifiée disponible dans cette session. La migration 0024 n’a donc pas été exécutée et ces compléments ne sont pas déployés.
 - La couverture UAT reste partielle tant que la migration, la qualification navigateur et les cas économiques réels (dont SALE-000006) ne sont pas vérifiés.
 - Les métadonnées absentes des conditionnements et les ventilations de coûts non documentées restent inconnues.
@@ -76,10 +78,23 @@ Les capacités déjà présentes dans la baseline sont conservées ; les exclusi
 
 ## Suite exacte
 
-1. Achever la CI MySQL des compléments et corriger tout écart.
+1. Conserver la preuve CI MySQL des compléments ; vérifier le HEAD exact avant promotion.
 2. Avec l’accès d’administration à la seule base staging : suspendre les écritures administratives, produire une sauvegarde récente avec le script existant `scripts/staging-phase2-db-gate.mjs` et la vérifier.
 3. Exécuter `node --import tsx scripts/apply-uat-internal-admin.ts --apply --administrative-writes-paused --backup-file=<fichier-gzip> --backup-sha256=<sha256>`, avec `MYSQL_URL` injecté par un canal secret, jamais dans le rapport ou une commande publiée. Le script refuse toute autre base, toute sauvegarde trop ancienne ou de hash/contenu incompatible.
 4. Vérifier correspondances, invariants et triggers ; promouvoir uniquement le commit CI vert sur la branche staging ; déployer le même service.
 5. Qualifier les écrans authentifiés et les cas réels, puis obtenir les deux revues du Gardien. Aucune promotion vers `main`.
 
+Les captures/données réelles de qualification restent privées ; le rapport public ne recopie pas les valeurs financières ni les identités clients.
+
 Le rejet automatique initial concernait la publication dans le dépôt public. Il a été levé par l’autorisation explicite de Claudel. Le push CLI n’avait pas d’identifiants locaux ; la publication autorisée a été réalisée via le connecteur GitHub. Aucun secret, pièce source ou donnée métier nominative n’est inclus dans les nouveaux fichiers.
+
+## Typographie — demande complémentaire de Claudel
+
+Aptos est prioritaire dans toute l’interface Admin, connexion et contenus en portail inclus. Police CSS : `Aptos, Segoe UI, Arial, sans-serif`. Aucun fichier Aptos autorisé pour distribution web n’a été fourni : le rendu exact dépend de sa présence sur l’appareil ; une police de secours peut donc être utilisée. Aucun binaire propriétaire n’a été copié dans le dépôt. Référence : https://learn.microsoft.com/en-us/typography/fonts/font-faq#web.
+
+## Corrections issues de la qualification
+
+- Explication CMV : présentation des taux documentés, du taux effectif calculé, du net unitaire, des frais attribués agrégés par lot et par conditionnement et de la méthode source. Aucune ventilation fret/douane inconnue n’est inventée.
+- Isolation des fixtures constatées dans les sélecteurs administratifs achats : fournisseurs explicitement nommés `CLOSE06 Supplier`, SKU/lieux `CI06-`/`CLOSE06`. Données conservées en base pour la non-régression.
+- Explications Pilotage traduites en français.
+- Limites connues : certains bundles/accessoires ne portent pas les cinq dimensions descriptives et toutes les anciennes surfaces d’export n’exposent pas encore le nouveau code métier. Ces points ne sont pas déclarés qualifiés.
