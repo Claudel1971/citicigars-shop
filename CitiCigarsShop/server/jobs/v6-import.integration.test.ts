@@ -102,7 +102,7 @@ describe("V6 commercial and consignment isolation",()=>{
    expect(result.target.consignment).toBe(false);expect(result.target.costKnown).toBe(true);
    const records:any=await db.execute(sql`SELECT final_sale_total_xaf,amount_paid,balance_due,order_date FROM orders WHERE order_id='CTCG-SALE-990001'`);
    expect(records[0][0].amount_paid).toBe(100);expect(records[0][0].balance_due).toBe(100);
-   expect(records[0][0].order_date.toISOString().slice(0,10)).toBe("2026-01-02");
+   expect(String(records[0][0].order_date).slice(0,10)).toBe("2026-01-02");
    expect((await journalOperation(db,op,()=>{throw new Error("unexpected replay");},database)).replay).toBe(true);
  });
  it("keeps a consignment advance out of sales and preserves ownership",async()=>{

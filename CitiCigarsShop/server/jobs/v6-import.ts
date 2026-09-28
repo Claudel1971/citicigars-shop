@@ -1,3 +1,4 @@
+import { qualifyStagingViews } from "./v6-qualification";
 import { importCommercial, importClosingAdjustment, validateCommercial } from "./v6-commercial";
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
@@ -75,7 +76,7 @@ export function validateJobEnvironment(env: NodeJS.ProcessEnv, now: number) {
   try { url = new URL(env.MYSQL_URL || ""); } catch { refuse("URL_GUARD"); }
   if (url!.protocol !== "mysql:" || decodeURIComponent(url!.pathname.slice(1)) !== V6_DATABASE || url!.search || url!.hash) refuse("DATABASE_GUARD");
   const mode = env.V6_WRITE_MODE;
-  if (!["dry-run","migrate","apply","reconcile"].includes(mode || "")) refuse("MODE_GUARD");
+  if (!["dry-run","migrate","apply","reconcile","qualify"].includes(mode || "")) refuse("MODE_GUARD");
   let bytes: Buffer, plan: V6Plan;
   try {
     if ((env.V6_WRITE_PLAN_GZIP || "").length > 150000) refuse("PLAN_SIZE");
@@ -181,6 +182,10 @@ export async function reconcile(reader: any, plan: V6Plan) {
       const actual = rows(await reader.execute(sql`SELECT sku,type,pack_size,quantity FROM stock_receipt_items WHERE receipt_id=${target.receiptId} ORDER BY sku,type,pack_size`));
       const desired = op.payload.lines.map((x:any)=>({sku:x.sku,type:x.type,pack_size:x.packSize,quantity:x.quantity}));
       if (hash(actual.map(x=>JSON.stringify(x)).sort()) !== hash(desired.map((x:any)=>JSON.stringify(x)).sort())) refuse("PURCHASE_RECONCILIATION");
+      const costs=rows(await reader.execute(sql`SELECT i.sku,i.type,i.pack_size,c.unit_cost_xaf FROM stock_receipt_items i LEFT JOIN stock_lot_cost_basis c ON c.lot_id=i.lot_id AND c.sku=i.sku AND c.type=i.type AND c.pack_size=i.pack_size WHERE i.receipt_id=${target.receiptId}`));
+      for(const line of op.payload.lines){const c=costs.find(x=>x.sku===line.sku&&x.type===line.type&&Number(x.pack_size)===line.packSize);if(!c||c.unit_cost_xaf===null||Math.abs(Number(c.unit_cost_xaf)-line.unitCostXaf)>0.00001)refuse("PURCHASE_COST_RECONCILIATION");}
+      const supplier=rows(await reader.execute(sql`SELECT s.code FROM stock_receipts r JOIN stock_suppliers s ON s.supplier_id=r.supplier_id WHERE r.receipt_id=${target.receiptId}`));
+      if(supplier[0]?.code!==op.payload.supplierCode)refuse("PURCHASE_SUPPLIER_RECONCILIATION");
     }
   }
   // All three stock projections must agree, across pre-existing fixtures and V6.
@@ -302,6 +307,12 @@ export async function runV6Import() {
     if(migrationNeeded)refuse("MIGRATION_REQUIRED");
     for(const name of ["trg_v6_import_journal_bu","trg_v6_import_journal_bd"])if(!triggers.some(t=>t.TRIGGER_NAME===name&&/SIGNAL\s+SQLSTATE/i.test(t.ACTION_STATEMENT)))refuse("JOURNAL_PROTECTION_MISSING");
     for(const table of ["stock_consignments","consignment_cash_entries"])for(const suffix of ["bu","bd"])if(!triggers.some(t=>t.TRIGGER_NAME===`trg_${table}_${suffix}`&&/SIGNAL\s+SQLSTATE/i.test(t.ACTION_STATEMENT)))refuse("CONSIGNMENT_PROTECTION_MISSING");
+    if(config.mode==="qualify"){
+      const result=await reconcile(db,config.plan);if(!result.complete)refuse("QUALIFICATION_INCOMPLETE");
+      const views=await qualifyStagingViews(config.plan);
+      if((await takeSnapshot(db)).digest!==before.digest)refuse("QUALIFICATION_MUTATED_DATA");
+      audit("QUALIFICATION_PASS",{...result,views,baseline_sha256:before.digest});return;
+    }
     if(config.mode==="reconcile"){audit("RECONCILIATION",await reconcile(db,config.plan));return;}
     let applied=0,skipped=0;
     for(const op of config.plan.operations){
@@ -317,7 +328,7 @@ export async function runV6Import() {
     const after=await takeSnapshot(db);
     if(applied===0&&before.digest!==after.digest)refuse("REPLAY_MUTATED_DATA");
     audit("COMPLETE",{applied,skipped,baseline_sha256:after.digest,reconciliation:await reconcile(db,config.plan),blocked_phases:config.plan.blocked_phases});
-  }catch(error:any){audit("FAILED_CLOSED",{code:error?.safeCode||error?.code&&/^ER_[A-Z_]+$/.test(error.code)&&error.code||"RUNTIME_FAILURE"});}
+  }catch(error:any){audit("FAILED_CLOSED",{code:error?.safeCode||(error?.code||error?.cause?.code)&&/^ER_[A-Z_0-9]+$/.test(error?.code||error?.cause?.code)&&(error?.code||error?.cause?.code)||"RUNTIME_FAILURE"});}
   finally{if(lock){try{await lock.query("SELECT RELEASE_LOCK('V6_STAGING_IMPORT')");}catch{}lock.release();}}
 }
 
