@@ -4,7 +4,12 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
+import { runUatMigration, uatWriteBlocked } from "./jobs/uat-migration";
 const app = express();
+app.use((req, res, next) => {
+  if (uatWriteBlocked(process.env, req.method)) return res.status(503).json({ message: "Maintenance administrative staging en cours", code: "UAT_MAINTENANCE" });
+  next();
+});
 
 // Configuration CORS AVANT les routes
 app.use(cors({
@@ -73,6 +78,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await runUatMigration();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
