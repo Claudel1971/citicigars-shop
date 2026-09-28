@@ -105,8 +105,7 @@ export const cigarResearchPool = mysqlTable("cigar_research_pool", {
 
 export const cigarResearchPoolEvidence = mysqlTable("cigar_research_pool_evidence", {
   id: varchar("id", { length: 40 }).primaryKey(),
-  poolId: varchar("pool_id", { length: 40 }).notNull()
-    .references(() => cigarResearchPool.poolId, { onDelete: "cascade", onUpdate: "cascade" }),
+  poolId: varchar("pool_id", { length: 40 }).notNull(),
   rankingSource: mysqlEnum("ranking_source", ["CA", "CJ"]).notNull(),
   rankingYear: int("ranking_year").notNull(),
   rankingRank: int("ranking_rank").notNull(),
@@ -118,6 +117,7 @@ export const cigarResearchPoolEvidence = mysqlTable("cigar_research_pool_evidenc
   rawPayload: json("raw_payload"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
+  poolIdFk: foreignKey({ name: "fk_cigar_research_pool_pool_id_4085f665", columns: [table.poolId], foreignColumns: [cigarResearchPool.poolId] }).onDelete("cascade").onUpdate("cascade"),
   uniqueAppearance: uniqueIndex("uq_pool_evidence_appearance").on(
     table.poolId, table.rankingSource, table.rankingYear, table.rankingRank,
   ),
@@ -274,8 +274,7 @@ export const stockLocations = mysqlTable("stock_locations", {
 }));
 
 export const stockLocationBalances = mysqlTable("stock_location_balances", {
-  locationId: varchar("location_id", { length: 36 }).notNull()
-    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  locationId: varchar("location_id", { length: 36 }).notNull(),
   sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
   type: mysqlEnum("type", STOCK_TYPES).notNull(),
   packSize: int("pack_size").notNull().default(0),
@@ -288,6 +287,7 @@ export const stockLocationBalances = mysqlTable("stock_location_balances", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   lastMovementGroupId: varchar("last_movement_group_id", { length: 36 }),
 }, (table) => ({
+  locationIdFk: foreignKey({ name: "fk_stock_location_bala_location_id_7d2d5d08", columns: [table.locationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
   pk: primaryKey({ columns: [table.locationId, table.sku, table.type, table.packSize] }),
   stockIdentityIdx: index("idx_stock_location_balances_identity").on(table.sku, table.type, table.packSize),
 }));
@@ -298,10 +298,8 @@ export const stockLocationBalances = mysqlTable("stock_location_balances", {
 export const stockMovementGroups = mysqlTable("stock_movement_groups", {
   groupId: varchar("group_id", { length: 36 }).primaryKey(),
   movementType: mysqlEnum("movement_type", MOVEMENT_TYPES).notNull(),
-  sourceLocationId: varchar("source_location_id", { length: 36 })
-    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
-  destinationLocationId: varchar("destination_location_id", { length: 36 })
-    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  sourceLocationId: varchar("source_location_id", { length: 36 }),
+  destinationLocationId: varchar("destination_location_id", { length: 36 }),
   referenceType: mysqlEnum("reference_type", REFERENCE_TYPES),
   referenceLabel: varchar("reference_label", { length: 255 }),
   referenceId: varchar("reference_id", { length: 100 }),
@@ -311,6 +309,8 @@ export const stockMovementGroups = mysqlTable("stock_movement_groups", {
   movementDate: timestamp("movement_date"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
+  sourceLocationIdFk: foreignKey({ name: "fk_stock_movement_grou_source_location__6b83912f", columns: [table.sourceLocationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
+  destinationLocationIdFk: foreignKey({ name: "fk_stock_movement_grou_destination_loca_46433599", columns: [table.destinationLocationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
   groupTypeUq: uniqueIndex("uq_stock_movement_groups_group_type").on(table.groupId, table.movementType),
   sourceLocationIdx: index("idx_stock_movement_groups_source").on(table.sourceLocationId, table.createdAt),
   destinationLocationIdx: index("idx_stock_movement_groups_destination").on(table.destinationLocationId, table.createdAt),
@@ -390,14 +390,14 @@ export const stockPurchaseOrders = mysqlTable("stock_purchase_orders", {
 
 export const stockPurchaseOrderItems = mysqlTable("stock_purchase_order_items", {
   purchaseOrderItemId: varchar("purchase_order_item_id", { length: 36 }).primaryKey(),
-  purchaseOrderId: varchar("purchase_order_id", { length: 36 }).notNull()
-    .references(() => stockPurchaseOrders.purchaseOrderId, { onDelete: "restrict", onUpdate: "cascade" }),
+  purchaseOrderId: varchar("purchase_order_id", { length: 36 }).notNull(),
   sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
   type: mysqlEnum("type", STOCK_TYPES).notNull(),
   packSize: int("pack_size").notNull().default(0),
   orderedQuantity: int("ordered_quantity", { unsigned: true }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
+  purchaseOrderIdFk: foreignKey({ name: "fk_stock_purchase_orde_purchase_order_i_861d7cfe", columns: [table.purchaseOrderId], foreignColumns: [stockPurchaseOrders.purchaseOrderId] }).onDelete("restrict").onUpdate("cascade"),
   orderIdx: index("idx_stock_purchase_order_items_order").on(table.purchaseOrderId),
   identityUq: uniqueIndex("uq_stock_purchase_order_items_identity").on(table.purchaseOrderId, table.sku, table.type, table.packSize),
 }));
@@ -407,12 +407,10 @@ export const stockReceipts = mysqlTable("stock_receipts", {
   receiptCode: varchar("receipt_code", { length: 50 }).notNull(),
   supplierId: varchar("supplier_id", { length: 36 })
     .references(() => stockSuppliers.supplierId, { onDelete: "restrict", onUpdate: "cascade" }),
-  purchaseOrderId: varchar("purchase_order_id", { length: 36 })
-    .references(() => stockPurchaseOrders.purchaseOrderId, { onDelete: "restrict", onUpdate: "cascade" }),
+  purchaseOrderId: varchar("purchase_order_id", { length: 36 }),
   clientRequestId: varchar("client_request_id", { length: 36 }),
   sourceRowHash: varchar("source_row_hash", { length: 64 }),
-  destinationLocationId: varchar("destination_location_id", { length: 36 }).notNull()
-    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  destinationLocationId: varchar("destination_location_id", { length: 36 }).notNull(),
   purchaseReference: varchar("purchase_reference", { length: 100 }),
   invoiceReference: varchar("invoice_reference", { length: 100 }),
   receivedAt: timestamp("received_at"),
@@ -420,6 +418,8 @@ export const stockReceipts = mysqlTable("stock_receipts", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
+  purchaseOrderIdFk: foreignKey({ name: "fk_stock_receipts_purchase_order_i_d3ec514d", columns: [table.purchaseOrderId], foreignColumns: [stockPurchaseOrders.purchaseOrderId] }).onDelete("restrict").onUpdate("cascade"),
+  destinationLocationIdFk: foreignKey({ name: "fk_stock_receipts_destination_loca_89e6fc7e", columns: [table.destinationLocationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
   codeUq: uniqueIndex("uq_stock_receipts_code").on(table.receiptCode),
   requestUq: uniqueIndex("uq_stock_receipts_request").on(table.clientRequestId),
   purchaseOrderIdx: index("idx_stock_receipts_purchase_order").on(table.purchaseOrderId, table.receivedAt),
@@ -447,8 +447,7 @@ export const stockReceiptItems = mysqlTable("stock_receipt_items", {
   receiptItemId: varchar("receipt_item_id", { length: 36 }).primaryKey(),
   receiptId: varchar("receipt_id", { length: 36 }).notNull()
     .references(() => stockReceipts.receiptId, { onDelete: "restrict", onUpdate: "cascade" }),
-  purchaseOrderItemId: varchar("purchase_order_item_id", { length: 36 })
-    .references(() => stockPurchaseOrderItems.purchaseOrderItemId, { onDelete: "restrict", onUpdate: "cascade" }),
+  purchaseOrderItemId: varchar("purchase_order_item_id", { length: 36 }),
   lotId: varchar("lot_id", { length: 36 }).notNull()
     .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
   sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
@@ -457,6 +456,7 @@ export const stockReceiptItems = mysqlTable("stock_receipt_items", {
   quantity: int("quantity", { unsigned: true }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
+  purchaseOrderItemIdFk: foreignKey({ name: "fk_stock_receipt_items_purchase_order_i_ec511e1e", columns: [table.purchaseOrderItemId], foreignColumns: [stockPurchaseOrderItems.purchaseOrderItemId] }).onDelete("restrict").onUpdate("cascade"),
   lotUq: uniqueIndex("uq_stock_receipt_items_lot").on(table.lotId),
   receiptIdx: index("idx_stock_receipt_items_receipt").on(table.receiptId),
   purchaseOrderItemIdx: index("idx_stock_receipt_items_purchase_order_item").on(table.purchaseOrderItemId),
@@ -464,10 +464,8 @@ export const stockReceiptItems = mysqlTable("stock_receipt_items", {
 }));
 
 export const stockLotLocationBalances = mysqlTable("stock_lot_location_balances", {
-  lotId: varchar("lot_id", { length: 36 }).notNull()
-    .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
-  locationId: varchar("location_id", { length: 36 }).notNull()
-    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  lotId: varchar("lot_id", { length: 36 }).notNull(),
+  locationId: varchar("location_id", { length: 36 }).notNull(),
   sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
   type: mysqlEnum("type", STOCK_TYPES).notNull(),
   packSize: int("pack_size").notNull().default(0),
@@ -480,18 +478,17 @@ export const stockLotLocationBalances = mysqlTable("stock_lot_location_balances"
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   lastMovementGroupId: varchar("last_movement_group_id", { length: 36 }),
 }, (table) => ({
+  lotIdFk: foreignKey({ name: "fk_stock_lot_location__lot_id_c62dad2d", columns: [table.lotId], foreignColumns: [stockProvenanceLots.lotId] }).onDelete("restrict").onUpdate("cascade"),
+  locationIdFk: foreignKey({ name: "fk_stock_lot_location__location_id_a07bc490", columns: [table.locationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
   pk: primaryKey({ name: "pk_stock_lot_location", columns: [table.lotId, table.locationId, table.sku, table.type, table.packSize] }),
   positionIdx: index("idx_stock_lot_location_position").on(table.locationId, table.sku, table.type, table.packSize),
 }));
 
 export const stockMovementLotAllocations = mysqlTable("stock_movement_lot_allocations", {
   id: int("id").primaryKey().autoincrement(),
-  groupId: varchar("group_id", { length: 36 }).notNull()
-    .references(() => stockMovementGroups.groupId, { onDelete: "restrict", onUpdate: "cascade" }),
-  lotId: varchar("lot_id", { length: 36 }).notNull()
-    .references(() => stockProvenanceLots.lotId, { onDelete: "restrict", onUpdate: "cascade" }),
-  locationId: varchar("location_id", { length: 36 }).notNull()
-    .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
+  groupId: varchar("group_id", { length: 36 }).notNull(),
+  lotId: varchar("lot_id", { length: 36 }).notNull(),
+  locationId: varchar("location_id", { length: 36 }).notNull(),
   sku: varchar("sku", { length: 50 }).notNull().references(() => skus.sku),
   type: mysqlEnum("type", STOCK_TYPES).notNull(),
   packSize: int("pack_size").notNull().default(0),
@@ -501,6 +498,9 @@ export const stockMovementLotAllocations = mysqlTable("stock_movement_lot_alloca
   qtyAfter: int("qty_after", { unsigned: true }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
+  groupIdFk: foreignKey({ name: "fk_stock_movement_lot__group_id_e6f009bc", columns: [table.groupId], foreignColumns: [stockMovementGroups.groupId] }).onDelete("restrict").onUpdate("cascade"),
+  lotIdFk: foreignKey({ name: "fk_stock_movement_lot__lot_id_1dcc8ea0", columns: [table.lotId], foreignColumns: [stockProvenanceLots.lotId] }).onDelete("restrict").onUpdate("cascade"),
+  locationIdFk: foreignKey({ name: "fk_stock_movement_lot__location_id_73869c4f", columns: [table.locationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
   groupIdx: index("idx_stock_movement_lot_group").on(table.groupId),
   lotHistoryIdx: index("idx_stock_movement_lot_history").on(table.lotId, table.locationId, table.createdAt),
   identityIdx: index("idx_stock_movement_lot_identity").on(table.sku, table.type, table.packSize, table.createdAt),

@@ -289,6 +289,8 @@ export async function importTransform(tx: any, op: V6Operation) {
   }
   const outputLots:any[]=[];
   for(const o of [...p.outputs].sort((a:any,b:any)=>a.sku.localeCompare(b.sku))){
+    const target=rows(await tx.execute(sql`SELECT kind FROM skus WHERE sku=${o.sku}`));
+    if(target.length!==1 || !["CIGAR","BUNDLE"].includes(target[0].kind))refuse("TRANSFORM_TARGET_MISSING");
     const lotId=stableId(`${op.source_record_id}:${o.sku}`), cost=o.recipe.reduce((n:number,c:any)=>n+inputCosts.get(c.sku)!*c.quantity,0);
     await tx.insert(stockProvenanceLots).values({lotId,lotCode:`V6-T-${hash(o.sku).slice(0,20)}`,originKind:"OTHER",sourceReference:op.source_record_id,notes:JSON.stringify({historicalTransformation:true,datePrecision:"UNKNOWN",recipe:o.recipe,inputLots:sourceLots.filter(i=>o.recipe.some((c:any)=>c.sku===i.sku))})});
     await tx.insert(stockLotCostBasis).values({lotId,sku:o.sku,type:"Pack",packSize:o.packSize,unitCostXaf:cost.toFixed(4),source:"HISTORICAL_DERIVATION",sourceReference:op.source_record_id});

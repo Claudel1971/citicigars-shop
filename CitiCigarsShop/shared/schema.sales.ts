@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, int, decimal, timestamp, mysqlEnum, index, unique, json } from "drizzle-orm/mysql-core";
+import { mysqlTable, foreignKey, varchar, text, int, decimal, timestamp, mysqlEnum, index, unique, json } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { customers } from "./schema.crm";
@@ -144,16 +144,16 @@ export const orderItems = mysqlTable(
     stockDisposition: mysqlEnum("stock_disposition", stockDispositionValues),
     stockType: mysqlEnum("stock_type", STOCK_TYPES),
     stockPackSize: int("stock_pack_size"),
-    stockSourceLocationId: varchar("stock_source_location_id", { length: 36 })
-      .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
-    stockMovementGroupId: varchar("stock_movement_group_id", { length: 36 })
-      .references(() => stockMovementGroups.groupId, { onDelete: "restrict", onUpdate: "cascade" }),
+    stockSourceLocationId: varchar("stock_source_location_id", { length: 36 }),
+    stockMovementGroupId: varchar("stock_movement_group_id", { length: 36 }),
     stockNonConsumptionReason: varchar("stock_non_consumption_reason", { length: 255 }),
 
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   },
   (table) => ({
+  stockSourceLocationIdFk: foreignKey({ name: "fk_order_items_stock_source_loc_ed64266a", columns: [table.stockSourceLocationId], foreignColumns: [stockLocations.locationId] }).onDelete("restrict").onUpdate("cascade"),
+  stockMovementGroupIdFk: foreignKey({ name: "fk_order_items_stock_movement_g_b9a58b5a", columns: [table.stockMovementGroupId], foreignColumns: [stockMovementGroups.groupId] }).onDelete("restrict").onUpdate("cascade"),
     orderIdx: index("idx_order_items_order").on(table.orderId),
     itemSkuIdx: index("idx_order_items_item_sku").on(table.itemSku),
     sourceUniqueIdx: unique("uq_order_items_source_record").on(table.sourceSystem, table.sourceRecordId),
@@ -283,3 +283,4 @@ export const insertCrmSavedViewSchema = createInsertSchema(crmSavedViews).omit({
 });
 export type CrmSavedView = typeof crmSavedViews.$inferSelect;
 export type InsertCrmSavedView = z.infer<typeof insertCrmSavedViewSchema>;
+

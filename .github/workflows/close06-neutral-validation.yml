@@ -68,7 +68,10 @@ jobs:
         run: npm run check
 
       - name: Initialize ephemeral CI schema
-        run: npx drizzle-kit push --config drizzle.config.mysql.ts --force
+        run: |
+          set -o pipefail
+          npx drizzle-kit push --config drizzle.config.mysql.ts --force 2>&1 | tee /tmp/drizzle-ci.log
+          if grep -E '(^Error:|error:|code: .ER_)' /tmp/drizzle-ci.log; then exit 1; fi
 
       - name: Run full test suite
         run: npx vitest run --config vitest.config.ts --reporter=verbose
