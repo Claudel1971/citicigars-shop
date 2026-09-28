@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import HistoricalAudit from './HistoricalAudit';
 import { crmFetch } from './crmApi';
 import { API_URL } from '@/config';
 
@@ -402,10 +403,11 @@ const TransactionExplorer = () => {
       order.lineCount += 1;
       order.itemQuantity += Number(row.quantity || 0);
       order.revenueFromVisibleLines += Number(row.actualLineRevenueXaf || 0);
-      if (row.actualLineCostXaf == null || row.actualLineCostXaf === '') {
+      const cost = 'valuationLineCostXaf' in row ? row.valuationLineCostXaf : row.actualLineCostXaf;
+      if (cost == null || cost === '') {
         order.costsComplete = false;
       } else {
-        order.rawCostTotal += Number(row.actualLineCostXaf);
+        order.rawCostTotal += Number(cost);
       }
       order.lines.push(row);
     }
@@ -551,6 +553,7 @@ const TransactionExplorer = () => {
         </div>
       </div>
 
+      <HistoricalAudit />
       {error && <p className="text-red-600 mb-3">{error}</p>}
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -803,3 +806,4 @@ const TransactionExplorer = () => {
 };
 
 export default TransactionExplorer;
+

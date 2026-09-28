@@ -54,6 +54,7 @@ export function legacyUnknownEndpointsForMovement(movementType: MovementType, un
 export const PHYSICAL_TRANSFER_MOVEMENT_TYPES = [
   "MISE_EN_DEPOT",
   "RETOUR_DE_DEPOT",
+  "RECLASSEMENT_HISTORIQUE",
   "SORTIE_EVENEMENT",
   "RETOUR_EVENEMENT",
   "RECEPTION_TRANSIT",

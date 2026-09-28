@@ -1,9 +1,10 @@
+import { importCommercial, importClosingAdjustment, validateCommercial } from "./v6-commercial";
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { sql } from "drizzle-orm";
 import { db, mysqlPool } from "../db.mysql";
 import { createPurchaseOrder, createReceipt } from "../services/purchasing";
-import { skus, stockSuppliers, stockLocations, cigarCatalog, packSizeConfig, accessories, stockProvenanceLots, stockLotCostBasis } from "../../shared/schema.stock";
+import { skus, stockSuppliers, stockLocations, cigarCatalog, packSizeConfig, accessories, stockProvenanceLots, stockLotCostBasis, MOVEMENT_TYPES } from "../../shared/schema.stock";
 import { products } from "../../shared/schema.mysql";
 import { stockStorage } from "../storage.stock";
 import { bundles, bundleItems } from "../../shared/schema.bundles";
@@ -24,7 +25,7 @@ export const JOURNAL_DDL = `CREATE TABLE IF NOT EXISTS v6_import_journal (
  PRIMARY KEY (source_system, source_record_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`;
 
-export interface V6Operation { source_record_id: string; phase: string; kind: "catalog" | "purchase" | "transform" | "opening"; payload: any }
+export interface V6Operation { source_record_id: string; phase: string; kind: "catalog" | "purchase" | "transform" | "opening" | "commercial" | "adjustment" | "reclass"; payload: any }
 export interface V6Plan { version: 1; source_sha256: string; operations: V6Operation[]; blocked_phases: string[]; expected: any }
 
 export function validatePlan(plan: V6Plan) {
@@ -53,6 +54,13 @@ export function validatePlan(plan: V6Plan) {
     } else if (op.kind === "opening") {
       const p = op.payload;
       if (op.phase !== "PS3" || p.type !== "Accessory" || p.packSize !== 0 || !Number.isInteger(p.quantity) || p.quantity <= 0 || p.eventDate !== null || !p.reason || (p.unitCostXaf !== null && p.unitCostXaf !== 0)) refuse("OPENING_PLAN");
+    } else if(op.kind==="commercial"){
+      if(op.phase!=="PS4")refuse("COMMERCIAL_PHASE");validateCommercial(op.payload);
+    } else if(op.kind==="adjustment"||op.kind==="reclass"){
+      const p=op.payload;
+      if(op.phase!=="PS5"||p.eventDate!==null||!p.reason||!/^CTCG-/.test(p.sku)||!["Pack","Box","Accessory"].includes(p.type))refuse("CLOSING_PLAN");
+      if(op.kind==="adjustment"&&(!Number.isSafeInteger(p.delta)||p.delta>=0))refuse("CLOSING_DELTA");
+      if(op.kind==="reclass"&&(!Number.isSafeInteger(p.quantity)||p.quantity<=0||!p.depositLocationCode))refuse("RECLASS_PLAN");
     } else refuse("UNIMPLEMENTED_OPERATION");
   }
 }
@@ -135,10 +143,12 @@ export async function importPurchase(tx: any, op: V6Operation) {
 }
 
 export async function takeSnapshot(reader: any) {
-  const tables = ["skus","cigar_catalog","products","bundles","bundle_items","accessories","pack_size_config","stock_suppliers","stock_locations","stock_purchase_orders","stock_purchase_order_items","stock_receipts","stock_receipt_items","stock_provenance_lots","stock_balances","stock_location_balances","stock_lot_location_balances","stock_movements","stock_movement_groups","stock_movement_lot_allocations","stock_lot_cost_basis","orders","order_items","cash_journal_entries","customers"];
+  const tables = ["skus","cigar_catalog","products","bundles","bundle_items","accessories","pack_size_config","stock_suppliers","stock_locations","stock_purchase_orders","stock_purchase_order_items","stock_receipts","stock_receipt_items","stock_provenance_lots","stock_balances","stock_location_balances","stock_lot_location_balances","stock_movements","stock_movement_groups","stock_movement_lot_allocations","stock_lot_cost_basis","orders","order_items","cash_journal_entries","customers","order_item_components","stock_consignments","consignment_cash_entries"];
   const snapshot: Record<string,string> = {};
   for (const table of tables) {
-    const records = rows(await reader.execute(sql.raw(`SELECT * FROM ${table}`)));
+    const optional=["stock_consignments","consignment_cash_entries"].includes(table);
+    const exists=!optional||rows(await reader.execute(sql`SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=${table}`)).length>0;
+    const records = exists?rows(await reader.execute(sql.raw(`SELECT * FROM ${table}`))):[];
     snapshot[table] = hash(records.map(r => JSON.stringify(r)).sort());
   }
   return { tables: snapshot, digest: hash(snapshot) };
@@ -149,6 +159,23 @@ export async function reconcile(reader: any, plan: V6Plan) {
   for (const item of journal) {
     const op = plan.operations.find(x => x.source_record_id === item.source_record_id);
     if (!op || hash(op) !== item.source_hash) refuse("JOURNAL_RECONCILIATION");
+    if(op.kind==="commercial"){
+      const p=op.payload,target=typeof item.target_json==="string"?JSON.parse(item.target_json):item.target_json;
+      if(p.classification==="CONSIGNMENT"){
+        const actual=rows(await reader.execute(sql`SELECT commercial_value_xaf FROM stock_consignments WHERE consignment_id=${p.orderId}`));
+        const cash=rows(await reader.execute(sql`SELECT COALESCE(SUM(amount_xaf),0) AS amount FROM consignment_cash_entries WHERE consignment_id=${p.orderId}`));
+        if(actual.length!==1||Number(actual[0].commercial_value_xaf)!==p.netXaf||Number(cash[0].amount)!==p.paidXaf)refuse("CONSIGNMENT_RECONCILIATION");
+      }else{
+        const actual=rows(await reader.execute(sql`SELECT final_sale_total_xaf,amount_paid,balance_due FROM orders WHERE order_id=${p.orderId}`));
+        const cash=rows(await reader.execute(sql`SELECT COALESCE(SUM(CASE WHEN entry_type='RECEIPT' THEN amount_xaf ELSE -amount_xaf END),0) AS amount FROM cash_journal_entries WHERE order_id=${p.orderId}`));
+        const lines=rows(await reader.execute(sql`SELECT COUNT(*) AS n,SUM(actual_line_revenue_xaf) AS net FROM order_items WHERE order_id=${p.orderId}`));
+        if(actual.length!==1||Number(actual[0].final_sale_total_xaf)!==p.netXaf||Number(actual[0].amount_paid)!==p.paidXaf||Number(actual[0].balance_due)!==p.balanceXaf||Number(cash[0].amount)!==p.paidXaf||Number(lines[0].n)!==p.lines.length||Number(lines[0].net)!==p.netXaf)refuse("SALE_RECONCILIATION");
+      }
+      for(const l of target.lines)for(const c of l.components)if(c.groupId){
+        const quantity=rows(await reader.execute(sql`SELECT -SUM(qty_delta) AS n FROM stock_movements WHERE group_id=${c.groupId} AND balance_field='onHand' AND sku=${c.sku}`));
+        if(Number(quantity[0].n)!==c.quantity)refuse("SALE_STOCK_RECONCILIATION");
+      }
+    }
     if (op.kind === "purchase") {
       const target = typeof item.target_json === "string" ? JSON.parse(item.target_json) : item.target_json;
       const actual = rows(await reader.execute(sql`SELECT sku,type,pack_size,quantity FROM stock_receipt_items WHERE receipt_id=${target.receiptId} ORDER BY sku,type,pack_size`));
@@ -169,7 +196,19 @@ export async function reconcile(reader: any, plan: V6Plan) {
     const normalize=(list:any[])=>list.map(x=>[x.sku,x.type,Number(x.packSize??x.pack_size),Number(x.onHand??x.on_hand_qty),Number(x.deposit??x.deposit_qty)]).filter(x=>x[3]!==0||x[4]!==0).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
     if(hash(normalize(actual))!==hash(normalize(desired)))refuse("OPENING_STOCK_RECONCILIATION");
   }
-  return { operations: journal.length, expected: plan.operations.length, complete: journal.length===plan.operations.length };
+  let finalControls:any=null;
+  if(journal.length===plan.operations.length&&plan.expected.final_balances){
+    const actual=rows(await reader.execute(sql`SELECT sku,type,pack_size,on_hand_qty,deposit_qty FROM stock_balances WHERE sku LIKE 'CTCG-%' ORDER BY sku,type,pack_size`));
+    const normalize=(list:any[])=>list.map(x=>[x.sku,x.type,Number(x.packSize??x.pack_size),Number(x.onHand??x.on_hand_qty),Number(x.deposit??x.deposit_qty)]).filter(x=>x[3]!==0||x[4]!==0).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    if(hash(normalize(actual))!==hash(normalize(plan.expected.final_balances)))refuse("FINAL_STOCK_RECONCILIATION");
+    const [sales]=rows(await reader.execute(sql`SELECT COUNT(*) AS n,COALESCE(SUM(final_sale_total_xaf),0) AS revenue,COALESCE(SUM(amount_paid),0) AS paid,COALESCE(SUM(balance_due),0) AS balance FROM orders WHERE source_system='MASTER_GESTION_V6'`));
+    const [dep]=rows(await reader.execute(sql`SELECT COUNT(*) AS n,COALESCE(SUM(commercial_value_xaf),0) AS value FROM stock_consignments`));
+    const [advance]=rows(await reader.execute(sql`SELECT COALESCE(SUM(amount_xaf),0) AS value FROM consignment_cash_entries`));
+    const e=plan.expected;
+    if(Number(sales.n)!==e.salesCount||Number(sales.revenue)!==e.revenueXaf||Number(sales.paid)!==e.salesCashXaf||Number(sales.balance)!==e.receivablesXaf||Number(dep.n)!==e.consignmentCount||Number(dep.value)!==e.consignmentValueXaf||Number(advance.value)!==e.advanceXaf||Number(dep.value)-Number(advance.value)!==e.consignmentBalanceXaf)refuse("FINAL_FINANCE_RECONCILIATION");
+    finalControls={stock_identities:e.final_balances.length,held:actual.reduce((n,x)=>n+Number(x.on_hand_qty),0),deposit:actual.reduce((n,x)=>n+Number(x.deposit_qty),0),sales_count:Number(sales.n),sales_net_xaf:Number(sales.revenue),sales_cash_xaf:Number(sales.paid),sales_receivable_xaf:Number(sales.balance),consignment_count:Number(dep.n),consignment_value_xaf:Number(dep.value),advance_xaf:Number(advance.value)};
+  }
+  return { operations: journal.length, expected: plan.operations.length, complete: journal.length===plan.operations.length,finalControls };
 }
 
 export async function runV6Import() {
@@ -194,7 +233,8 @@ export async function runV6Import() {
     const columns=rows(await db.execute(sql`SELECT TABLE_NAME,COLUMN_NAME,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=${V6_DATABASE} AND ((TABLE_NAME='stock_purchase_orders' AND COLUMN_NAME='ordered_at') OR (TABLE_NAME='stock_receipts' AND COLUMN_NAME='received_at') OR (TABLE_NAME IN ('stock_movements','stock_movement_groups') AND COLUMN_NAME='movement_date')) ORDER BY TABLE_NAME`));
     const journalExists=rows(await db.execute(sql`SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=${V6_DATABASE} AND TABLE_NAME='v6_import_journal'`)).length>0;
     const historicalCostReady = schema.some(c=>c.TABLE_NAME==="stock_lot_cost_basis"&&c.COLUMN_NAME==="source"&&c.COLUMN_TYPE.includes("HISTORICAL_DERIVATION"));
-    const migrationNeeded=!historicalCostReady||columns.length!==4||columns.some(c=>c.IS_NULLABLE!=="YES")||!journalExists;
+    const commercialSchemaReady=["stock_consignments","consignment_cash_entries"].every(t=>schema.some(c=>c.TABLE_NAME===t)) && schema.some(c=>c.TABLE_NAME==="orders"&&c.COLUMN_NAME==="payment_date"&&c.IS_NULLABLE==="YES") && schema.some(c=>c.TABLE_NAME==="stock_movements"&&c.COLUMN_NAME==="movement_type"&&c.COLUMN_TYPE.includes("RECLASSEMENT_HISTORIQUE"));
+    const migrationNeeded=!commercialSchemaReady||!historicalCostReady||columns.length!==4||columns.some(c=>c.IS_NULLABLE!=="YES")||!journalExists;
     if(config.mode==="dry-run") {
       const conflicts:string[]=[];
       if(journalExists)for(const op of config.plan.operations){const previous=rows(await db.execute(sql`SELECT source_hash FROM v6_import_journal WHERE source_system='MASTER_GESTION' AND source_record_id=${op.source_record_id}`));if(previous.length&&previous[0].source_hash!==hash(op))conflicts.push(hash(op.source_record_id));}
@@ -222,6 +262,33 @@ export async function runV6Import() {
         await lock.query(`ALTER TABLE ${table} MODIFY ${column} TIMESTAMP NULL DEFAULT NULL`);
       }
       await lock.query("ALTER TABLE stock_lot_cost_basis MODIFY source ENUM('RECEIPT','BUNDLE_DERIVATION','HISTORICAL_DERIVATION') NOT NULL");
+      await lock.query("ALTER TABLE orders MODIFY payment_date TIMESTAMP NULL DEFAULT NULL, MODIFY order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+      for(const table of ["stock_movements","stock_movement_groups"])await lock.query(`ALTER TABLE ${table} MODIFY movement_type ENUM(${MOVEMENT_TYPES.map(t=>`'${t}'`).join(",")}) NOT NULL`);
+      await lock.query(`CREATE TABLE IF NOT EXISTS stock_consignments (
+        consignment_id VARCHAR(36) NOT NULL PRIMARY KEY,
+        customer_id VARCHAR(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+        location_id VARCHAR(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+        occurred_at TIMESTAMP NOT NULL, commercial_value_xaf INT NOT NULL,
+        source_record_id VARCHAR(190) NOT NULL UNIQUE, payload JSON NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_v6_consignment_customer FOREIGN KEY(customer_id) REFERENCES customers(customer_id),
+        CONSTRAINT fk_v6_consignment_location FOREIGN KEY(location_id) REFERENCES stock_locations(location_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+      await lock.query(`CREATE TABLE IF NOT EXISTS consignment_cash_entries (
+        cash_entry_id VARCHAR(36) NOT NULL PRIMARY KEY, consignment_id VARCHAR(36) NOT NULL,
+        amount_xaf INT NOT NULL, occurred_at TIMESTAMP NOT NULL,
+        reference VARCHAR(190) NOT NULL UNIQUE, note TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_v6_consignment_cash FOREIGN KEY(consignment_id) REFERENCES stock_consignments(consignment_id),
+        CONSTRAINT ck_v6_consignment_cash_positive CHECK(amount_xaf>0)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+      for(const table of ["stock_consignments","consignment_cash_entries"]){
+        for(const [suffix,event] of [["bu","UPDATE"],["bd","DELETE"]]){
+          const name=`trg_${table}_${suffix}`;
+          const [found]:any=await lock.query("SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=? AND TRIGGER_NAME=?",[V6_DATABASE,name]);
+          if(!found.length)await lock.query(`CREATE TRIGGER ${name} BEFORE ${event} ON ${table} FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='consignment_ledger_immutable'`);
+        }
+      }
       await lock.query(JOURNAL_DDL);
       for(const [suffix,event] of [["bu","UPDATE"],["bd","DELETE"]]){
         const [found]:any=await lock.query("SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=? AND TRIGGER_NAME=?",[V6_DATABASE,`trg_v6_import_journal_${suffix}`]);
@@ -234,6 +301,7 @@ export async function runV6Import() {
     }
     if(migrationNeeded)refuse("MIGRATION_REQUIRED");
     for(const name of ["trg_v6_import_journal_bu","trg_v6_import_journal_bd"])if(!triggers.some(t=>t.TRIGGER_NAME===name&&/SIGNAL\s+SQLSTATE/i.test(t.ACTION_STATEMENT)))refuse("JOURNAL_PROTECTION_MISSING");
+    for(const table of ["stock_consignments","consignment_cash_entries"])for(const suffix of ["bu","bd"])if(!triggers.some(t=>t.TRIGGER_NAME===`trg_${table}_${suffix}`&&/SIGNAL\s+SQLSTATE/i.test(t.ACTION_STATEMENT)))refuse("CONSIGNMENT_PROTECTION_MISSING");
     if(config.mode==="reconcile"){audit("RECONCILIATION",await reconcile(db,config.plan));return;}
     let applied=0,skipped=0;
     for(const op of config.plan.operations){
@@ -321,6 +389,8 @@ export async function executeOperation(tx:any,op:V6Operation){
     case "purchase": return importPurchase(tx,op);
     case "transform": return importTransform(tx,op);
     case "opening": return importOpening(tx,op);
+    case "commercial": return importCommercial(tx,op);
+    case "adjustment": case "reclass": return importClosingAdjustment(tx,op);
     default: refuse("UNIMPLEMENTED_OPERATION");
   }
 }

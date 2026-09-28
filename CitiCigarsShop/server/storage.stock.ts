@@ -342,6 +342,7 @@ export type SimpleMovementType =
   | "PERTE_CASSE"
   | "CORRECTION_INVENTAIRE"
   | "MISE_EN_DEPOT"
+  | "RECLASSEMENT_HISTORIQUE"
   | "RETOUR_DE_DEPOT"
   | "ENTREE_TRANSIT"
   | "RECEPTION_TRANSIT"
@@ -381,7 +382,7 @@ export type ApplyLocationMovementInput =
       destinationLocationId?: never;
     })
   | (LocationMovementBase & {
-      movementType: "MISE_EN_DEPOT" | "RETOUR_DE_DEPOT" | "SORTIE_EVENEMENT" | "RETOUR_EVENEMENT" | "RECEPTION_TRANSIT" | "TRANSFERT_INTERNE";
+      movementType: "MISE_EN_DEPOT" | "RECLASSEMENT_HISTORIQUE" | "RETOUR_DE_DEPOT" | "SORTIE_EVENEMENT" | "RETOUR_EVENEMENT" | "RECEPTION_TRANSIT" | "TRANSFERT_INTERNE";
       sourceLocationId: string;
       destinationLocationId: string;
     })
@@ -512,6 +513,7 @@ function computeSimpleEffects(input: ApplyMovementInput, balance: Balance): Effe
       return effectsForCorrectionInventaire(input.qty, balance);
     case "MISE_EN_DEPOT":
       return effectsForMiseEnDepot(input.qty);
+    case "RECLASSEMENT_HISTORIQUE":
     case "RETOUR_DE_DEPOT":
       return effectsForRetourDeDepot(input.qty);
     case "ENTREE_TRANSIT":
@@ -820,7 +822,8 @@ export class StockStorage {
             sourceFields = ["onHand"];
             destinationField = "deposit";
             break;
-          case "RETOUR_DE_DEPOT":
+          case "RECLASSEMENT_HISTORIQUE":
+    case "RETOUR_DE_DEPOT":
             plans = planAt(sourceId!, input.qty, (balance) => balance.deposit);
             sourceFields = ["deposit"];
             destinationField = "onHand";

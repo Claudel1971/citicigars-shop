@@ -61,6 +61,8 @@ export interface TransactionExplorerRow {
   standardUnitCostXaf: string | null;
   standardLineCostXaf: string | null;
   actualLineCostXaf: string | null;
+  valuationLineCostXaf?: number | null;
+  costBasis?: string;
   costVarianceVsStandardXaf: string | null;
   subtotalRegularTotalXaf: number;
   extraCustomerDiscountXaf: number;
@@ -155,6 +157,8 @@ export async function queryTransactions(filters: TransactionExplorerFilters): Pr
       standardUnitCostXaf: orderItems.standardUnitCostXaf,
       standardLineCostXaf: orderItems.standardLineCostXaf,
       actualLineCostXaf: orderItems.actualLineCostXaf,
+      derivedLineCostXaf: orderItems.totalCostXaf,
+      sourceSystem: orderItems.sourceSystem,
       costVarianceVsStandardXaf: orderItems.costVarianceVsStandardXaf,
       subtotalRegularTotalXaf: orders.subtotalRegularTotalXaf,
       extraCustomerDiscountXaf: orders.extraCustomerDiscountXaf,
@@ -192,6 +196,8 @@ export async function queryTransactions(filters: TransactionExplorerFilters): Pr
     standardUnitCostXaf: r.standardUnitCostXaf,
     standardLineCostXaf: r.standardLineCostXaf,
     actualLineCostXaf: r.actualLineCostXaf,
+    valuationLineCostXaf: r.sourceSystem==="MASTER_GESTION_V6" ? r.derivedLineCostXaf : r.derivedLineCostXaf ?? (r.actualLineCostXaf===null?null:Number(r.actualLineCostXaf)),
+    costBasis: r.sourceSystem==="MASTER_GESTION_V6"||r.derivedLineCostXaf!==null?"LOTS":"SOURCE",
     costVarianceVsStandardXaf: r.costVarianceVsStandardXaf,
     subtotalRegularTotalXaf: r.subtotalRegularTotalXaf,
     extraCustomerDiscountXaf: r.extraCustomerDiscountXaf,
@@ -285,7 +291,7 @@ function buildLineExport(rows: TransactionExplorerRow[]): Record<string, unknown
   ]);
 
   return rows.map((r) => {
-    const actualCost = asNumberOrNull(r.actualLineCostXaf);
+    const actualCost = asNumberOrNull("valuationLineCostXaf" in r ? r.valuationLineCostXaf : r.actualLineCostXaf);
     const lineMarginXaf = actualCost == null ? null : r.actualLineRevenueXaf - actualCost;
     const lineMarginRate =
       lineMarginXaf == null || r.actualLineRevenueXaf === 0
@@ -361,7 +367,7 @@ function buildOrderExport(rows: TransactionExplorerRow[]): Record<string, unknow
     order.itemQuantity += r.quantity;
     order.visibleRevenue += r.actualLineRevenueXaf;
 
-    const actualCost = asNumberOrNull(r.actualLineCostXaf);
+    const actualCost = asNumberOrNull("valuationLineCostXaf" in r ? r.valuationLineCostXaf : r.actualLineCostXaf);
     if (actualCost == null) order.costsComplete = false;
     else order.actualCostTotal += actualCost;
   }
@@ -419,3 +425,4 @@ export function buildTransactionExportWorkbook(
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
+

@@ -52,6 +52,7 @@ export const MOVEMENT_TYPES = [
   "DESASSEMBLAGE_COMPOSITE",
   "TRANSFERT_INTERNE",
   "ANNULATION_VENTE",
+  "RECLASSEMENT_HISTORIQUE",
 ] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 

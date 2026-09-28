@@ -284,3 +284,24 @@ export const insertCrmSavedViewSchema = createInsertSchema(crmSavedViews).omit({
 export type CrmSavedView = typeof crmSavedViews.$inferSelect;
 export type InsertCrmSavedView = z.infer<typeof insertCrmSavedViewSchema>;
 
+
+// Consignment ownership and advances are separate from sales and receivables.
+export const stockConsignments = mysqlTable("stock_consignments", {
+  consignmentId: varchar("consignment_id", {length:36}).primaryKey(),
+  customerId: varchar("customer_id", {length:36}).notNull().references(()=>customers.customerId,{onDelete:"restrict"}),
+  locationId: varchar("location_id", {length:36}).notNull().references(()=>stockLocations.locationId,{onDelete:"restrict"}),
+  occurredAt: timestamp("occurred_at").notNull(),
+  commercialValueXaf: int("commercial_value_xaf").notNull(),
+  sourceRecordId: varchar("source_record_id", {length:190}).notNull().unique(),
+  payload: json("payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const consignmentCashEntries = mysqlTable("consignment_cash_entries", {
+  cashEntryId: varchar("cash_entry_id", {length:36}).primaryKey(),
+  consignmentId: varchar("consignment_id", {length:36}).notNull(),
+  amountXaf: int("amount_xaf").notNull(),
+  occurredAt: timestamp("occurred_at").notNull(),
+  reference: varchar("reference", {length:190}).notNull().unique(),
+  note: text("note").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+},table=>({consignmentFk:foreignKey({name:"fk_consignment_cash_parent",columns:[table.consignmentId],foreignColumns:[stockConsignments.consignmentId]}).onDelete("restrict")}));

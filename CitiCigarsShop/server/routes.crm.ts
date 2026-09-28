@@ -1,3 +1,4 @@
+import { getHistoricalAudit } from "./services/historical-audit";
 import type { Express } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "./db.mysql";
@@ -15,6 +16,9 @@ import { z } from "zod";
 import { getOrderCashState, grossMarginSummary } from "./services/finance-close05";
 
 export function registerCrmRoutes(app: Express) {
+  app.get("/api/crm/historical-audit",requirePermission("crm:read"),async(_req,res)=>{
+    try{res.json(await getHistoricalAudit());}catch{res.status(503).json({error:"Audit historique indisponible"});}
+  });
   // -------------------------------------------------------------------
   // Customers
   // -------------------------------------------------------------------
@@ -505,3 +509,4 @@ export function registerCrmRoutes(app: Express) {
     }
   });
 }
+

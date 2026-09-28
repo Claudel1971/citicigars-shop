@@ -91,3 +91,42 @@ describe("V6 guards and partial date provenance",()=>{
    expect(()=>validatePlan({...plan,operations:[{...buy,phase:"PS4"}]})).toThrow("PURCHASE_PLAN");
  });
 });
+
+import { importCommercial, importClosingAdjustment, validateCommercial } from "./v6-commercial";
+const commercialFixture=(id:string,stockType="Box",classification="SALE"):V6Operation=>({source_record_id:`MG:ORDER:${id}`,phase:"PS4",kind:"commercial",payload:{orderId:id,date:"2026-01-02",classification,customer:{name:"V6 CI customer",phone:"+237699000999",city:"CI",internal:false},grossXaf:200,discountXaf:0,netXaf:200,paidXaf:100,balanceXaf:100,sourceCommercialRows:[1],sourceNotes:[],depositLocation:{code:"CI_DEPOT",name:"CI deposit",evidence:"test"},payments:[{source_record_id:`MG:CASH:${id}`,date:"2026-01-03",amountXaf:100}],lines:[{source_record_id:`MG:LINE:${id}`,itemSku:"CTCG-CI-V6",itemType:"PRODUCT",label:"CI line",quantity:1,grossXaf:200,discountXaf:0,netXaf:200,components:[{source_record_id:`MG:COMP:${id}`,sku:"CTCG-CI-V6",stockType,packSize:stockType==="Pack"?10:0,quantity:1,label:"CI cigar",sourceUnitCostXaf:123.4567,sourceLineCostXaf:123.4567}]}]}});
+
+describe("V6 commercial and consignment isolation",()=>{
+ it("stores a sale, stock consumption and dated cash atomically",async()=>{
+   const op=commercialFixture("CTCG-SALE-990001");
+   const result:any=await journalOperation(db,op,tx=>importCommercial(tx,op),database);
+   expect(result.target.consignment).toBe(false);expect(result.target.costKnown).toBe(true);
+   const records:any=await db.execute(sql`SELECT final_sale_total_xaf,amount_paid,balance_due,order_date FROM orders WHERE order_id='CTCG-SALE-990001'`);
+   expect(records[0][0].amount_paid).toBe(100);expect(records[0][0].balance_due).toBe(100);
+   expect(records[0][0].order_date.toISOString().slice(0,10)).toBe("2026-01-02");
+   expect((await journalOperation(db,op,()=>{throw new Error("unexpected replay");},database)).replay).toBe(true);
+ });
+ it("keeps a consignment advance out of sales and preserves ownership",async()=>{
+   const op=commercialFixture("CTCG-SALE-990002","Pack","CONSIGNMENT");
+   await journalOperation(db,op,tx=>importCommercial(tx,op),database);
+   const sale:any=await db.execute(sql`SELECT order_id FROM orders WHERE order_id='CTCG-SALE-990002'`);expect(sale[0]).toHaveLength(0);
+   const cash:any=await db.execute(sql`SELECT amount_xaf FROM consignment_cash_entries WHERE consignment_id='CTCG-SALE-990002'`);expect(cash[0][0].amount_xaf).toBe(100);
+   const balance:any=await db.execute(sql`SELECT on_hand_qty,deposit_qty FROM stock_balances WHERE sku='CTCG-CI-V6' AND type='Pack'`);expect(balance[0][0]).toEqual({on_hand_qty:1,deposit_qty:1});
+ });
+ it("reclassifies legacy detention without declaring a physical return",async()=>{
+   const op:V6Operation={source_record_id:"MG:RECLASS:CI",phase:"PS5",kind:"reclass",payload:{sku:"CTCG-CI-V6",type:"Pack",packSize:10,quantity:1,depositLocationCode:"CI_DEPOT",reason:"CI legacy reconciliation",eventDate:null}};
+   const result:any=await journalOperation(db,op,tx=>importClosingAdjustment(tx,op),database);
+   const movements:any=await db.execute(sql`SELECT movement_type,movement_date FROM stock_movement_groups WHERE group_id=${result.target.groupId}`);
+   expect(movements[0][0].movement_type).toBe("RECLASSEMENT_HISTORIQUE");expect(movements[0][0].movement_date).toBeNull();
+   const balance:any=await db.execute(sql`SELECT on_hand_qty,deposit_qty FROM stock_balances WHERE sku='CTCG-CI-V6' AND type='Pack'`);expect(balance[0][0]).toEqual({on_hand_qty:2,deposit_qty:0});
+ });
+ it("rolls back sale and stock when its cash reference conflicts at the final step",async()=>{
+   const op=commercialFixture("CTCG-SALE-990003","Pack");op.payload.payments[0].source_record_id="MG:CASH:CTCG-SALE-990001";
+   await expect(journalOperation(db,op,tx=>importCommercial(tx,op),database)).rejects.toThrow();
+   const sale:any=await db.execute(sql`SELECT order_id FROM orders WHERE order_id='CTCG-SALE-990003'`);expect(sale[0]).toHaveLength(0);
+   const balance:any=await db.execute(sql`SELECT on_hand_qty FROM stock_balances WHERE sku='CTCG-CI-V6' AND type='Pack'`);expect(balance[0][0].on_hand_qty).toBe(2);
+ });
+ it("rejects inconsistent cash and commercial totals before writing",()=>{
+   const op=commercialFixture("CTCG-SALE-990004");op.payload.paidXaf=99;
+   expect(()=>validateCommercial(op.payload)).toThrow("COMMERCIAL_RECONCILIATION");
+ });
+});
