@@ -5,6 +5,7 @@ on:
     branches:
       - replit-commerce-os-v2
       - v6-staging-import-job
+      - v6-ps2-transactional-import
     paths:
       - "CitiCigarsShop/**"
       - ".github/workflows/close06-neutral-validation.yml"

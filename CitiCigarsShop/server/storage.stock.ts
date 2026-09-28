@@ -248,7 +248,7 @@ interface MovementMeta {
   referenceId?: string;
   motif?: string;
   comment?: string;
-  movementDate?: Date;
+  movementDate?: Date | null;
 }
 
 function buildMovementGroupRow(
@@ -1235,3 +1235,4 @@ export class StockStorage {
 }
 
 export const stockStorage = new StockStorage();
+

@@ -222,11 +222,22 @@ async function findPurchaseOrderReplay(reader: any, clientRequestId: string, exp
   return { ...(await loadPurchaseOrder(reader, row.id)), idempotentReplay: true };
 }
 
-export async function createPurchaseOrder(input: CreatePurchaseOrderInput) {
+// Only internal import callers may supply a month-only historical date.
+export interface HistoricalPurchaseContext { executor: any; period?: string }
+export function historicalPurchaseDate(value: unknown, period?: string): Date | null {
+  if (period !== undefined) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period) || value !== "") throw new PurchasingRuleError("invalid_historical_period");
+    return null;
+  }
+  return parseDate(value, "historical_date_invalid");
+}
+
+export async function createPurchaseOrder(input: CreatePurchaseOrderInput, context?: HistoricalPurchaseContext) {
+  const executor = context?.executor ?? db;
   const clientRequestId = requireUuid(input.clientRequestId, "client_request_id_required");
   const supplierId = requireUuid(input.supplierId, "supplier_required");
   const createdBy = requireActor(input.createdBy);
-  const orderedAt = parseDate(input.orderedAt, "ordered_at_invalid");
+  const orderedAt = context?.period ? historicalPurchaseDate(input.orderedAt, context.period) : parseDate(input.orderedAt, "ordered_at_invalid");
   const expectedAt = input.expectedAt ? parseDate(input.expectedAt, "expected_at_invalid") : null;
   if (!Array.isArray(input.lines) || !input.lines.length) throw new PurchasingRuleError("purchase_order_lines_required");
   const lines = input.lines.map((line) => {
@@ -234,12 +245,12 @@ export async function createPurchaseOrder(input: CreatePurchaseOrderInput) {
     return { ...identity, orderedQuantity: identity.quantity };
   });
   assertNoDuplicateIdentities(lines);
-  const normalized = { supplierId, orderedAt: orderedAt.toISOString(), expectedAt: expectedAt?.toISOString() || null, purchaseReference: cleanText(input.purchaseReference, 100), notes: cleanText(input.notes, 2000), createdBy, lines };
+  const normalized = { supplierId, orderedAt: orderedAt?.toISOString() ?? null, expectedAt: expectedAt?.toISOString() || null, purchaseReference: cleanText(input.purchaseReference, 100), notes: cleanText(input.notes, 2000), createdBy, lines };
   const sourceRowHash = hashPayload(normalized);
-  const replay = await findPurchaseOrderReplay(db, clientRequestId, sourceRowHash);
+  const replay = await findPurchaseOrderReplay(executor, clientRequestId, sourceRowHash);
   if (replay) return replay;
   try {
-    return await db.transaction(async (tx: any) => {
+    return await executor.transaction(async (tx: any) => {
       const [supplier] = await tx.select().from(stockSuppliers).where(and(eq(stockSuppliers.supplierId, supplierId), eq(stockSuppliers.active, true)));
       if (!supplier) throw new PurchasingRuleError("supplier_not_found_or_inactive");
       const known = await tx.select({ sku: skus.sku }).from(skus).where(inArray(skus.sku, Array.from(new Set(lines.map((line) => line.sku)))));
@@ -253,7 +264,7 @@ export async function createPurchaseOrder(input: CreatePurchaseOrderInput) {
     });
   } catch (error) {
     if (databaseCode(error) === "ER_DUP_ENTRY") {
-      const concurrent = await findPurchaseOrderReplay(db, clientRequestId, sourceRowHash);
+      const concurrent = await findPurchaseOrderReplay(executor, clientRequestId, sourceRowHash);
       if (concurrent) return concurrent;
     }
     throw error;
@@ -328,11 +339,12 @@ async function findReceiptReplay(reader: any, clientRequestId: string, expectedH
   return { ...(await loadReceipt(reader, row.id)), idempotentReplay: true };
 }
 
-export async function createReceipt(input: CreateReceiptInput) {
+export async function createReceipt(input: CreateReceiptInput, context?: HistoricalPurchaseContext) {
+  const executor = context?.executor ?? db;
   const clientRequestId = requireUuid(input.clientRequestId, "client_request_id_required");
   const purchaseOrderId = requireUuid(input.purchaseOrderId, "purchase_order_required");
   const destinationLocationId = requireUuid(input.destinationLocationId, "destination_location_required");
-  const receivedAt = parseDate(input.receivedAt, "received_at_invalid");
+  const receivedAt = context?.period ? historicalPurchaseDate(input.receivedAt, context.period) : parseDate(input.receivedAt, "received_at_invalid");
   const author = requireActor(input.author);
   if (!Array.isArray(input.lines) || !input.lines.length) throw new PurchasingRuleError("receipt_lines_required");
   const lines = input.lines.map((line) => {
@@ -343,13 +355,13 @@ export async function createReceipt(input: CreateReceiptInput) {
   assertNoDuplicateIdentities(lines);
   if (new Set(lines.map((line) => line.purchaseOrderItemId)).size !== lines.length) throw new PurchasingRuleError("duplicate_purchase_order_item");
   lines.sort((left, right) => { const a = `${identityKey(left)}\u0000${left.purchaseOrderItemId}`; const b = `${identityKey(right)}\u0000${right.purchaseOrderItemId}`; return a < b ? -1 : a > b ? 1 : 0; });
-  const normalized = { purchaseOrderId, destinationLocationId, receivedAt: receivedAt.toISOString(), author, invoiceReference: cleanText(input.invoiceReference, 100), shipmentReference: cleanText(input.shipmentReference, 100), notes: cleanText(input.notes, 2000), lines };
+  const normalized = { purchaseOrderId, destinationLocationId, receivedAt: receivedAt?.toISOString() ?? null, author, invoiceReference: cleanText(input.invoiceReference, 100), shipmentReference: cleanText(input.shipmentReference, 100), notes: cleanText(input.notes, 2000), lines };
   const sourceRowHash = hashPayload(normalized);
-  const replay = await findReceiptReplay(db, clientRequestId, sourceRowHash);
+  const replay = await findReceiptReplay(executor, clientRequestId, sourceRowHash);
   if (replay) return replay;
 
   try {
-    return await db.transaction(async (tx: any) => {
+    return await executor.transaction(async (tx: any) => {
       const [order] = await tx.select().from(stockPurchaseOrders).where(eq(stockPurchaseOrders.purchaseOrderId, purchaseOrderId)).for("update");
       if (!order) throw new PurchasingRuleError("purchase_order_not_found");
       if (["DRAFT", "CANCELLED"].includes(order.status)) throw new PurchasingRuleError("purchase_order_not_receivable");
@@ -409,9 +421,10 @@ export async function createReceipt(input: CreateReceiptInput) {
     });
   } catch (error) {
     if (databaseCode(error) === "ER_DUP_ENTRY") {
-      const concurrent = await findReceiptReplay(db, clientRequestId, sourceRowHash);
+      const concurrent = await findReceiptReplay(executor, clientRequestId, sourceRowHash);
       if (concurrent) return concurrent;
     }
     throw error;
   }
 }
+

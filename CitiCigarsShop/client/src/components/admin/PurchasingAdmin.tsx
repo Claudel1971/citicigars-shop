@@ -6,6 +6,16 @@ function authenticatedFetch(path: string, options: RequestInit = {}) {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+export function formatPurchaseDate(value: string | null, notes?: string | null) {
+  if (value) return new Date(value).toLocaleDateString("fr-FR");
+  try {
+    const period = JSON.parse(notes || "{}").period;
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(period || "")) {
+      return new Date(`${period}-01T12:00:00Z`).toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" }) + " (jour inconnu)";
+    }
+  } catch {}
+  return "Date inconnue";
+}
 const requestId = () => crypto.randomUUID();
 const identity = (line: any) => `${line.sku} · ${line.type}${line.type === "Pack" ? `(${line.packSize})` : ""}`;
 const emptyPoLine = () => ({ sku: "", type: "Box", packSize: 0, orderedQuantity: 1 });
@@ -126,7 +136,7 @@ export default function PurchasingAdmin() {
         <button disabled={busy || !receiptReady} onClick={() => setConfirming(true)} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-40">Vérifier et confirmer</button></div>}
     </section>
 
-    <section className="rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">Historique des réceptions</h2><div className="mt-3 space-y-2">{receipts.map((receipt) => <div key={receipt.receiptId} className="rounded border p-3 text-sm"><strong>{receipt.receiptCode}</strong> · {receipt.supplierCode} · {receipt.destinationCode} · {new Date(receipt.receivedAt).toLocaleDateString("fr-FR")}<div>{receipt.items.map((item: any) => `${identity(item)} +${item.quantity} · ${item.lotCode}`).join(" | ")}</div></div>)}</div></section>
+    <section className="rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">Historique des réceptions</h2><div className="mt-3 space-y-2">{receipts.map((receipt) => <div key={receipt.receiptId} className="rounded border p-3 text-sm"><strong>{receipt.receiptCode}</strong> · {receipt.supplierCode} · {receipt.destinationCode} · {formatPurchaseDate(receipt.receivedAt, receipt.notes)}<div>{receipt.items.map((item: any) => `${identity(item)} +${item.quantity} · ${item.lotCode}`).join(" | ")}</div></div>)}</div></section>
 
     {confirming && selectedOrder && <div role="dialog" aria-label="Confirmation réception" className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"><div className="w-full max-w-xl rounded bg-white p-6"><ReceiptConfirmation order={selectedOrder} destination={destination} lines={receiptDraft.lines}/><div className="mt-5 flex justify-end gap-2"><button onClick={() => setConfirming(false)} className="rounded border px-4 py-2">Annuler</button><button disabled={busy} onClick={submitReceipt} className="rounded bg-primary px-4 py-2 text-white">Confirmer et recevoir</button></div></div></div>}
   </div>;

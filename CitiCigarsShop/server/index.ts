@@ -5,8 +5,19 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { mysqlPool } from "./db.mysql";
 import { runV6Preflight } from "./jobs/v6-preflight.mjs";
+import { runV6Import } from "./jobs/v6-import";
 
 const app = express();
+
+// During an attended staging import, regular API mutations are paused.
+app.use((req, res, next) => {
+  if (process.env.RENDER_SERVICE_ID === "srv-da15590u01pc739gdjrg" &&
+      process.env.V6_WRITE_ENABLED === "true" &&
+      !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return res.status(503).json({ message: "Import historique staging en cours. Réessayez après sa clôture." });
+  }
+  next();
+});
 
 // Configuration CORS AVANT les routes
 app.use(cors({
@@ -120,6 +131,7 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
       // Temporary staging-only, read-only job; disabled by default, no HTTP route.
       void runV6Preflight(mysqlPool);
+      void runV6Import();
     },
   );
 })();

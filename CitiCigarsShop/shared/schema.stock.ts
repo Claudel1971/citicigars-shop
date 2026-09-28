@@ -373,7 +373,7 @@ export const stockPurchaseOrders = mysqlTable("stock_purchase_orders", {
   sourceRowHash: varchar("source_row_hash", { length: 64 }).notNull(),
   supplierId: varchar("supplier_id", { length: 36 }).notNull()
     .references(() => stockSuppliers.supplierId, { onDelete: "restrict", onUpdate: "cascade" }),
-  orderedAt: timestamp("ordered_at").notNull(),
+  orderedAt: timestamp("ordered_at"),
   expectedAt: timestamp("expected_at"),
   status: mysqlEnum("status", PURCHASE_ORDER_STATUSES).notNull().default("ORDERED"),
   purchaseReference: varchar("purchase_reference", { length: 100 }),
@@ -415,7 +415,7 @@ export const stockReceipts = mysqlTable("stock_receipts", {
     .references(() => stockLocations.locationId, { onDelete: "restrict", onUpdate: "cascade" }),
   purchaseReference: varchar("purchase_reference", { length: 100 }),
   invoiceReference: varchar("invoice_reference", { length: 100 }),
-  receivedAt: timestamp("received_at").notNull(),
+  receivedAt: timestamp("received_at"),
   author: varchar("author", { length: 100 }).notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -651,3 +651,4 @@ export type DnaAvailabilityWatch = typeof dnaAvailabilityWatch.$inferSelect;
 export type Priorisation = typeof priorisation.$inferSelect;
 export type InsertPriorisation = typeof priorisation.$inferInsert;
 export type InsertDnaAvailabilityWatch = z.infer<typeof insertDnaAvailabilityWatchSchema>;
+
