@@ -6,7 +6,7 @@ Mise à jour : 28 septembre 2026. Publication publique explicitement autorisée 
 Premier lot sans migration : commit `20fc5f1565c9dd3635b816afafce92cb24301c4c`, CI [36377411648](https://github.com/Claudel1971/citicigars-shop/actions/runs/36377411648) entièrement PASS ; déploiement Render `dep-dasurjgjo6nc73dhulj0` LIVE.
 Lot de présentation sans migration : `b4f6545b78e32bc46c775ec4211a0bdcb3505c70`, CI [36379003725](https://github.com/Claudel1971/citicigars-shop/actions/runs/36379003725) PASS ; cible de déploiement `dep-dasv2pnpn0mc73a7ahm0`.
 
-Compléments 0024 : branche de travail uniquement, non promus en staging. CI complète [36378783976](https://github.com/Claudel1971/citicigars-shop/actions/runs/36378783976) PASS sur `43b9603d75cf11c523aff8c19385f845bb4ef2ef` : 232 tests réussis, 2 ignorés.
+Compléments 0024 : désormais appliqués et déployés en staging le 28 septembre 2026 ; preuves détaillées dans la section Exécution UAT-0024 ci-dessous. Historique de préparation : CI complète [36378783976](https://github.com/Claudel1971/citicigars-shop/actions/runs/36378783976) PASS sur `43b9603d75cf11c523aff8c19385f845bb4ef2ef` : 232 tests réussis, 2 ignorés.
 Autorité : demande explicite de Claudel ; staging exclusivement.
 Ce rapport ne constitue ni une qualification complète V2 ni une déclaration de livraison.
 
@@ -16,7 +16,7 @@ Ce rapport ne constitue ni une qualification complète V2 ni une déclaration de
 - Branche locale : `uat-v2-backoffice-20260928`.
 - Cible autorisée : service Render `citicigars-api-staging`, My Workspace ; auto-deploy désactivé.
 - La qualification V6 antérieure a été vérifiée dans les logs Render. Aucune relance de l’import.
-- Aucune écriture en base staging, migration, suppression d’historique ou modification de production effectuée. Le premier lot applicatif a été promu exclusivement vers la branche et le service staging.
+- Premier lot sans migration, puis migration additive 0024 appliquée exclusivement en staging. Les 46 tables historiques sont restées identiques par empreinte complète avant/après. Aucune modification de production.
 - Les pièces sources, données nominatives, coûts réels et secrets ne sont pas ajoutés à ce dépôt public.
 
 ## Corrections préparées
@@ -57,7 +57,7 @@ Chemins UI abrégés dans le tableau : `client/src/components/admin/`.
 
 Les capacités déjà présentes dans la baseline sont conservées ; les exclusions ci-dessus ne signifient pas qu’elles ont été supprimées.
 
-## Compléments préparés sur la branche de travail — migration requise
+## Compléments 0024 — appliqués en staging
 
 - UAT-08 : `InternalSheets.tsx`, `routes.internal-admin.ts` et `internal-admin.ts` : Association/Consultation, recherche par dimensions métier, analyse déterministe des seuls champs factuels, correction humaine, source/date/contenu conservé, versions append-only et consultation des fiches historiques structurées. Les associations écrivent uniquement dans le référentiel interne, jamais dans le catalogue public. Lien depuis Cigar Master.
 - UAT-11 : table de correspondance persistante CUST/SUPP et séquences verrouillées ; backfill ordonné déterministe, conservation des codes métier historiques et des PK/FK ; triggers d’allocation transactionnelle pour les nouvelles entités. Les listes/fiches administratives et la recherche client reçoivent `businessId`. Pas de rang calculé à chaque lecture. Les parcours de vente exclus restent inchangés ; couverture de tous les anciens exports non revendiquée.
@@ -71,18 +71,30 @@ Les capacités déjà présentes dans la baseline sont conservées ; les exclusi
 - Compléments : TypeScript, build et 232 tests incluant MySQL/rollback PASS, 2 ignorés. Le premier essai avait détecté un défaut du lecteur de commentaires SQL dans le test de rollback ; corrigé puis rejoué avec succès.
 - Tests complémentaires : stabilité et concurrence des IDs, attribution atomique/rollback, collision PK technique/code métier, source/version des fiches, conflits des tâches et RBAC. Base CI dédiée temporaire ; aucune donnée réelle chargée dans GitHub Actions.
 - Session Admin ouverte par le formulaire sécurisé. Dashboard : cinq totaux conformes à la baseline ; Stock Central : chargement, filtres en cascade et états contrôlés ; Pilotage : six onglets et totaux contrôlés ; réceptions historiques chargées avec précision des dates ; Costing : inconnues conservées et traçabilité du cas UAT vérifiée jusqu’au fournisseur/source monétaire. La qualification exhaustive des écritures et rôles réels reste à faire.
-- Aucun accès d’administration MySQL staging ni sauvegarde récente vérifiée disponible dans cette session. La migration 0024 n’a donc pas été exécutée et ces compléments ne sont pas déployés.
-- La couverture UAT reste partielle tant que la migration, la qualification navigateur et les cas économiques réels (dont SALE-000006) ne sont pas vérifiés.
+- Blocage initial levé par instruction explicite de Claudel : restauration du dump staging dans la base de test annoncée PASS (258 requêtes), puis exécution bornée depuis le service staging avec sa connexion existante. Aucun accès MySQL externe reçu ou requis. La restauration est une attestation utilisateur, non un test réexécuté par cet agent.
+- La migration 0024 et sa qualification ciblée staging sont terminées. La qualification exhaustive du brief initial, de toutes les écritures UI et de tous les rôles réels n’est pas revendiquée ; voir les limites et exclusions explicites.
 - Les métadonnées absentes des conditionnements et les ventilations de coûts non documentées restent inconnues.
 - Revue indépendante fonctionnelle et coût du Gardien non obtenue ; aucun statut prêt à production revendiqué.
 
-## Suite exacte
+## Exécution UAT-0024 — 28 septembre 2026
 
-1. Conserver la preuve CI MySQL des compléments ; vérifier le HEAD exact avant promotion.
-2. Avec l’accès d’administration à la seule base staging : suspendre les écritures administratives, produire une sauvegarde récente avec le script existant `scripts/staging-phase2-db-gate.mjs` et la vérifier.
-3. Exécuter `node --import tsx scripts/apply-uat-internal-admin.ts --apply --administrative-writes-paused --backup-file=<fichier-gzip> --backup-sha256=<sha256>`, avec `MYSQL_URL` injecté par un canal secret, jamais dans le rapport ou une commande publiée. Le script refuse toute autre base, toute sauvegarde trop ancienne ou de hash/contenu incompatible.
-4. Vérifier correspondances, invariants et triggers ; promouvoir uniquement le commit CI vert sur la branche staging ; déployer le même service.
-5. Qualifier les écrans authentifiés et les cas réels, puis obtenir les deux revues du Gardien. Aucune promotion vers `main`.
+- Autorisation : instruction explicite de Claudel de réutiliser le pattern sécurisé V6 depuis le service staging, sans connexion MySQL externe. Backup/restore attesté PASS par Claudel : 258 requêtes restaurées dans `bwljrj22_citicigars_restore_test`.
+- Code déployé : `9d3c172242c45d6a9d12fe18c2e70dda9d2b01f5`, PR #4 intégrée uniquement dans `replit-commerce-os-v2`. CI [36379923665](https://github.com/Claudel1971/citicigars-shop/actions/runs/36379923665) PASS : 246 tests réussis, 2 ignorés, 15 tests préflight V6, TypeScript et build.
+- Runner `server/jobs/uat-migration.ts` : service/nom Render exacts, commit exact, URL MySQL sans paramètres de substitution, `SELECT DATABASE()`, expiration à deux heures maximum, verrou nommé, aucune interface HTTP d’exécution. Mode préflight séparé du mode apply.
+- Préflight déployé `dep-dasv90jbc2fs73ahobtg` : PASS à 05:03:49 UTC. Maintenance d’écriture prouvée HTTP 503 avant migration.
+- Baseline complète des 46 tables existantes : `5c68fabf2c2097d0074a782501b933c1c3301ba1c015cb035502d995f804e700` ; schéma avant migration : `e1b8bb1bcd879464ead13d1ce1e8b4f97d39c7d16c349da9ae52fdabb5fb1fb2`.
+- Migration déployée `dep-dasvao17lnhs73b0t58g` : QUALIFICATION_PASS à 05:05:51 UTC. Cinq tables additives, 22 correspondances métier, deux triggers dont les définitions sont comparées au SQL versionné. Rejeu des correspondances stable. Tests tâche/événements/version factuelle effectués dans une transaction annulée ; absence des lignes de preuve après rollback vérifiée.
+- Non-régression données : empreinte des 46 tables historiques strictement identique avant/après. Aucun import V6 rejoué ; aucun coût, stock, mouvement, commande ou client historique modifié.
+- Désarmement : `UAT0024_ENABLED=false`, maintenance false, commit/mode/empreintes/attestation invalidés et expiration passée ; flags V6 également false. Déploiement final `dep-dasvbqgjo6nc73dk1b3g` LIVE à 05:07:56 UTC. Aucun événement du runner au redémarrage final.
+- Smoke final : `/health` 200 ; les quatre GET internes protégés (tâches, codes CUST/SUPP, fiches) et POST tâches refusent les requêtes anonymes avec 401. Le POST n’est plus bloqué par la maintenance.
+- Qualification navigateur OWNER : codes fournisseurs visibles, référence métier CUST confirmée sur une fiche client, fiches internes et référentiel chargés, liste des tâches administratives vide sans erreur. Parseur factuel testé sur un texte explicitement synthétique, non sauvegardé. Aucun message envoyé, aucune tâche réelle créée.
+- Production : `main` reste `c8560ac8d971d472c3758505c626abdd40381d9e`. Aucun service de production modifié.
+
+## Suite et limites
+
+Le blocage de migration est clos. Les revues indépendantes fonctionnelle et coût du Gardien restent à obtenir pour toute déclaration de readiness globale. Les limites du brief initial ci-dessous et les exclusions de périmètre demeurent explicites. Aucune promotion vers `main`.
+
+Le CLI initial reste disponible comme autre voie opérateur avec fichier de sauvegarde et hash ; il n’a pas été utilisé pour cette exécution. La voie runtime autorisée a accepté l’attestation de restauration fournie par Claudel. En cas de besoin, le rollback versionné archive les cinq tables additives après retrait des deux triggers ; il n’a pas été exécuté sur staging après cette migration réussie.
 
 Les captures/données réelles de qualification restent privées ; le rapport public ne recopie pas les valeurs financières ni les identités clients.
 
