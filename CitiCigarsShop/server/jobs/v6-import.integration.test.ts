@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { db } from "../db.mysql";
-import { JOURNAL_DDL, journalOperation, stableId, importCatalog, importPurchase, validateJobEnvironment, validatePlan, type V6Operation } from "./v6-import";
+import { JOURNAL_DDL, journalOperation, stableId, importCatalog, importPurchase, validateJobEnvironment, validatePlan, type V6Operation, importTransform, validateTransform } from "./v6-import";
 import { historicalPurchaseDate } from "../services/purchasing";
 
 const database = "citicigars_ci";
-const cat: V6Operation = { source_record_id:"MG:CATALOG:CI",phase:"PS1",kind:"catalog",payload:{cigars:[],suppliers:[{code:"V6_CI","name":"CI supplier"}],skus:[{sku:"CTCG-CI-V6",kind:"CIGAR",packSizes:[],product:{sku:"CTCG-CI-V6",marque:"CI",cigarsPerBox:20}}]} };
+const cat: V6Operation = { source_record_id:"MG:CATALOG:CI",phase:"PS1",kind:"catalog",payload:{cigars:[],suppliers:[{code:"V6_CI","name":"CI supplier"}],skus:[{sku:"CTCG-CI-V6",kind:"CIGAR",packSizes:[10],product:{sku:"CTCG-CI-V6",marque:"CI",cigarsPerBox:20}}]} };
 const buy: V6Operation = { source_record_id:"MG:PURCHASE_ORDER:CI",phase:"PS2",kind:"purchase",payload:{supplierCode:"V6_CI",orderedAt:null,receivedAt:null,period:"2025-11",reference:"CI-V6",costingMethod:"fixture",lines:[{sku:"CTCG-CI-V6",type:"Box",packSize:0,quantity:2,unitCostXaf:123.4567}]} };
 
 describe("V6 transaction/replay on isolated CI MySQL",()=>{
@@ -51,9 +51,27 @@ describe("V6 transaction/replay on isolated CI MySQL",()=>{
     const po:any=await db.execute(sql`SELECT purchase_order_id FROM stock_purchase_orders WHERE client_request_id=${stableId(`${bad.source_record_id}:po`)}`);
     expect(po[0]).toHaveLength(0);
   });
+  it("rolls back an entire multi-leg opening when an output cannot be created",async()=>{
+    const op:V6Operation={source_record_id:"MG:TRANSFORM:FAIL",phase:"PS3",kind:"transform",payload:{eventDate:null,reason:"CI",inputs:[{sku:"CTCG-CI-V6",type:"Box",packSize:0,quantity:1,cigarsPerUnit:20,legacyDeltaCigars:0}],outputs:[{sku:"CTCG-CI-MISSING",type:"Pack",packSize:10,quantity:2,recipe:[{sku:"CTCG-CI-V6",quantity:10}]}]}};
+    await expect(journalOperation(db,op,tx=>importTransform(tx,op),database)).rejects.toThrow();
+    const result:any=await db.execute(sql`SELECT on_hand_qty FROM stock_balances WHERE sku='CTCG-CI-V6' AND type='Box'`);
+    expect(result[0][0].on_hand_qty).toBe(2);
+  });
+  it("opens directly into packs with source lot lineage and derived cost, without transient loose stock",async()=>{
+    const op:V6Operation={source_record_id:"MG:TRANSFORM:CI",phase:"PS3",kind:"transform",payload:{eventDate:null,reason:"CI",inputs:[{sku:"CTCG-CI-V6",type:"Box",packSize:0,quantity:1,cigarsPerUnit:20,legacyDeltaCigars:0}],outputs:[{sku:"CTCG-CI-V6",type:"Pack",packSize:10,quantity:2,recipe:[{sku:"CTCG-CI-V6",quantity:10}]}]}};
+    const result:any=await journalOperation(db,op,tx=>importTransform(tx,op),database);
+    expect(result.target.inputLots[0].allocations).toHaveLength(1);
+    const balances:any=await db.execute(sql`SELECT type,on_hand_qty FROM stock_balances WHERE sku='CTCG-CI-V6' ORDER BY type`);
+    expect(balances[0]).toEqual([{type:"Box",on_hand_qty:1},{type:"Pack",on_hand_qty:2}]);
+    expect(Number(result.target.outputLots[0].unitCostXaf)).toBeCloseTo(61.72835,3);
+    expect((await journalOperation(db,op,()=>{throw new Error("replay called");},database)).replay).toBe(true);
+  });
 });
 
 describe("V6 guards and partial date provenance",()=>{
+ it("rejects unexplained cigar creation before transformation",()=>{
+   expect(()=>validateTransform({eventDate:null,reason:"test",inputs:[{sku:"A",type:"Box",packSize:0,quantity:1,cigarsPerUnit:20,legacyDeltaCigars:0}],outputs:[{sku:"B",type:"Pack",packSize:5,quantity:5,recipe:[{sku:"A",quantity:5}]}]})).toThrow("TRANSFORM_CONSERVATION");
+ });
  it("preserves a month without manufacturing a day",()=>{
    expect(historicalPurchaseDate("","2025-11")).toBeNull();
    expect(()=>historicalPurchaseDate("2025-11-01","2025-11")).toThrow();

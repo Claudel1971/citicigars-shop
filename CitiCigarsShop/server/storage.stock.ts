@@ -392,7 +392,7 @@ export type ApplyLocationMovementInput =
       destinationLocationId?: string;
     })
   | (LocationMovementBase & {
-      movementType: "DESASSEMBLAGE_COMPOSITE";
+      movementType: "DESASSEMBLAGE_COMPOSITE" | "ASSEMBLAGE_COMPOSITE" | "OUVERTURE_BOITE";
       sourceLocationId?: string;
       destinationLocationId?: string;
     });
@@ -682,7 +682,7 @@ export class StockStorage {
       const ruleBalance = rowToBalance(locationRows.get(ruleLocationId));
       const effects: Effect[] = input.movementType === "CORRECTION_INVENTAIRE"
         ? [{ balanceField: "onHand", delta: input.qty - ruleBalance.onHand }]
-        : input.movementType === "DESASSEMBLAGE_COMPOSITE"
+        : ["DESASSEMBLAGE_COMPOSITE", "ASSEMBLAGE_COMPOSITE", "OUVERTURE_BOITE"].includes(input.movementType)
           ? (endpoints.sourceLocationId
             ? [{ balanceField: "onHand", delta: -input.qty }]
             : [{ balanceField: "onHand", delta: input.qty }])
@@ -771,7 +771,7 @@ export class StockStorage {
           lotId,
           effect: { balanceField: input.movementType === "ENTREE_TRANSIT" ? "transit" : "onHand", delta: input.qty },
         });
-      } else if (input.movementType === "DESASSEMBLAGE_COMPOSITE") {
+      } else if (["DESASSEMBLAGE_COMPOSITE", "ASSEMBLAGE_COMPOSITE", "OUVERTURE_BOITE"].includes(input.movementType)) {
         if (sourceId) {
           const plans = input.lotId
             ? [{ lotId: input.lotId, qty: input.qty }]

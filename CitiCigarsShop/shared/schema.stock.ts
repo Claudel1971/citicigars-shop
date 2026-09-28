@@ -508,7 +508,7 @@ export const stockMovementLotAllocations = mysqlTable("stock_movement_lot_alloca
 
 
 
-export const LOT_COST_SOURCES = ["RECEIPT", "BUNDLE_DERIVATION"] as const;
+export const LOT_COST_SOURCES = ["RECEIPT", "BUNDLE_DERIVATION", "HISTORICAL_DERIVATION"] as const;
 export type LotCostSource = (typeof LOT_COST_SOURCES)[number];
 
 export const stockLotCostBasis = mysqlTable("stock_lot_cost_basis", {

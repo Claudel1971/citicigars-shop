@@ -78,7 +78,7 @@ export function locationAwareEndpointsForMovement(
     if (destinationLocationId) throw new StockRuleViolation("external_outbound_destination_must_be_null");
     return { sourceLocationId, destinationLocationId: null };
   }
-  if (movementType === "DESASSEMBLAGE_COMPOSITE") {
+  if (["DESASSEMBLAGE_COMPOSITE", "ASSEMBLAGE_COMPOSITE", "OUVERTURE_BOITE"].includes(movementType)) {
     const hasSource = Boolean(sourceLocationId);
     const hasDestination = Boolean(destinationLocationId);
     if (hasSource === hasDestination) throw new StockRuleViolation("composite_decomposition_requires_one_endpoint");
@@ -412,3 +412,4 @@ export function effectsForOuvertureBoiteDestination(qty: number, sourceBalanceFi
   // Les Packs/Loose créés atterrissent dans le MÊME bucket que la Box consommée (correction 4).
   return [{ balanceField: sourceBalanceField, delta: qty }];
 }
+
