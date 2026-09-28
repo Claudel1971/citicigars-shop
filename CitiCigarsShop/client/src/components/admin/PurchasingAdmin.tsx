@@ -65,8 +65,10 @@ export default function PurchasingAdmin() {
       api("/api/admin/purchasing/suppliers"), api("/api/admin/purchasing/orders"), api("/api/admin/purchasing/receipts"),
       api("/api/products"), api("/api/admin/stock/locations"),
     ]);
-    setSuppliers(supplierData.suppliers || []); setOrders(orderData.orders || []); setReceipts(receiptData.receipts || []);
-    setProducts(productData || []); setLocations(locationData.locations || []);
+    const businessSuppliers = (supplierData.suppliers || []).filter((supplier:any) => !/^CLOSE06 Supplier /i.test(supplier.name || ''));
+    const fixtureSuppliers = new Set((supplierData.suppliers || []).filter((supplier:any) => /^CLOSE06 Supplier /i.test(supplier.name || '')).map((supplier:any) => supplier.supplierId));
+    setSuppliers(businessSuppliers); setOrders((orderData.orders || []).filter((order:any) => !fixtureSuppliers.has(order.supplierId))); setReceipts(receiptData.receipts || []);
+    setProducts((productData || []).filter((product:any) => !/^(CI06-|CLOSE06)/.test(product.sku || ''))); setLocations((locationData.locations || []).filter((place:any) => !/^(CI06-|CLOSE06)/.test(place.code || '')));
   }, []);
   useEffect(() => { load().catch((reason) => setError(reason.message)); }, [load]);
 
