@@ -269,7 +269,7 @@ export function validateTransform(p: any) {
       remaining.set(c.sku, remaining.get(c.sku)! - c.quantity * o.quantity);
     }
   }
-  if ([...remaining.values()].some(n=>n!==0)) refuse("TRANSFORM_CONSERVATION");
+  if (Array.from(remaining.values()).some(n=>n!==0)) refuse("TRANSFORM_CONSERVATION");
 }
 
 export async function importTransform(tx: any, op: V6Operation) {

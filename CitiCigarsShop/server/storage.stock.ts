@@ -682,7 +682,7 @@ export class StockStorage {
       const ruleBalance = rowToBalance(locationRows.get(ruleLocationId));
       const effects: Effect[] = input.movementType === "CORRECTION_INVENTAIRE"
         ? [{ balanceField: "onHand", delta: input.qty - ruleBalance.onHand }]
-        : ["DESASSEMBLAGE_COMPOSITE", "ASSEMBLAGE_COMPOSITE", "OUVERTURE_BOITE"].includes(input.movementType)
+        : (input.movementType === "DESASSEMBLAGE_COMPOSITE" || input.movementType === "ASSEMBLAGE_COMPOSITE" || input.movementType === "OUVERTURE_BOITE")
           ? (endpoints.sourceLocationId
             ? [{ balanceField: "onHand", delta: -input.qty }]
             : [{ balanceField: "onHand", delta: input.qty }])
@@ -771,7 +771,7 @@ export class StockStorage {
           lotId,
           effect: { balanceField: input.movementType === "ENTREE_TRANSIT" ? "transit" : "onHand", delta: input.qty },
         });
-      } else if (["DESASSEMBLAGE_COMPOSITE", "ASSEMBLAGE_COMPOSITE", "OUVERTURE_BOITE"].includes(input.movementType)) {
+      } else if ((input.movementType === "DESASSEMBLAGE_COMPOSITE" || input.movementType === "ASSEMBLAGE_COMPOSITE" || input.movementType === "OUVERTURE_BOITE")) {
         if (sourceId) {
           const plans = input.lotId
             ? [{ lotId: input.lotId, qty: input.qty }]
