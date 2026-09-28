@@ -255,8 +255,7 @@ export const customerDnaRecommendations = mysqlTable(
     id: int("id").primaryKey().autoincrement(),
 
     customerId: varchar("customer_id", { length: 36 })
-      .notNull()
-      .references(() => customers.customerId, { onDelete: "cascade" }),
+      .notNull(),
 
     dnaId: varchar("dna_id", { length: 36 })
       .notNull()
@@ -286,6 +285,7 @@ export const customerDnaRecommendations = mysqlTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
+  customerIdFk: foreignKey({ name: "fk_customer_dna_recomm_customer_id_2cbfd2fb", columns: [table.customerId], foreignColumns: [customers.customerId] }).onDelete("cascade"),
     requestRankUnique: unique("uq_dna_recommendation_run_rank").on(
       table.sourceRequestId,
       table.rankPosition
@@ -312,12 +312,10 @@ export const customerDnaRecommendationEvents = mysqlTable(
     id: int("id").primaryKey().autoincrement(),
 
     recommendationId: int("recommendation_id")
-      .notNull()
-      .references(() => customerDnaRecommendations.id, { onDelete: "cascade" }),
+      .notNull(),
 
     customerId: varchar("customer_id", { length: 36 })
-      .notNull()
-      .references(() => customers.customerId, { onDelete: "cascade" }),
+      .notNull(),
 
     dnaId: varchar("dna_id", { length: 36 })
       .notNull()
@@ -334,6 +332,8 @@ export const customerDnaRecommendationEvents = mysqlTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
+  recommendationIdFk: foreignKey({ name: "fk_customer_dna_recomm_recommendation_i_79392381", columns: [table.recommendationId], foreignColumns: [customerDnaRecommendations.id] }).onDelete("cascade"),
+  customerIdFk: foreignKey({ name: "fk_customer_dna_recomm_customer_id_b6d47679", columns: [table.customerId], foreignColumns: [customers.customerId] }).onDelete("cascade"),
     recommendationIdx: index("idx_dna_reco_event_recommendation").on(table.recommendationId),
     dnaIdx: index("idx_dna_reco_event_dna").on(table.dnaId),
     eventTypeIdx: index("idx_dna_reco_event_type").on(table.eventType),
@@ -381,3 +381,4 @@ export type CustomerSourcingInterest = typeof customerSourcingInterests.$inferSe
 export type InsertCustomerSourcingInterest = z.infer<typeof insertCustomerSourcingInterestSchema>;
 export type CustomerCigarPreference = typeof customerCigarPreferences.$inferSelect;
 export type InsertCustomerCigarPreference = z.infer<typeof insertCustomerCigarPreferenceSchema>;
+
