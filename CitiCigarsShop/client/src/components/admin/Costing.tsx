@@ -1,3 +1,4 @@
+import { purchaseCostBreakdown } from "../../../../shared/purchase-cost-breakdown";
 import React, { useEffect, useState } from "react";
 import { crmFetch } from "./crm/crmApi";
 import BackofficeTable, {
@@ -376,6 +377,17 @@ export default function Costing() {
                     C.U. rendu : {amount(lot.purchaseSource.landedUnitCostXaf)}{" "}
                     FCFA
                   </p>
+                  <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-sm">
+                    <dt>Achat net unitaire · devise d’origine</dt><dd>{amount(lot.purchaseSource.money?.net_unit)} {lot.purchaseSource.money?.currency}</dd>
+                    <dt>Taux effectif devise d’origine → carte (calculé)</dt><dd>{amount(purchaseCostBreakdown(lot.purchaseSource).effectiveCardRate)}</dd>
+                    <dt>Taux carte → FCFA documenté</dt><dd>{amount(purchaseCostBreakdown(lot.purchaseSource).cardXafRate)}</dd>
+                    <dt>Taux direct → FCFA documenté</dt><dd>{amount(purchaseCostBreakdown(lot.purchaseSource).directXafRate)}</dd>
+                    <dt>Achat net unitaire · FCFA</dt><dd>{amount(purchaseCostBreakdown(lot.purchaseSource).netUnitXaf)}</dd>
+                    <dt>Frais attribués au lot (rendu − achat net) · FCFA</dt><dd>{amount(purchaseCostBreakdown(lot.purchaseSource).allocatedFeesXaf)}</dd>
+                    <dt>Frais attribués par conditionnement · FCFA</dt><dd>{amount(purchaseCostBreakdown(lot.purchaseSource).allocatedFeesUnitXaf)}</dd>
+                  </dl>
+                  <p className="text-sm">Méthode documentée : {lot.purchaseSource.costingMethod || "Non documentée"}</p>
+                  <p className="text-sm">Le C.U. du ledger conserve quatre décimales ; le CMV de la commande est arrondi en FCFA. La ventilation transport/douane/autres reste inconnue si elle n’est pas fournie par la source.</p>
                   <AuditProof value={lot.purchaseSource} />
                 </div>
               )}

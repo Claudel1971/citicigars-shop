@@ -31,6 +31,10 @@ import { API_URL } from '@/config';
 const PromotionManager = () => <div className="p-8">Gestion des promotions (À venir)</div>;
 
 const Admin = () => {
+  useEffect(() => {
+    document.body.classList.add('admin-typography');
+    return () => document.body.classList.remove('admin-typography');
+  }, []);
   // ... state remains same
   const [isAuthenticated, setIsAuthenticated] = React.useState(() => !!sessionStorage.getItem('cms_token'));
   const [username, setUsername] = React.useState('');

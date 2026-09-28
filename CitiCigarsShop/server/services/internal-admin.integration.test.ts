@@ -168,7 +168,7 @@ describe("additive internal admin on isolated MySQL", () => {
   it("rolls back additive tables by archiving them without changing historical entity rows",async()=>{
     const [before]=await pool.query<any[]>('SELECT customer_id FROM customers ORDER BY customer_id');
     const rollback=await fs.readFile('migrations-mysql/0024_uat_internal_admin.rollback.sql','utf8');
-    for(const q of rollback.split(';').filter(q=>/\b(DROP TRIGGER|RENAME TABLE)\b/.test(q)))await pool.query(q);
+    for(const q of rollback.replace(/^--.*$/gm,'').split(';').filter(q=>/\b(DROP TRIGGER|RENAME TABLE)\b/.test(q)))await pool.query(q);
     const [after]=await pool.query<any[]>('SELECT customer_id FROM customers ORDER BY customer_id');expect(after).toEqual(before);
     const [archived]=await pool.query<any[]>('SELECT COUNT(*) n FROM rollback_0024_sheet_versions');expect(Number(archived[0].n)).toBe(2);
   });
