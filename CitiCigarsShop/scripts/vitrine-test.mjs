@@ -278,21 +278,27 @@ try {
   assert(rates.compared > 0);
   assert.deepEqual(rates.mismatch, []);
 
-  await goto("/produit/CTGNI0013");
-  await until(() => present('input[value=pack]'), "tarifs enregistrés de Le Bijou 1922 Toro");
-  assert.equal(amount(await read('label:has(input[value=pack]) .format-price')), "75000");
-  assert.equal(amount(await read('label:has(input[value=boite]) .format-price')), "345000");
-  await capture("08-tarifs-enregistres-fiche");
-  await click(".buy-bar button");
-  await hasText('[data-cart-line="CTGNI0013-pack"] .cart-format', "Pack · 5 cigares");
-  assert.equal(amount(await read('[data-cart-line="CTGNI0013-pack"] .line-price')), "75000");
-  await goto("/produit/CTGNI0013");
-  await click('input[value=boite]');
-  await click(".buy-bar button");
-  await hasText('[data-cart-line="CTGNI0013-boite"] .cart-format', "Boîte · 23 cigares");
-  assert.equal(amount(await read('[data-cart-line="CTGNI0013-boite"] .line-price')), "345000");
-  assert.equal(amount(await read(".summary-total strong")), "660000");
-  await capture("09-tarifs-enregistres-panier");
+  const correctedRates = [
+    { sku: "CTGHO0001", format: "pack", label: "Pack · 5 cigares", prixFCFA: 60000 },
+    { sku: "CTGNI0013", format: "pack", label: "Pack · 5 cigares", prixFCFA: 73750 },
+    { sku: "CTGNI0013", format: "boite", label: "Boîte · 23 cigares", prixFCFA: 339250 },
+    { sku: "CTGRD0011", format: "pack", label: "Pack · 5 cigares", prixFCFA: 40000 },
+  ];
+  await evaluate("localStorage.removeItem('citicigars-cart')");
+  for (const { sku, format, label, prixFCFA } of correctedRates) {
+    await goto(`/produit/${sku}`);
+    const option = `input[name=conditionnement][value=${format}]`;
+    await click(option);
+    assert.equal(amount(await read(`label:has(${option}) .format-price`)), String(prixFCFA));
+    if (sku === "CTGNI0013" && format === "pack") await capture("08-tarifs-corriges-fiche");
+    await click(".buy-bar button");
+    const row = `[data-cart-line="${sku}-${format}"]`;
+    await hasText(`${row} .cart-format`, label);
+    assert.equal(amount(await read(`${row} .line-price`)), String(prixFCFA));
+  }
+  assert.equal(await evaluate('document.querySelectorAll("[data-cart-line]").length'), correctedRates.length);
+  assert.equal(amount(await read(".summary-total strong")), "513000");
+  await capture("09-tarifs-corriges-panier");
 
   assert(intercepted >= 4);
   assert(apiRequests.every(({ method, url }) => method === "GET" && new URL(url).origin === base.origin));
@@ -306,11 +312,11 @@ try {
     cachePanier: "Prix enregistré remplacé à l’affichage par le prix relu",
     changementDuPrixAuClic: "Nouvelle offre affichée, panier inchangé",
     tarifsEnregistres: { conditionnementsAchetablesVerifies: rates.compared, ecarts: rates.mismatch,
-      leBijouToroDansLePanier: { packFCFA: 75000, boiteFCFA: 345000 } },
+      tarifsCorrigesDansLePanier: correctedRates, sousTotalFCFA: 513000 },
     panne: "HTTP 503 local sur catalogue, fiche et panier, puis récupération",
     ecrituresApi: 0, checkout: blocked.status,
   }, null, 2));
-  console.log(`OK · ${rates.compared} tarifs vérifiés, Le Bijou 1922 dans le panier, promotion, liens directs, droits visiteur, rupture et panne`);
+  console.log(`OK · ${rates.compared} tarifs vérifiés, quatre lignes corrigées dans le panier (513 000 FCFA), promotion, rupture et panne`);
   await Promise.race([send("Browser.close").catch(() => {}), pause(300)]);
 } finally {
   socket?.close();
