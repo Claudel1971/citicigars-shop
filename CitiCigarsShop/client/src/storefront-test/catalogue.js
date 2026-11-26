@@ -50,8 +50,6 @@ export function stockLabel(product) {
   }
 }
 
-// La fiche publiée utilise le prix unitaire remisé puis arrondi à 500 FCFA.
-// prixPack et prixBoite y déterminent si le conditionnement est proposé.
 export function purchaseOptions(product) {
   if (stockLabel(product)) return [];
   const promos = product.promotions;
@@ -66,17 +64,20 @@ export function purchaseOptions(product) {
           base, price, image: photos.boite || photos.principale }]
       : [];
   }
-  const unit = Number(product.prixUnitaire);
-  const unitPrice = calculateDiscountedPrice(unit, promos?.unitaire?.pourcentage);
-  if (!positive(unit) || !positive(unitPrice)) return [];
   const formats = [
     { id: "pack", label: "Pack", pieces: Number(product.quantitePack || product.typePack),
-      offered: product.prixPack, image: photos.pack },
+      price: Number(product.prixPack), image: photos.pack },
     { id: "boite", label: "Boîte", pieces: Number(product.qteBoite || product.quantiteBoite),
-      offered: product.prixBoite, image: photos.boite },
+      price: Number(product.prixBoite), image: photos.boite },
   ];
-  return formats.filter(({ offered, pieces }) => positive(offered) && count(pieces))
-    .map((format) => ({ ...format, base: unit * format.pieces, price: unitPrice * format.pieces }));
+  return formats.filter(({ price, pieces }) => positive(price) && count(pieces))
+    .map((format) => {
+      const promotion = promos?.[format.id];
+      const reference = Number(product.prixUnitaire) * format.pieces;
+      const showReference = promotion?.actif && Number(promotion.prixPromo) === format.price
+        && positive(reference) && reference > format.price;
+      return { ...format, base: showReference ? reference : format.price };
+    });
 }
 
 const fresh = (signal) => ({

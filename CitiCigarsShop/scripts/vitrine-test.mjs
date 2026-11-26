@@ -219,7 +219,7 @@ try {
   await goto("/produit/CTGNI0006?section=achat");
   await until(() => present('input[value=pack]'), "offre avant changement de prix");
   simulate = (url) => url.pathname.endsWith("/CTGNI0006")
-    ? { status: 200, body: { ...offer, prixUnitaire: offer.prixUnitaire + 500 } } : null;
+    ? { status: 200, body: { ...offer, prixPack: offer.prixPack + 500 } } : null;
   await click(".buy-bar button");
   await hasText(".product-order", "Le prix ou le conditionnement a changé");
   assert.equal(await evaluate('location.pathname'), "/produit/CTGNI0006");
@@ -255,6 +255,45 @@ try {
   simulate = null;
   await click(".empty-state button");
   await hasText(".results-count", "54 références");
+  const rates = await evaluate(`(async () => {
+    const { purchaseOptions } = await import("/src/storefront-test/catalogue.js");
+    const response = await fetch("/api/products?includeImages=true", { cache: "no-store" });
+    if (!response.ok) throw new Error("Lecture des prix impossible");
+    const mismatch = [];
+    let compared = 0;
+    for (const product of await response.json()) {
+      if (product.type === "bundle") continue;
+      const sellable = product.inCatalogue !== false && product.availabilityStatus === "IN_STOCK";
+      const expected = sellable ? [
+        ["pack", Number(product.prixPack), Number(product.quantitePack || product.typePack)],
+        ["boite", Number(product.prixBoite), Number(product.qteBoite || product.quantiteBoite)],
+      ].filter(([, price, pieces]) => Number.isFinite(price) && price > 0 && Number.isSafeInteger(pieces) && pieces > 0)
+        .map(([id, price]) => [id, price]) : [];
+      const actual = purchaseOptions(product).map(({ id, price }) => [id, price]);
+      compared += expected.length;
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) mismatch.push({ sku: product.sku, expected, actual });
+    }
+    return { compared, mismatch };
+  })()`);
+  assert(rates.compared > 0);
+  assert.deepEqual(rates.mismatch, []);
+
+  await goto("/produit/CTGNI0013");
+  await until(() => present('input[value=pack]'), "tarifs enregistrés de Le Bijou 1922 Toro");
+  assert.equal(amount(await read('label:has(input[value=pack]) .format-price')), "75000");
+  assert.equal(amount(await read('label:has(input[value=boite]) .format-price')), "345000");
+  await capture("08-tarifs-enregistres-fiche");
+  await click(".buy-bar button");
+  await hasText('[data-cart-line="CTGNI0013-pack"] .cart-format', "Pack · 5 cigares");
+  assert.equal(amount(await read('[data-cart-line="CTGNI0013-pack"] .line-price')), "75000");
+  await goto("/produit/CTGNI0013");
+  await click('input[value=boite]');
+  await click(".buy-bar button");
+  await hasText('[data-cart-line="CTGNI0013-boite"] .cart-format', "Boîte · 23 cigares");
+  assert.equal(amount(await read('[data-cart-line="CTGNI0013-boite"] .line-price')), "345000");
+  assert.equal(amount(await read(".summary-total strong")), "660000");
+  await capture("09-tarifs-enregistres-panier");
+
   assert(intercepted >= 4);
   assert(apiRequests.every(({ method, url }) => method === "GET" && new URL(url).origin === base.origin));
   const blocked = await fetch(new URL("/checkout", base), { headers: { Accept: "text/html" } });
@@ -266,10 +305,12 @@ try {
     conditionnement: "Pack absent et boîte disponible testés séparément",
     cachePanier: "Prix enregistré remplacé à l’affichage par le prix relu",
     changementDuPrixAuClic: "Nouvelle offre affichée, panier inchangé",
+    tarifsEnregistres: { conditionnementsAchetablesVerifies: rates.compared, ecarts: rates.mismatch,
+      leBijouToroDansLePanier: { packFCFA: 75000, boiteFCFA: 345000 } },
     panne: "HTTP 503 local sur catalogue, fiche et panier, puis récupération",
     ecrituresApi: 0, checkout: blocked.status,
   }, null, 2));
-  console.log("OK · promotion, liens directs, droits visiteur, rupture, panne et récupération");
+  console.log(`OK · ${rates.compared} tarifs vérifiés, Le Bijou 1922 dans le panier, promotion, liens directs, droits visiteur, rupture et panne`);
   await Promise.race([send("Browser.close").catch(() => {}), pause(300)]);
 } finally {
   socket?.close();
