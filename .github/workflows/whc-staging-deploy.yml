@@ -1,96 +1,92 @@
-name: WHC Staging - Deploy Frontend
+name: WHC - Correctif WhatsApp de la boutique actuelle
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Appliquer uniquement le correctif WhatsApp sur citicigars.com
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency: citicigars-whatsapp-site-actuel
 
 jobs:
-  deploy-staging:
+  checkout:
+    if: github.ref == 'refs/heads/codex/whatsapp-site-actuel'
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: CitiCigarsShop
-
+    environment: staging
+    timeout-minutes: 8
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: CitiCigarsShop/package-lock.json
-
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Build frontend
-        env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
-          NODE_ENV: production
-        run: npx vite build
-
-      - name: Verify frontend build
+      - uses: actions/checkout@v4
+      - name: Vérifier le fichier public et préparer le correctif
         run: |
           set -euo pipefail
-
-          test -f dist/public/index.html
-          test -d dist/public/assets
-
-          echo "FRONTEND BUILD: OK"
-          echo "OUTPUT: dist/public"
-
-      - name: Configure SSH
-        working-directory: .
-        shell: bash
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          printf '%s\n' "${{ secrets.WHC_SSH_KEY }}" > ~/.ssh/whc_key
-          chmod 600 ~/.ssh/whc_key
-
-          printf '%s\n' "${{ vars.WHC_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Deploy frontend to WHC staging
-        working-directory: .
-        shell: bash
+          dir="$RUNNER_TEMP/whatsapp"
+          mkdir "$dir"
+          curl -fsSL --max-time 20 'https://citicigars.com/' -o "$dir/index.html"
+          curl -fsSL --max-time 20 'https://citicigars.com/bundle.js?v=1767441426628' -o "$dir/bundle.js"
+          asset="$(node CitiCigarsShop/script/patch-live-whatsapp.mjs "$dir")"
+          [[ "$asset" =~ ^bundle-whatsapp-[0-9a-f]{12}\.js$ ]]
+          node --check "$dir/$asset"
+          printf '%s\n' "$asset" > "$dir/asset"
+          sha256sum "$dir/index.html" "$dir/index.patched.html" "$dir/$asset"
+      - name: Publier le fichier vérifié et contrôler le retour arrière
+        if: inputs.publish
         env:
           WHC_HOST: ${{ vars.WHC_HOST }}
           WHC_PORT: ${{ vars.WHC_PORT }}
           WHC_USER: ${{ vars.WHC_USER }}
-          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
+          WHC_KNOWN_HOSTS: ${{ vars.WHC_KNOWN_HOSTS }}
+          WHC_SSH_KEY: ${{ secrets.WHC_SSH_KEY }}
         run: |
           set -euo pipefail
-
-          EXPECTED_PATH="/home/bwljrj22/citicigars_staging"
-
-          if [ "$WHC_STAGING_PATH" != "$EXPECTED_PATH" ]; then
-            echo "SECURITY ERROR: unexpected staging path"
+          umask 077
+          dir="$RUNNER_TEMP/whatsapp"
+          printf '%s\n' "$WHC_SSH_KEY" > "$dir/key"
+          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$dir/known_hosts"
+          auth=(-p "$WHC_PORT" -i "$dir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$dir/known_hosts")
+          remote="$WHC_USER@$WHC_HOST"
+          ssh "${auth[@]}" "$remote" 'uapi --output=json DomainInfo single_domain_data domain=citicigars.com' > "$dir/domain.json"
+          root="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d=d.get("result",d); print((d.get("data") or {}).get("documentroot") or "")' "$dir/domain.json")"
+          [[ "$root" =~ ^/home/bwljrj22/[a-zA-Z0-9_/-]+$ ]]
+          real="$(ssh "${auth[@]}" "$remote" "cd '$root' && pwd -P")"
+          [[ "$real" == "$root" && "$real" != /home/bwljrj22/citicigars_staging* ]]
+          asset="$(cat "$dir/asset")"
+          [[ "$asset" =~ ^bundle-whatsapp-[0-9a-f]{12}\.js$ ]]
+          old="$(sha256sum "$dir/index.html" | cut -d ' ' -f1)"
+          new="$(sha256sum "$dir/index.patched.html" | cut -d ' ' -f1)"
+          bundle="$(sha256sum "$dir/bundle.js" | cut -d ' ' -f1)"
+          fixed="$(sha256sum "$dir/$asset" | cut -d ' ' -f1)"
+          ssh "${auth[@]}" "$remote" "cd '$root' && test ! -L index.html && test ! -L bundle.js && test -w . && printf '%s  %s\n' '$old' index.html '$bundle' bundle.js | sha256sum --check --status"
+          backup="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-whatsapp.XXXXXXXX")"
+          [[ "$backup" =~ ^/home/bwljrj22/\.citicigars-whatsapp\.[A-Za-z0-9]+$ ]]
+          ssh "${auth[@]}" "$remote" "cp -p -- '$root/index.html' '$backup/index.original' && cmp -s -- '$root/index.html' '$backup/index.original'"
+          ssh "${auth[@]}" "$remote" "cat > '$backup/index.patched'" < "$dir/index.patched.html"
+          ssh "${auth[@]}" "$remote" "cat > '$backup/bundle.patched'" < "$dir/$asset"
+          ssh "${auth[@]}" "$remote" "printf '%s  %s\n' '$old' '$backup/index.original' '$new' '$backup/index.patched' '$fixed' '$backup/bundle.patched' | sha256sum --check --status"
+          echo "Copie de retour vérifiée dans $backup/index.original."
+          rollback() {
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$new' index.html '$old' '$backup/index.original' | sha256sum --check --status; tmp=\$(mktemp .whatsapp-index.XXXXXXXX); cp -p -- '$backup/index.original' \"\$tmp\"; mv -T -- \"\$tmp\" index.html; cmp -s -- '$backup/index.original' index.html"
+          }
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -e '$asset' && test ! -L '$asset'; printf '%s  %s\n' '$old' index.html '$bundle' bundle.js | sha256sum --check --status; tmp=\$(mktemp .whatsapp-js.XXXXXXXX); install -m 644 '$backup/bundle.patched' \"\$tmp\"; mv -T -- \"\$tmp\" '$asset'; tmp=\$(mktemp .whatsapp-index.XXXXXXXX); install -m 644 '$backup/index.patched' \"\$tmp\"; mv -T -- \"\$tmp\" index.html"
+          check_public() {
+            local path
+            for path in '' catalogue checkout admin cgv privacy mentions; do
+              curl -fsSL --retry 2 --max-time 15 "https://citicigars.com/$path?whatsapp_verification=$GITHUB_RUN_ID" -o "$dir/http.html" || return 1
+              cmp -s "$dir/http.html" "$dir/index.patched.html" || return 1
+            done
+            curl -fsSL --retry 2 --max-time 20 "https://citicigars.com/$asset" -o "$dir/http.js" &&
+              cmp -s "$dir/http.js" "$dir/$asset"
+          }
+          if ! check_public; then
+            rollback
+            echo "Échec du contrôle public. L'index précédent a été restauré." >&2
             exit 1
           fi
-
-          ssh \
-            -p "$WHC_PORT" \
-            -i ~/.ssh/whc_key \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes \
-            "$WHC_USER@$WHC_HOST" \
-            "test -d '$WHC_STAGING_PATH'"
-
-          rsync -avz \
-            -e "ssh -p $WHC_PORT -i ~/.ssh/whc_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
-            CitiCigarsShop/dist/public/ \
-            "$WHC_USER@$WHC_HOST:$WHC_STAGING_PATH/"
-
-          echo "STAGING DEPLOYMENT: OK"
-          echo "PRODUCTION NOT TOUCHED"
-
-      - name: Cleanup SSH key
+          echo "Correctif public vérifié. L'ancien fichier bundle.js reste disponible et le routage n'a pas été modifié."
+      - name: Retirer la clé temporaire du runner
         if: always()
-        working-directory: .
-        shell: bash
-        run: |
-          rm -f ~/.ssh/whc_key
+        run: rm -f -- "$RUNNER_TEMP/whatsapp/key"

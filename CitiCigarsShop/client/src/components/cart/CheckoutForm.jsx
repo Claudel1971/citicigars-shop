@@ -30,7 +30,7 @@ const formSchema = z.object({
 });
 
 const CheckoutForm = () => {
-  const { items, total, clearCart } = useCart();
+  const { items, total } = useCart();
   const [, setLocation] = useLocation();
 
   const form = useForm({
@@ -46,9 +46,7 @@ const CheckoutForm = () => {
 
   const onSubmit = (data) => {
     const link = generateWhatsAppLink(items, total, data);
-    window.open(link, "_blank");
-    clearCart();
-    setLocation("/"); // Redirect home after checkout
+    window.open(link, "_blank", "noopener");
   };
 
   if (items.length === 0) {
