@@ -27,7 +27,7 @@ export default defineConfig(({ command }) => {
       generateBundle() {
         this.emitFile({
           type: "asset", fileName: "routes-apache.txt",
-          source: `RewriteEngine On\nRewriteRule ${storefront} ${assetsBase}vitrine-test.html [END]\n`,
+          source: `RewriteEngine On\nRewriteRule ${storefront} ${assetsBase.slice(1)}vitrine-test.html [L]\n`,
         });
       },
     }],

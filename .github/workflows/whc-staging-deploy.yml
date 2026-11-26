@@ -86,7 +86,7 @@ jobs:
           rsync -rz --chmod=D755,F644 --exclude=routes-apache.txt \
             -e "ssh -p $WHC_PORT -i $tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$tmp/known_hosts" \
             "$dir/" "$remote:$incoming/"
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -e _vitrine-release && test ! -L _vitrine-release; test -f '$incoming/vitrine-test.html'; chmod 755 '$incoming'; mv -T -- '$incoming' _vitrine-release"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L _vitrine-release; test -f '$incoming/vitrine-test.html'; chmod 755 '$incoming'; if test -e _vitrine-release; then test -d _vitrine-release; grep -Fxq '3352776cc46e8b52d9477853727124ce1b402eeb' _vitrine-release/revision.txt; mv -T -- _vitrine-release '$save/release-previous'; fi; if ! mv -T -- '$incoming' _vitrine-release; then if test -d '$save/release-previous'; then mv -T -- '$save/release-previous' _vitrine-release; fi; exit 1; fi"
           test_asset_routes() {
             local asset
             for asset in "$dir"/assets/*; do
@@ -102,8 +102,8 @@ jobs:
           check_public() {
             local path
             for path in '' catalogue produit/CTGNI0013 p/CTGNI0013 panier wishlist checkout coffrets entreprises evenements devis; do
-              curl -fsSL --max-time 12 "https://citicigars.com/$path?vitrine_verification=$GITHUB_RUN_ID" -o "$tmp/http" || return 1
-              cmp -s "$tmp/http" "$dir/vitrine-test.html" || { echo "Route vitrine inattendue : /$path" >&2; return 1; }
+              curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/$path?vitrine_verification=$GITHUB_RUN_ID" -o "$tmp/http" || return 1
+              cmp -s "$tmp/http" "$dir/vitrine-test.html" || { echo "Route vitrine inattendue : /$path" >&2; grep -Eo '<script[^>]+src="[^"]+"' "$tmp/http" >&2 || true; return 1; }
             done
             for path in admin cgv privacy mentions; do
               curl -fsSL --max-time 12 "https://citicigars.com/$path?vitrine_verification=$GITHUB_RUN_ID" -o "$tmp/http" || return 1
