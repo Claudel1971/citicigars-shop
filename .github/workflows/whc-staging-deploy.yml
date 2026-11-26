@@ -1,16 +1,7 @@
-name: WHC - Nouvelle vitrine CitiCigars
+name: WHC - Correctif du bandeau public
 
 on:
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Activer la nouvelle vitrine sur citicigars.com
-        type: boolean
-        default: false
-      archive_preview:
-        description: Renvoyer l’URL d’aperçu vers l’ancienne vitrine de préproduction
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -18,28 +9,37 @@ permissions:
 concurrency: citicigars-vitrine-public
 
 jobs:
-  vitrine:
-    if: github.ref == 'refs/heads/codex/vitrine-production-candidate'
+  bandeau:
+    if: github.ref == 'refs/heads/codex/bandeau-bronze'
     runs-on: ubuntu-latest
     environment: staging
-    timeout-minutes: 12
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Compiler la vitrine de production
-        working-directory: CitiCigarsShop
+        with:
+          fetch-depth: 2
+      - name: Préparer le correctif approuvé et sa sauvegarde
         run: |
           set -euo pipefail
-          npm install --no-audit --no-fund --ignore-scripts
-          node node_modules/vite/bin/vite.js build --config vitrine-production.config.ts --emptyOutDir
-          dir=dist/vitrine-production-candidate
-          test -f "$dir/vitrine-test.html"
-          test -f "$dir/storefront-routes.json"
-          grep -Fq '/_vitrine-release/assets/' "$dir/vitrine-test.html"
-          grep -Fq 'https://citicigars-api.onrender.com' "$dir"/assets/*.js
-          if grep -Fq 'staging.citicigars.com' "$dir"/assets/*.js; then exit 1; fi
-          printf '%s\n' "$GITHUB_SHA" > "$dir/revision.txt"
-      - name: Activer les routes de la vitrine et contrôler le site public
-        if: inputs.publish
+          dir="$RUNNER_TEMP/bandeau"
+          mkdir "$dir"
+          approved=9cf5e546270698240d64d386dac1f56524d1065c
+          test "$(git rev-parse HEAD^)" = "$approved"
+          git diff --exit-code "$approved" HEAD -- CitiCigarsShop/client
+          curl -fsSL --max-time 20 'https://citicigars.com/' -o "$dir/index.original"
+          curl -fsSL --max-time 20 'https://citicigars.com/_vitrine-release/revision.txt' -o "$dir/revision.original"
+          test "$(cat "$dir/revision.original")" = e6b5c95a47ea6bbfd17dd9db33b19c0d85df3c26
+          curl -fsSL --max-time 20 'https://citicigars.com/_vitrine-release/assets/vitrine-test-Bw_oJKWn.js' -o "$dir/vitrine-test-Bw_oJKWn.js"
+          asset="$(node CitiCigarsShop/script/prepare-banner-hotfix.mjs "$dir")"
+          [[ "$asset" =~ ^vitrine-bandeau-[0-9a-f]{12}\.js$ ]]
+          node --check "$dir/$asset"
+          printf '%s\n' "$asset" > "$dir/asset"
+          printf '%s\n' "$approved" > "$dir/revision.active"
+          cp "$dir/index.active" "$dir/index.rehearsal"
+          cp "$dir/index.original" "$dir/index.back"
+          mv -T -- "$dir/index.back" "$dir/index.rehearsal"
+          cmp -s "$dir/index.rehearsal" "$dir/index.original"
+      - name: Publier uniquement le bandeau et vérifier les URL publiques
         env:
           WHC_HOST: ${{ vars.WHC_HOST }}
           WHC_PORT: ${{ vars.WHC_PORT }}
@@ -49,117 +49,58 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          tmp="$(mktemp -d "$RUNNER_TEMP/citicigars-vitrine.XXXXXXXX")"
-          trap 'rm -f -- "$tmp/key"' EXIT
-          dir=CitiCigarsShop/dist/vitrine-production-candidate
-          printf '%s\n' "$WHC_SSH_KEY" > "$tmp/key"
-          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$tmp/known_hosts"
-          auth=(-p "$WHC_PORT" -i "$tmp/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$tmp/known_hosts")
+          dir="$RUNNER_TEMP/bandeau"
+          trap 'rm -f -- "$dir/key"' EXIT
+          printf '%s\n' "$WHC_SSH_KEY" > "$dir/key"
+          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$dir/known_hosts"
+          auth=(-p "$WHC_PORT" -i "$dir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$dir/known_hosts")
           remote="$WHC_USER@$WHC_HOST"
-          ssh "${auth[@]}" "$remote" 'uapi --output=json DomainInfo single_domain_data domain=citicigars.com' > "$tmp/domain.json"
-          root="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d=d.get("result",d); print((d.get("data") or {}).get("documentroot") or "")' "$tmp/domain.json")"
+          ssh "${auth[@]}" "$remote" 'uapi --output=json DomainInfo single_domain_data domain=citicigars.com' > "$dir/domain.json"
+          root="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d=d.get("result",d); print((d.get("data") or {}).get("documentroot") or "")' "$dir/domain.json")"
           [[ "$root" =~ ^/home/bwljrj22/[a-zA-Z0-9_/-]+$ ]]
           real="$(ssh "${auth[@]}" "$remote" "cd '$root' && pwd -P")"
           [[ "$real" == "$root" && "$real" != /home/bwljrj22/citicigars_staging* ]]
-          curl -fsSL --max-time 20 'https://citicigars.com/' -o "$tmp/legacy-index"
-          grep -Fq './bundle-whatsapp-5be64c973cc2.js' "$tmp/legacy-index"
-          legacy="$(sha256sum "$tmp/legacy-index" | cut -d ' ' -f1)"
-          ssh "${auth[@]}" "$remote" "cd '$root' && test -f .htaccess && test ! -L .htaccess && test -w . && printf '%s  %s\n' '$legacy' index.html | sha256sum --check --status"
-          ssh "${auth[@]}" "$remote" "cat '$root/.htaccess'" > "$tmp/routes.original"
-          test -s "$tmp/routes.original"
-          node CitiCigarsShop/script/prepare-storefront-entry.mjs "$tmp/legacy-index" "$dir" "$tmp/index.active"
-          original="$legacy"
-          active="$(sha256sum "$tmp/index.active" | cut -d ' ' -f1)"
-          save="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-vitrine.XXXXXXXX")"
-          [[ "$save" =~ ^/home/bwljrj22/\.citicigars-vitrine\.[A-Za-z0-9]+$ ]]
-          ssh "${auth[@]}" "$remote" "cp -p -- '$root/index.html' '$save/index.original'; cmp -s -- '$root/index.html' '$save/index.original'"
-          ssh "${auth[@]}" "$remote" "cat > '$save/index.active'" < "$tmp/index.active"
-          ssh "${auth[@]}" "$remote" "printf '%s  %s\n' '$original' '$save/index.original' '$active' '$save/index.active' | sha256sum --check --status"
-          mkdir "$tmp/restore-check"
-          cp "$tmp/index.active" "$tmp/restore-check/index.html"
-          cp "$tmp/legacy-index" "$tmp/restore-check/index.restore"
-          mv -T -- "$tmp/restore-check/index.restore" "$tmp/restore-check/index.html"
-          cmp -s "$tmp/legacy-index" "$tmp/restore-check/index.html"
-          echo "Sauvegarde vérifiée et restauration répétée. Copie WHC : $save/index.original"
-          incoming="$(ssh "${auth[@]}" "$remote" "mktemp -d '$root/.vitrine-incoming.XXXXXXXX'")"
-          [[ "$incoming" == "$root"/.vitrine-incoming.* && "${incoming#"$root"/}" =~ ^\.vitrine-incoming\.[A-Za-z0-9]+$ ]]
-          rsync -rz --chmod=D755,F644 --exclude=storefront-routes.json \
-            -e "ssh -p $WHC_PORT -i $tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$tmp/known_hosts" \
-            "$dir/" "$remote:$incoming/"
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L _vitrine-release; test -f '$incoming/vitrine-test.html'; chmod 755 '$incoming'; if test -e _vitrine-release; then test -d _vitrine-release; grep -Fxq 'be9fc45e9afa81afd540be9d31ca7960d797a5de' _vitrine-release/revision.txt; mv -T -- _vitrine-release '$save/release-previous'; fi; if ! mv -T -- '$incoming' _vitrine-release; then if test -d '$save/release-previous'; then mv -T -- '$save/release-previous' _vitrine-release; fi; exit 1; fi"
-          test_asset_routes() {
-            local asset
-            for asset in "$dir"/assets/*; do
-              curl -fsSL --max-time 20 "https://citicigars.com/_vitrine-release/assets/${asset##*/}" -o "$tmp/http-asset" || return 1
-              cmp -s "$tmp/http-asset" "$asset" || return 1
-            done
+          asset="$(cat "$dir/asset")"
+          [[ "$asset" =~ ^vitrine-bandeau-[0-9a-f]{12}\.js$ ]]
+          digest() { sha256sum "$1" | cut -d ' ' -f1; }
+          old_index="$(digest "$dir/index.original")"
+          next_index="$(digest "$dir/index.active")"
+          old_revision="$(digest "$dir/revision.original")"
+          next_revision="$(digest "$dir/revision.active")"
+          old_bundle="$(digest "$dir/vitrine-test-Bw_oJKWn.js")"
+          next_bundle="$(digest "$dir/$asset")"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L index.html && test ! -L _vitrine-release && test ! -L _vitrine-release/assets && test ! -L _vitrine-release/revision.txt; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt '$old_bundle' _vitrine-release/assets/vitrine-test-Bw_oJKWn.js | sha256sum -c --status"
+          backup="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-bandeau.XXXXXXXX")"
+          [[ "$backup" =~ ^/home/bwljrj22/\.citicigars-bandeau\.[A-Za-z0-9]+$ ]]
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; cp -p -- index.html '$backup/index.original'; cp -p -- _vitrine-release/revision.txt '$backup/revision.original'; printf '%s  %s\n' '$old_index' '$backup/index.original' '$old_revision' '$backup/revision.original' | sha256sum -c --status"
+          ssh "${auth[@]}" "$remote" "cat > '$backup/index.active'" < "$dir/index.active"
+          ssh "${auth[@]}" "$remote" "cat > '$backup/revision.active'" < "$dir/revision.active"
+          ssh "${auth[@]}" "$remote" "cat > '$backup/banner.js'" < "$dir/$asset"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' '$backup/index.active' '$next_revision' '$backup/revision.active' '$next_bundle' '$backup/banner.js' | sha256sum -c --status; test ! -L '_vitrine-release/assets/$asset'; tmp=\$(mktemp _vitrine-release/assets/.bandeau.XXXXXXXX); install -m 644 '$backup/banner.js' \"\$tmp\"; mv -T -- \"\$tmp\" '_vitrine-release/assets/$asset'"
+          curl -fsSL --max-time 15 "https://citicigars.com/_vitrine-release/assets/$asset" -o "$dir/http"
+          cmp -s "$dir/http" "$dir/$asset"
+          echo "Copie de retour contrôlée : $backup/index.original et $backup/revision.original"
+          restore() {
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' index.html '$old_index' '$backup/index.original' '$old_revision' '$backup/revision.original' | sha256sum -c --status; tmp=\$(mktemp .bandeau-retour.XXXXXXXX); cp -p -- '$backup/index.original' \"\$tmp\"; mv -T -- \"\$tmp\" index.html; tmp=\$(mktemp _vitrine-release/.bandeau-retour.XXXXXXXX); cp -p -- '$backup/revision.original' \"\$tmp\"; mv -T -- \"\$tmp\" _vitrine-release/revision.txt; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status"
           }
-          test_asset_routes
-          restore_routes() {
-            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$active' index.html '$original' '$save/index.original' | sha256sum --check --status; restore=\$(mktemp .vitrine-restore.XXXXXXXX); cp -p -- '$save/index.original' \"\$restore\"; mv -T -- \"\$restore\" index.html; cmp -s -- '$save/index.original' index.html"
-          }
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L index.html; printf '%s  %s\n' '$original' index.html '$active' '$save/index.active' | sha256sum --check --status; next=\$(mktemp .vitrine-index.XXXXXXXX); cat '$save/index.active' > \"\$next\"; chmod --reference=index.html \"\$next\"; mv -T -- \"\$next\" index.html"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status; tmp=\$(mktemp .bandeau-index.XXXXXXXX); install -m 644 '$backup/index.active' \"\$tmp\"; mv -T -- \"\$tmp\" index.html"
           check_public() {
             local path
-            for path in '' catalogue produit/CTGNI0013 p/CTGNI0013 panier wishlist checkout coffrets entreprises evenements devis admin cgv privacy mentions; do
-              curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/$path?vitrine_verification=$GITHUB_RUN_ID" -o "$tmp/http" || return 1
-              cmp -s "$tmp/http" "$tmp/index.active" || { echo "Page d’entrée inattendue : /$path" >&2; return 1; }
+            for path in '' catalogue admin cgv privacy mentions; do
+              curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/$path?bandeau_verification=$GITHUB_RUN_ID" -o "$dir/http" || return 1
+              cmp -s "$dir/http" "$dir/index.active" || return 1
             done
           }
-          if ! check_public; then
-            restore_routes
-            curl -fsSL --max-time 15 "https://citicigars.com/?vitrine_retour=$GITHUB_RUN_ID" -o "$tmp/http"
-            cmp -s "$tmp/http" "$tmp/legacy-index"
-            echo "Contrôle échoué. Site précédent rétabli." >&2
-            exit 1
-          fi
-          echo "Vitrine publique vérifiée. L’index précédent, l’Admin et les pages légales restent disponibles."
-      - name: Rendre l’ancienne vitrine accessible depuis le lien de préproduction
-        if: inputs.archive_preview
-        env:
-          WHC_HOST: ${{ vars.WHC_HOST }}
-          WHC_PORT: ${{ vars.WHC_PORT }}
-          WHC_USER: ${{ vars.WHC_USER }}
-          WHC_KNOWN_HOSTS: ${{ vars.WHC_KNOWN_HOSTS }}
-          WHC_SSH_KEY: ${{ secrets.WHC_SSH_KEY }}
-          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
-        run: |
-          set -euo pipefail
-          umask 077
-          [[ "$WHC_STAGING_PATH" == /home/bwljrj22/citicigars_staging ]]
-          tmp="$(mktemp -d "$RUNNER_TEMP/citicigars-preview.XXXXXXXX")"
-          trap 'rm -f -- "$tmp/key"' EXIT
-          printf '%s\n' "$WHC_SSH_KEY" > "$tmp/key"
-          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$tmp/known_hosts"
-          auth=(-p "$WHC_PORT" -i "$tmp/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$tmp/known_hosts")
-          remote="$WHC_USER@$WHC_HOST"
-          preview="$WHC_STAGING_PATH/essai-vitrine"
-          [[ "$(curl -fsSL --max-time 15 'https://citicigars.com/_vitrine-release/revision.txt')" == "$GITHUB_SHA" ]]
-          ssh "${auth[@]}" "$remote" "cd '$preview' && test \"\$(pwd -P)\" = '$preview' && test -f .vitrine-preview && test -f .htaccess && test ! -L .htaccess"
-          ssh "${auth[@]}" "$remote" "cat '$preview/.htaccess'" > "$tmp/original"
-          grep -Fq '^ vitrine-test.html' "$tmp/original"
-          printf '%s\n' 'RewriteEngine On' 'RewriteRule ^(catalogue|checkout|wishlist|assortiments|promotions)/?$ /$1 [R=302,L]' 'RewriteRule ^(?:p|produit)/([A-Za-z0-9-]+)/?$ /p/$1 [R=302,L]' 'RewriteRule ^ / [R=302,L]' > "$tmp/redirect"
-          save="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-preview.XXXXXXXX")"
-          [[ "$save" =~ ^/home/bwljrj22/\.citicigars-preview\.[A-Za-z0-9]+$ ]]
-          original="$(sha256sum "$tmp/original" | cut -d ' ' -f1)"
-          redirect="$(sha256sum "$tmp/redirect" | cut -d ' ' -f1)"
-          ssh "${auth[@]}" "$remote" "cp -p -- '$preview/.htaccess' '$save/routes.original'"
-          ssh "${auth[@]}" "$remote" "cat > '$save/routes.redirect'" < "$tmp/redirect"
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$preview'; printf '%s  %s\n' '$original' .htaccess '$original' '$save/routes.original' '$redirect' '$save/routes.redirect' | sha256sum --check --status; next=\$(mktemp .preview-routes.XXXXXXXX); cat '$save/routes.redirect' > \"\$next\"; chmod --reference=.htaccess \"\$next\"; mv -T -- \"\$next\" .htaccess"
-          verify_preview() {
-            local base=https://staging.citicigars.com
-            curl -fsSL --max-time 12 "$base/essai-vitrine/" -o "$tmp/alias" || return 1
-            curl -fsSL --max-time 12 "$base/" -o "$tmp/root" || return 1
-            cmp -s "$tmp/alias" "$tmp/root" || return 1
-            curl -fsSL --max-time 12 "$base/essai-vitrine/catalogue" -o "$tmp/alias" || return 1
-            curl -fsSL --max-time 12 "$base/catalogue" -o "$tmp/root" || return 1
-            cmp -s "$tmp/alias" "$tmp/root" || return 1
-            curl -fsSL --max-time 12 "$base/dna/" -o "$tmp/dna" || return 1
-            grep -Fq 'id="startBtn"' "$tmp/dna"
+          commit_revision() {
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status; tmp=\$(mktemp _vitrine-release/.bandeau-revision.XXXXXXXX); install -m 644 '$backup/revision.active' \"\$tmp\"; mv -T -- \"\$tmp\" _vitrine-release/revision.txt" || return 1
+            curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/_vitrine-release/revision.txt?bandeau=$GITHUB_RUN_ID" -o "$dir/http" || return 1
+            cmp -s "$dir/http" "$dir/revision.active"
           }
-          if ! verify_preview; then
-            ssh "${auth[@]}" "$remote" "set -eu; cd '$preview'; printf '%s  %s\n' '$redirect' .htaccess '$original' '$save/routes.original' | sha256sum --check --status; back=\$(mktemp .preview-back.XXXXXXXX); cp -p -- '$save/routes.original' \"\$back\"; mv -T -- \"\$back\" .htaccess"
-            echo "Le lien d’aperçu précédent a été rétabli après un échec de contrôle." >&2
+          if ! check_public || ! commit_revision; then
+            restore
+            curl -fsSL --max-time 12 "https://citicigars.com/?bandeau_retour=$GITHUB_RUN_ID" -o "$dir/http"
+            cmp -s "$dir/http" "$dir/index.original"
+            echo "Contrôle échoué. Page d’entrée et révision précédentes rétablies." >&2
             exit 1
           fi
-          echo "Ancienne vitrine et questionnaire de préproduction vérifiés. Copie des routes d’aperçu : $save/routes.original"
+          echo "Correctif du bandeau vérifié. Ancien fichier JavaScript et sauvegarde disponibles."
