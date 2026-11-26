@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useWishlist } from "@/context/WishlistContext";
 import { filterChoices, filterProducts } from "./catalogue";
-import ProductCard from "./ProductCard";
+import ProductCard, { useCardPhotos } from "./ProductCard";
 import { confirmed, useCatalogue } from "./resources";
 
 export function LoadState({ resource, children }) {
@@ -24,12 +24,13 @@ export default function ProductGrid({ favoritesOnly = false }) {
   const resource = useCatalogue();
   const products = confirmed(resource);
   const { wishlist } = useWishlist();
+  const { photoFor, markUnavailable } = useCardPhotos();
   const [, navigate] = useLocation();
   const query = useSearch();
   const params = new URLSearchParams(query);
   const filtered = products && (favoritesOnly
     ? wishlist.flatMap((favorite) => products.find((product) => product.sku === favorite.sku) || [])
-    : filterProducts(products, params));
+    : filterProducts(products, params)).filter(photoFor);
   const setFilter = (name, value) => {
     if (value) params.set(name, value);
     else params.delete(name);
@@ -73,7 +74,7 @@ export default function ProductGrid({ favoritesOnly = false }) {
       )}
       {!products ? <LoadState resource={resource} /> : filtered.length > 0
         ? <div className="product-grid">{filtered.map((product) => <ProductCard key={product.sku} product={product}
-            returnQuery={favoritesOnly ? "" : query} />)}</div>
+            photo={photoFor(product)} onPhotoError={markUnavailable} returnQuery={favoritesOnly ? "" : query} />)}</div>
         : <div className="empty-state">
             <h2>{favoritesOnly ? "Aucun favori disponible" : "Aucun résultat"}</h2>
             <Link className="text-link" href="/catalogue">Tout le catalogue</Link>

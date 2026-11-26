@@ -1,4 +1,4 @@
-name: WHC - Correctif du bandeau public
+name: WHC - Écran Entreprises et cartes avec photo
 
 on:
   workflow_dispatch:
@@ -9,37 +9,52 @@ permissions:
 concurrency: citicigars-vitrine-public
 
 jobs:
-  bandeau:
-    if: github.ref == 'refs/heads/codex/bandeau-bronze'
+  cartes:
+    if: github.ref == 'refs/heads/codex/cartes-sans-photo'
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Préparer le correctif approuvé et sa sauvegarde
+      - name: Compiler la vitrine et vérifier les fichiers publics
         run: |
           set -euo pipefail
-          dir="$RUNNER_TEMP/bandeau"
+          dir="$RUNNER_TEMP/cartes"
           mkdir "$dir"
-          approved=9cf5e546270698240d64d386dac1f56524d1065c
-          test "$(git rev-parse HEAD^)" = "$approved"
-          git diff --exit-code "$approved" HEAD -- CitiCigarsShop/client
+          npm --prefix CitiCigarsShop install --no-audit --no-fund --ignore-scripts
+          (cd CitiCigarsShop && node node_modules/vite/bin/vite.js build --config vitrine-production.config.ts --emptyOutDir)
+          build=CitiCigarsShop/dist/vitrine-production-candidate
           curl -fsSL --max-time 20 'https://citicigars.com/' -o "$dir/index.original"
           curl -fsSL --max-time 20 'https://citicigars.com/_vitrine-release/revision.txt' -o "$dir/revision.original"
-          test "$(cat "$dir/revision.original")" = e6b5c95a47ea6bbfd17dd9db33b19c0d85df3c26
-          curl -fsSL --max-time 20 'https://citicigars.com/_vitrine-release/assets/vitrine-test-Bw_oJKWn.js' -o "$dir/vitrine-test-Bw_oJKWn.js"
-          asset="$(node CitiCigarsShop/script/prepare-banner-hotfix.mjs "$dir")"
-          [[ "$asset" =~ ^vitrine-bandeau-[0-9a-f]{12}\.js$ ]]
+          test "$(cat "$dir/revision.original")" = 9cf5e546270698240d64d386dac1f56524d1065c
+          curl -fsSL --max-time 20 'https://citicigars.com/_vitrine-release/assets/vitrine-bandeau-5b1aca50a609.js' -o "$dir/vitrine-bandeau-5b1aca50a609.js"
+          mapfile -t scripts < <(find "$build/assets" -type f -name '*.js')
+          test "${#scripts[@]}" = 1
+          asset="$(basename "${scripts[0]}")"
+          [[ "$asset" =~ ^vitrine-test-[A-Za-z0-9_-]+\.js$ ]]
+          for file in "$build"/assets/*; do
+            if [[ "$file" = "${scripts[0]}" ]]; then continue; fi
+            curl -fsSL --max-time 15 "https://citicigars.com/_vitrine-release/assets/$(basename "$file")" -o "$dir/http"
+            cmp -s "$file" "$dir/http"
+          done
+          cp "${scripts[0]}" "$dir/$asset"
           node --check "$dir/$asset"
+          python3 - "$dir/index.original" "$dir/index.active" "$asset" <<'PY'
+          import sys
+          from pathlib import Path
+          original, output, asset = sys.argv[1:]
+          data = Path(original).read_bytes()
+          old = b'vitrine-bandeau-5b1aca50a609.js'
+          assert data.count(old) == 1
+          Path(output).write_bytes(data.replace(old, asset.encode("ascii")))
+          PY
           printf '%s\n' "$asset" > "$dir/asset"
-          printf '%s\n' "$approved" > "$dir/revision.active"
+          printf '%s\n' "$GITHUB_SHA" > "$dir/revision.active"
           cp "$dir/index.active" "$dir/index.rehearsal"
           cp "$dir/index.original" "$dir/index.back"
           mv -T -- "$dir/index.back" "$dir/index.rehearsal"
           cmp -s "$dir/index.rehearsal" "$dir/index.original"
-      - name: Publier uniquement le bandeau et vérifier les URL publiques
+      - name: Publier Entreprises et les cartes avec photo
         env:
           WHC_HOST: ${{ vars.WHC_HOST }}
           WHC_PORT: ${{ vars.WHC_PORT }}
@@ -49,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          dir="$RUNNER_TEMP/bandeau"
+          dir="$RUNNER_TEMP/cartes"
           trap 'rm -f -- "$dir/key"' EXIT
           printf '%s\n' "$WHC_SSH_KEY" > "$dir/key"
           printf '%s\n' "$WHC_KNOWN_HOSTS" > "$dir/known_hosts"
@@ -61,38 +76,38 @@ jobs:
           real="$(ssh "${auth[@]}" "$remote" "cd '$root' && pwd -P")"
           [[ "$real" == "$root" && "$real" != /home/bwljrj22/citicigars_staging* ]]
           asset="$(cat "$dir/asset")"
-          [[ "$asset" =~ ^vitrine-bandeau-[0-9a-f]{12}\.js$ ]]
+          [[ "$asset" =~ ^vitrine-test-[A-Za-z0-9_-]+\.js$ ]]
           digest() { sha256sum "$1" | cut -d ' ' -f1; }
           old_index="$(digest "$dir/index.original")"
           next_index="$(digest "$dir/index.active")"
           old_revision="$(digest "$dir/revision.original")"
           next_revision="$(digest "$dir/revision.active")"
-          old_bundle="$(digest "$dir/vitrine-test-Bw_oJKWn.js")"
+          old_bundle="$(digest "$dir/vitrine-bandeau-5b1aca50a609.js")"
           next_bundle="$(digest "$dir/$asset")"
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L index.html && test ! -L _vitrine-release && test ! -L _vitrine-release/assets && test ! -L _vitrine-release/revision.txt; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt '$old_bundle' _vitrine-release/assets/vitrine-test-Bw_oJKWn.js | sha256sum -c --status"
-          backup="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-bandeau.XXXXXXXX")"
-          [[ "$backup" =~ ^/home/bwljrj22/\.citicigars-bandeau\.[A-Za-z0-9]+$ ]]
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L index.html && test ! -L _vitrine-release && test ! -L _vitrine-release/assets && test ! -L _vitrine-release/revision.txt; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt '$old_bundle' _vitrine-release/assets/vitrine-bandeau-5b1aca50a609.js | sha256sum -c --status"
+          backup="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-cartes.XXXXXXXX")"
+          [[ "$backup" =~ ^/home/bwljrj22/\.citicigars-cartes\.[A-Za-z0-9]+$ ]]
           ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; cp -p -- index.html '$backup/index.original'; cp -p -- _vitrine-release/revision.txt '$backup/revision.original'; printf '%s  %s\n' '$old_index' '$backup/index.original' '$old_revision' '$backup/revision.original' | sha256sum -c --status"
           ssh "${auth[@]}" "$remote" "cat > '$backup/index.active'" < "$dir/index.active"
           ssh "${auth[@]}" "$remote" "cat > '$backup/revision.active'" < "$dir/revision.active"
-          ssh "${auth[@]}" "$remote" "cat > '$backup/banner.js'" < "$dir/$asset"
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' '$backup/index.active' '$next_revision' '$backup/revision.active' '$next_bundle' '$backup/banner.js' | sha256sum -c --status; test ! -L '_vitrine-release/assets/$asset'; tmp=\$(mktemp _vitrine-release/assets/.bandeau.XXXXXXXX); install -m 644 '$backup/banner.js' \"\$tmp\"; mv -T -- \"\$tmp\" '_vitrine-release/assets/$asset'"
+          ssh "${auth[@]}" "$remote" "cat > '$backup/cartes.js'" < "$dir/$asset"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' '$backup/index.active' '$next_revision' '$backup/revision.active' '$next_bundle' '$backup/cartes.js' | sha256sum -c --status; test ! -L '_vitrine-release/assets/$asset'; tmp=\$(mktemp _vitrine-release/assets/.bandeau.XXXXXXXX); install -m 644 '$backup/cartes.js' \"\$tmp\"; mv -T -- \"\$tmp\" '_vitrine-release/assets/$asset'"
           curl -fsSL --max-time 15 "https://citicigars.com/_vitrine-release/assets/$asset" -o "$dir/http"
           cmp -s "$dir/http" "$dir/$asset"
           echo "Copie de retour contrôlée : $backup/index.original et $backup/revision.original"
           restore() {
-            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' index.html '$old_index' '$backup/index.original' '$old_revision' '$backup/revision.original' | sha256sum -c --status; tmp=\$(mktemp .bandeau-retour.XXXXXXXX); cp -p -- '$backup/index.original' \"\$tmp\"; mv -T -- \"\$tmp\" index.html; tmp=\$(mktemp _vitrine-release/.bandeau-retour.XXXXXXXX); cp -p -- '$backup/revision.original' \"\$tmp\"; mv -T -- \"\$tmp\" _vitrine-release/revision.txt; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status"
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' index.html '$old_index' '$backup/index.original' '$old_revision' '$backup/revision.original' | sha256sum -c --status; tmp=\$(mktemp .cartes-retour.XXXXXXXX); cp -p -- '$backup/index.original' \"\$tmp\"; mv -T -- \"\$tmp\" index.html; tmp=\$(mktemp _vitrine-release/.cartes-retour.XXXXXXXX); cp -p -- '$backup/revision.original' \"\$tmp\"; mv -T -- \"\$tmp\" _vitrine-release/revision.txt; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status"
           }
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status; tmp=\$(mktemp .bandeau-index.XXXXXXXX); install -m 644 '$backup/index.active' \"\$tmp\"; mv -T -- \"\$tmp\" index.html"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$old_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status; tmp=\$(mktemp .cartes-index.XXXXXXXX); install -m 644 '$backup/index.active' \"\$tmp\"; mv -T -- \"\$tmp\" index.html"
           check_public() {
             local path
-            for path in '' catalogue admin cgv privacy mentions; do
+            for path in '' entreprises devis catalogue admin cgv privacy mentions; do
               curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/$path?bandeau_verification=$GITHUB_RUN_ID" -o "$dir/http" || return 1
               cmp -s "$dir/http" "$dir/index.active" || return 1
             done
           }
           commit_revision() {
-            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status; tmp=\$(mktemp _vitrine-release/.bandeau-revision.XXXXXXXX); install -m 644 '$backup/revision.active' \"\$tmp\"; mv -T -- \"\$tmp\" _vitrine-release/revision.txt" || return 1
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$next_index' index.html '$old_revision' _vitrine-release/revision.txt | sha256sum -c --status; tmp=\$(mktemp _vitrine-release/.cartes-revision.XXXXXXXX); install -m 644 '$backup/revision.active' \"\$tmp\"; mv -T -- \"\$tmp\" _vitrine-release/revision.txt" || return 1
             curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/_vitrine-release/revision.txt?bandeau=$GITHUB_RUN_ID" -o "$dir/http" || return 1
             cmp -s "$dir/http" "$dir/revision.active"
           }
@@ -103,4 +118,4 @@ jobs:
             echo "Contrôle échoué. Page d’entrée et révision précédentes rétablies." >&2
             exit 1
           fi
-          echo "Correctif du bandeau vérifié. Ancien fichier JavaScript et sauvegarde disponibles."
+          echo "Écran Entreprises et cartes avec photo publiés. Ancien fichier JavaScript et sauvegarde disponibles."

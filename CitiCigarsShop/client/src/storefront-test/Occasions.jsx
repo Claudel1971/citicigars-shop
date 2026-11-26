@@ -6,7 +6,7 @@ import { content } from "./content";
 import { purchaseOptions } from "./catalogue";
 import { confirmed, useCatalogue } from "./resources";
 import { blackFridayOpen, dnaUrl, productionRelease } from "./release";
-import ProductCard from "./ProductCard";
+import ProductCard, { useCardPhotos } from "./ProductCard";
 import salon from "./salon-accueil.webp";
 import closed from "./coffret-cuivre-ferme.webp";
 import open from "./coffret-cuivre-ouvert.webp";
@@ -14,6 +14,7 @@ import "./occasions.css";
 
 export function HomePage() {
   const catalogue = confirmed(useCatalogue());
+  const { photoFor, markUnavailable } = useCardPhotos();
   const [, navigate] = useLocation();
   const reveal = useRef();
   const [opening, setOpening] = useState(false);
@@ -26,7 +27,7 @@ export function HomePage() {
     setOpening(true);
     reveal.current = setTimeout(() => navigate("/coffrets"), 520);
   };
-  const featured = catalogue?.filter((product) => purchaseOptions(product).length).slice(0, 4);
+  const featured = catalogue?.filter((product) => photoFor(product) && purchaseOptions(product).length).slice(0, 4);
   return <>
     <section className="hero">
       <div className="hero-copy"><div>
@@ -59,7 +60,8 @@ export function HomePage() {
         <div><p className="eyebrow">La sélection CitiCigars</p><h2>À découvrir</h2></div>
         <Link className="text-link" href="/catalogue">Tout le catalogue</Link>
       </div>
-      <div className="product-grid">{featured.map((product) => <ProductCard key={product.sku} product={product} />)}</div>
+      <div className="product-grid">{featured.map((product) => <ProductCard key={product.sku} product={product}
+        photo={photoFor(product)} onPhotoError={markUnavailable} />)}</div>
     </section>}
     <section className="shell home-occasions">
       <div className="occasion-pair">
@@ -133,36 +135,111 @@ export function GiftsPage() {
   </section>;
 }
 
+function OtherBusinessProducts() {
+  const [draft, setDraft] = useState("");
+  const prepare = (event) => {
+    event.preventDefault();
+    const fields = [...new FormData(event.currentTarget)];
+    setDraft(["Bonjour CitiCigars, je souhaite un devis pour d’autres produits.",
+      ...fields.map(([label, value]) => label + " : " + String(value).trim())].join("\n"));
+  };
+  return <details className="business-other">
+    <summary>Commander d’autres produits</summary>
+    <form className="order-form" data-order-form="other" onSubmit={prepare} onChange={() => setDraft("")}>
+      <div className="order-fields">
+        <label className="order-field">Nom et prénom<input name="Nom" autoComplete="name" maxLength={120} required /></label>
+        <label className="order-field">Entreprise<input name="Entreprise" autoComplete="organization" maxLength={120} required /></label>
+        <label className="order-field">WhatsApp<input name="WhatsApp" type="tel" autoComplete="tel" maxLength={30} required /></label>
+        <label className="order-field">Date souhaitée<input name="Date souhaitée" type="date" required /></label>
+      </div>
+      <label className="order-field">Produits souhaités et quantités
+        <textarea name="Produits et quantités" rows={3} maxLength={600} required /></label>
+      <p className="order-form-note">Le montant sera précisé sur devis.</p>
+      <button className="button button-primary" type="submit">Préparer un devis</button>
+      {draft && (productionRelease
+        ? <a className="text-link" href={whatsappMessageLink(draft)} target="_blank" rel="noopener noreferrer">Continuer sur WhatsApp</a>
+        : <pre className="draft" aria-live="polite">{draft}</pre>)}
+    </form>
+  </details>;
+}
+
 export function BusinessPage() {
-  const [id, setId] = useState(new URLSearchParams(useSearch()).get("coffret") || "trilogy");
-  const [quantity, setQuantity] = useState(1);
-  const gift = content.gifts.find((item) => item.id === id) || content.gifts.at(-1);
-  const qty = Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 1;
-  const tier = gift.volumeThresholds.findLastIndex((threshold) => qty >= threshold);
+  const requested = new URLSearchParams(useSearch()).get("coffret");
+  const [gift, setGift] = useState(() => content.gifts.find((item) => item.id === requested) || content.gifts.at(-1));
+  const [quantity, setQuantity] = useState(() => String(gift.volumeThresholds[0]));
+  const limit = Math.floor(Number.MAX_SAFE_INTEGER / Math.max(...content.gifts.map(({ price }) => price)));
+  const qty = Number(quantity);
+  const valid = Number.isSafeInteger(qty) && qty >= 1 && qty <= limit;
+  const tier = valid ? gift.volumeThresholds.findLastIndex((threshold) => qty >= threshold) : -1;
   const percent = content.businessDiscounts[tier] || 0;
-  const total = Math.round(gift.price * (1 - percent / 100)) * qty;
+  const unit = Math.round(gift.price * (100 - percent) / 100);
+  const nextTier = gift.volumeThresholds[tier + 1];
+  const remaining = nextTier - qty;
+  const price = (value) => formatPrice(value).replace(/F\s*CFA/g, "FCFA");
+
   return <section className="shell occasion-page business-page">
     <div className="page-heading"><p className="eyebrow">Entreprises</p><h1>Commander en volume.</h1>
       <p>Choisissez un coffret et une quantité pour estimer votre budget après remise.</p></div>
-    <div className="business-calculator">
+    <section className="business-calculator" aria-labelledby="business-rates-title">
       <div className="business-choices">
-        <label className="quote-field">Coffret
-          <select value={gift.id} onChange={(event) => setId(event.target.value)}>
-            {content.gifts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="quote-field">Quantité<input type="number" min="1" step="1" value={quantity}
-          onChange={(event) => setQuantity(Number(event.target.value))} /></label>
-        <h2>{gift.name} · {formatPrice(gift.price)}</h2>
-        <dl className="tariff-tiers">{gift.volumeThresholds.map((threshold, index) => <div key={threshold}>
-          <dt>Dès {threshold} coffrets</dt><dd>−{content.businessDiscounts[index]} %</dd>
-        </div>)}</dl>
+        <h2 id="business-rates-title">Coffrets cadeaux</h2>
+        <fieldset className="business-gifts">
+          <legend className="sr-only">Choisir un coffret</legend>
+          <div className="business-gift-options">
+            {content.gifts.map((item) => <label className="business-gift" key={item.id}>
+              <input className="sr-only" type="radio" name="business-gift" value={item.id}
+                checked={item.id === gift.id} onChange={() => setGift(item)} />
+              <img src={item.media.photo} alt="" />
+              <span className="business-gift-name">{item.name}</span>
+              <span className="business-gift-price">{price(item.price)}</span>
+            </label>)}
+          </div>
+        </fieldset>
+        <div className="business-order-quantity">
+          <label htmlFor="business-quantity">Nombre de coffrets</label>
+          <div className="business-stepper">
+            <button type="button" aria-label="Retirer un coffret" disabled={!valid || qty === 1}
+              onClick={() => setQuantity(String(qty - 1))}>−</button>
+            <input id="business-quantity" type="number" inputMode="numeric" min={1} max={limit} step={1}
+              required value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+            <button type="button" aria-label="Ajouter un coffret" disabled={valid && qty === limit}
+              onClick={() => setQuantity(String(valid ? qty + 1 : 1))}>+</button>
+          </div>
+        </div>
       </div>
-      <aside className="business-result" aria-live="polite">
-        <h2>Estimation</h2><p>{gift.name} · {qty} coffret{qty === 1 ? "" : "s"}</p>
-        <p>Remise {percent} %</p><strong className="business-total">{formatPrice(total)}</strong>
-        <Link className="button button-gold" href={`/devis?entreprise=1&coffret=${gift.id}&quantite=${qty}`}>Préparer un devis</Link>
+      <section className="business-tiers" aria-labelledby="business-tiers-title">
+        <h3 id="business-tiers-title">Paliers de remise</h3>
+        <div className="business-tier-options">
+          {gift.volumeThresholds.map((threshold, index) => <button type="button" className="business-tier"
+            key={threshold} aria-current={tier === index ? "true" : undefined}
+            onClick={() => setQuantity(String(threshold))}>
+            <strong>−{content.businessDiscounts[index]} %</strong><span>Dès {threshold} coffrets</span>
+          </button>)}
+        </div>
+        {valid && <p className="business-next-tier">{nextTier
+          ? "Encore " + remaining + (remaining === 1 ? " coffret" : " coffrets") + " pour atteindre −" + content.businessDiscounts[tier + 1] + " %."
+          : "Remise maximale atteinte."}</p>}
+      </section>
+      <aside className="business-estimate" aria-labelledby="business-estimate-title">
+        <h2 id="business-estimate-title">Votre estimation</h2>
+        <div className="business-result" role="status" aria-atomic="true">
+          {valid ? <>
+            <p className="business-result-product">{gift.name} · {qty} coffret{qty === 1 ? "" : "s"}</p>
+            <div className="business-total"><span>Total estimé</span><strong>{price(unit * qty)}</strong>
+              {percent > 0 && <span className="business-savings">Économie de {price((gift.price - unit) * qty)}</span>}
+            </div>
+            <dl className="business-breakdown">
+              <div><dt>Prix unitaire de base</dt><dd>{price(gift.price)}</dd></div>
+              <div><dt>Remise appliquée</dt><dd>{percent ? "−" + percent + " %" : "Aucune"}</dd></div>
+              <div><dt>Prix unitaire après remise</dt><dd>{price(unit)}</dd></div>
+            </dl>
+          </> : <p className="business-result-empty">Indiquez un nombre entier de coffrets pour voir le total.</p>}
+        </div>
+        {valid ? <Link className="button button-gold" href={"/devis?entreprise=1&coffret=" + gift.id + "&quantite=" + qty}>Préparer un devis</Link>
+          : <button className="button button-gold" type="button" disabled>Préparer un devis</button>}
       </aside>
-    </div>
-    <Link className="text-link" href="/devis?entreprise=1">Demander un devis pour d’autres produits</Link>
+    </section>
+    <OtherBusinessProducts />
   </section>;
 }
 

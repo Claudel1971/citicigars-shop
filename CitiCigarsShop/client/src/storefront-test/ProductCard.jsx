@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link, useRouter } from "wouter";
@@ -13,8 +13,22 @@ export function productLink(sku, returnQuery, section) {
   return productPath(sku) + (query.size ? `?${query}` : "");
 }
 
-export function Photo({ src, alt }) {
-  return src ? <img src={src} alt={alt} loading="lazy" /> : <p className="missing-photo">Photo à confirmer.</p>;
+export function Photo({ src, alt, onError }) {
+  return src ? <img src={src} alt={alt} loading="lazy" onError={onError} /> : <p className="missing-photo">Photo à confirmer.</p>;
+}
+
+export function useCardPhotos() {
+  const [unavailable, setUnavailable] = useState(() => new Set());
+  const photoFor = (product) => {
+    const { principale, boite, solo, pack } = productPhotos(product);
+    return [principale, boite, solo, pack]
+      .map((src) => typeof src === "string" ? src.trim() : "")
+      .find((src) => src && !/^(null|undefined)$/i.test(src) && !unavailable.has(src));
+  };
+  const markUnavailable = (src) => {
+    setUnavailable((previous) => previous.has(src) ? previous : new Set(previous).add(src));
+  };
+  return { photoFor, markUnavailable };
 }
 
 export function Distinctions({ product }) {
@@ -80,7 +94,7 @@ export function ProductActions({ product, detail = false }) {
   );
 }
 
-export default function ProductCard({ product, returnQuery }) {
+export default function ProductCard({ product, returnQuery, photo, onPhotoError }) {
   const bundle = isBundle(product);
   const options = purchaseOptions(product);
   const amount = bundle ? options[0]?.price : Math.min(...options.map((option) => option.price / option.pieces));
@@ -94,7 +108,7 @@ export default function ProductCard({ product, returnQuery }) {
     <article className="product-card" data-product-sku={product.sku}>
       <div className="card-photo">
         <Link href={url} className="card-photo-link" aria-label={`Voir la fiche de ${product.marque} ${name}`}>
-          <Photo src={productPhotos(product).principale} alt="" />
+          <Photo key={photo} src={photo} alt="" onError={() => onPhotoError(photo)} />
         </Link>
         <Distinctions product={product} />
       </div>
