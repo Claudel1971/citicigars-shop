@@ -18,18 +18,19 @@ export const CartProvider = ({ children }) => {
   }, [items]);
 
   const addToCart = (product, format, quantity, price, imageOverride = null) => {
+    const name = [product.marque, product.modele || product.ligne].filter(Boolean).join(' ').trim();
     setItems(prev => {
       const existing = prev.find(item => item.id === `${product.sku}-${format}`);
       if (existing) {
-        toast.success(`Quantité mise à jour pour ${product.marque} ${product.modele}`);
+        toast.success(`Quantité mise à jour pour ${name}`);
         return prev.map(item => 
           item.id === existing.id 
-            ? { ...item, quantite: item.quantite + quantity, prixTotal: (item.quantite + quantity) * price }
+            ? { ...item, quantite: item.quantite + quantity, prixUnitaire: price, prixTotal: (item.quantite + quantity) * price }
             : item
         );
       }
       
-      toast.success(`${product.marque} ${product.modele} ajouté au panier`);
+      toast.success(`${name} ajouté au panier`);
       
       const finalImage = imageOverride || product.imagePrincipale;
 

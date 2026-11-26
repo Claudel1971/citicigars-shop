@@ -3,15 +3,19 @@ import { API_URL } from '../config';
 const API_BASE = `${API_URL}/api`;
 
 class ApiService {
-  async getAllProducts() {
-    const response = await fetch(`${API_BASE}/products?includeImages=true`);
+  async getAllProducts(options) {
+    const response = await fetch(`${API_BASE}/products?includeImages=true`, options);
     if (!response.ok) throw new Error('Failed to fetch products');
     return response.json();
   }
 
-  async getProduct(sku) {
-    const response = await fetch(`${API_BASE}/products/${sku}`);
-    if (!response.ok) throw new Error('Failed to fetch product');
+  async getProduct(sku, options) {
+    const response = await fetch(`${API_BASE}/products/${encodeURIComponent(sku)}`, options);
+    if (!response.ok) {
+      const error = new Error('Failed to fetch product');
+      error.status = response.status;
+      throw error;
+    }
     return response.json();
   }
 
