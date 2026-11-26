@@ -7,6 +7,10 @@ on:
         description: Activer la nouvelle vitrine sur citicigars.com
         type: boolean
         default: false
+      archive_preview:
+        description: Renvoyer l’URL d’aperçu vers l’ancienne vitrine de préproduction
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -114,3 +118,52 @@ jobs:
             exit 1
           fi
           echo "Vitrine publique vérifiée. L’index précédent, l’Admin et les pages légales restent disponibles."
+      - name: Rendre l’ancienne vitrine accessible depuis le lien de préproduction
+        if: inputs.archive_preview
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_KNOWN_HOSTS: ${{ vars.WHC_KNOWN_HOSTS }}
+          WHC_SSH_KEY: ${{ secrets.WHC_SSH_KEY }}
+          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$WHC_STAGING_PATH" == /home/bwljrj22/citicigars_staging ]]
+          tmp="$(mktemp -d "$RUNNER_TEMP/citicigars-preview.XXXXXXXX")"
+          trap 'rm -f -- "$tmp/key"' EXIT
+          printf '%s\n' "$WHC_SSH_KEY" > "$tmp/key"
+          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$tmp/known_hosts"
+          auth=(-p "$WHC_PORT" -i "$tmp/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$tmp/known_hosts")
+          remote="$WHC_USER@$WHC_HOST"
+          preview="$WHC_STAGING_PATH/essai-vitrine"
+          [[ "$(curl -fsSL --max-time 15 'https://citicigars.com/_vitrine-release/revision.txt')" == "$GITHUB_SHA" ]]
+          ssh "${auth[@]}" "$remote" "cd '$preview' && test \"\$(pwd -P)\" = '$preview' && test -f .vitrine-preview && test -f .htaccess && test ! -L .htaccess"
+          ssh "${auth[@]}" "$remote" "cat '$preview/.htaccess'" > "$tmp/original"
+          grep -Fq '^ vitrine-test.html' "$tmp/original"
+          printf '%s\n' 'RewriteEngine On' 'RewriteRule ^(catalogue|checkout|wishlist|assortiments|promotions)/?$ /$1 [R=302,L]' 'RewriteRule ^(?:p|produit)/([A-Za-z0-9-]+)/?$ /p/$1 [R=302,L]' 'RewriteRule ^ / [R=302,L]' > "$tmp/redirect"
+          save="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-preview.XXXXXXXX")"
+          [[ "$save" =~ ^/home/bwljrj22/\.citicigars-preview\.[A-Za-z0-9]+$ ]]
+          original="$(sha256sum "$tmp/original" | cut -d ' ' -f1)"
+          redirect="$(sha256sum "$tmp/redirect" | cut -d ' ' -f1)"
+          ssh "${auth[@]}" "$remote" "cp -p -- '$preview/.htaccess' '$save/routes.original'"
+          ssh "${auth[@]}" "$remote" "cat > '$save/routes.redirect'" < "$tmp/redirect"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$preview'; printf '%s  %s\n' '$original' .htaccess '$original' '$save/routes.original' '$redirect' '$save/routes.redirect' | sha256sum --check --status; next=\$(mktemp .preview-routes.XXXXXXXX); cat '$save/routes.redirect' > \"\$next\"; chmod --reference=.htaccess \"\$next\"; mv -T -- \"\$next\" .htaccess"
+          verify_preview() {
+            local base=https://staging.citicigars.com
+            curl -fsSL --max-time 12 "$base/essai-vitrine/" -o "$tmp/alias" || return 1
+            curl -fsSL --max-time 12 "$base/" -o "$tmp/root" || return 1
+            cmp -s "$tmp/alias" "$tmp/root" || return 1
+            curl -fsSL --max-time 12 "$base/essai-vitrine/catalogue" -o "$tmp/alias" || return 1
+            curl -fsSL --max-time 12 "$base/catalogue" -o "$tmp/root" || return 1
+            cmp -s "$tmp/alias" "$tmp/root" || return 1
+            curl -fsSL --max-time 12 "$base/dna/" -o "$tmp/dna" || return 1
+            grep -Fq 'id="startBtn"' "$tmp/dna"
+          }
+          if ! verify_preview; then
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$preview'; printf '%s  %s\n' '$redirect' .htaccess '$original' '$save/routes.original' | sha256sum --check --status; back=\$(mktemp .preview-back.XXXXXXXX); cp -p -- '$save/routes.original' \"\$back\"; mv -T -- \"\$back\" .htaccess"
+            echo "Le lien d’aperçu précédent a été rétabli après un échec de contrôle." >&2
+            exit 1
+          fi
+          echo "Ancienne vitrine et questionnaire de préproduction vérifiés. Copie des routes d’aperçu : $save/routes.original"
