@@ -1,7 +1,15 @@
-export const generateWhatsAppLink = (cartItems, total, customerData, formatMoney = (amount) => `${amount.toFixed(2)} $`) => {
+const amountFCFA = (amount) => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(amount)} FCFA`;
+
+export function whatsappMessageLink(message) {
+  const phoneNumber = "237675784830";
+  return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+}
+
+export const generateWhatsAppLink = (cartItems, total, customerData, formatMoney = amountFCFA) => {
   const itemsList = cartItems
     .map((item) => {
-      return `• ${item.marque} ${item.modele} - ${item.format} x${item.quantite} = ${formatMoney(item.prixTotal)}
+      const name = [item.marque, item.modele || item.ligne].filter(Boolean).join(" ");
+      return `• ${name} - ${item.format} x${item.quantite} = ${formatMoney(item.prixTotal)}
 *SKU:* ${item.sku}`;
     })
     .join("\n\n");
@@ -18,8 +26,5 @@ TOTAL: ${formatMoney(total)}
 
 Commande générée depuis CitiCigars.com`;
 
-  const phoneNumber = "237675784830";
-  const encodedMessage = encodeURIComponent(message);
-
-  return `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+  return whatsappMessageLink(message);
 };

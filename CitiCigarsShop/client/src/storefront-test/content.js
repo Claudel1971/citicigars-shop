@@ -13,6 +13,7 @@ export const content = {
     {
       id: 'diamond',
       name: 'Diamond',
+      personnalisable: true,
       price: 295000,
       volumeThresholds: [10, 20, 40],
       media: {
@@ -25,6 +26,7 @@ export const content = {
     {
       id: 'gold',
       name: 'Gold',
+      personnalisable: true,
       price: 175000,
       volumeThresholds: [15, 30, 50],
       media: {
@@ -37,6 +39,7 @@ export const content = {
     {
       id: 'silver',
       name: 'Silver',
+      personnalisable: true,
       price: 100000,
       volumeThresholds: [20, 40, 60],
       media: {

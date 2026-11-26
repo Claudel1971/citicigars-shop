@@ -32,18 +32,19 @@ const formSchema = z.object({
 
 const previewSchema = formSchema.extend({ email: z.string().email("Adresse email invalide") });
 
-const CheckoutForm = ({ previewQuote, onPreview }) => {
+const CheckoutForm = ({ previewQuote, onPreview, handoff = false }) => {
   const cart = useCart();
   const { items, total } = previewQuote || cart;
   const [, setLocation] = useLocation();
+  const collectEmail = onPreview && !handoff;
 
   const form = useForm({
-    resolver: zodResolver(onPreview ? previewSchema : formSchema),
+    resolver: zodResolver(collectEmail ? previewSchema : formSchema),
     defaultValues: {
       nom: "",
       telephone: "",
       ville: "",
-      ...(onPreview ? { email: "" } : {}),
+      ...(collectEmail ? { email: "" } : {}),
       notes: "",
       cgv: false,
     },
@@ -53,8 +54,6 @@ const CheckoutForm = ({ previewQuote, onPreview }) => {
     if (onPreview) return onPreview(data);
     const link = generateWhatsAppLink(items, total, data);
     window.open(link, "_blank");
-    cart.clearCart();
-    setLocation("/"); // Redirect home after checkout
   };
 
   if (items.length === 0) {
@@ -127,7 +126,7 @@ const CheckoutForm = ({ previewQuote, onPreview }) => {
                 )}
               />
 
-              {onPreview && <FormField
+              {collectEmail && <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => <FormItem>
@@ -185,7 +184,8 @@ const CheckoutForm = ({ previewQuote, onPreview }) => {
                 disabled={form.formState.isSubmitting}
                 className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2"
               >
-                <MessageCircle /> {onPreview ? "Voir le brouillon WhatsApp" : "Commander via WhatsApp"}
+                <MessageCircle /> {handoff ? "Vérifier et préparer la commande" :
+                  onPreview ? "Voir le brouillon WhatsApp" : "Commander via WhatsApp"}
               </Button>
             </form>
           </Form>
@@ -234,7 +234,7 @@ const CheckoutForm = ({ previewQuote, onPreview }) => {
             <span>{formatPrice(total)}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            {onPreview
+            {handoff ? "Le panier est conservé lors de l’ouverture de WhatsApp." : onPreview
               ? "Les coordonnées et les articles servent à préparer le brouillon affiché sur cette page."
               : "Le paiement et la livraison seront arrangés directement via WhatsApp avec notre service commercial."}
           </p>

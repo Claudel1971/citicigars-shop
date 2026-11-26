@@ -45,3 +45,11 @@ La branche `codex/vitrine-preprod` compile la vitrine complète avec `vitrine-pr
 Le checkout réutilise le formulaire existant avec les tarifs relus. Sur l’aperçu, le résultat est un brouillon WhatsApp affiché à l’écran. Les devis Cadeaux, Entreprises et Événements sont également des brouillons. ADN renvoie au parcours existant `/dna/`.
 
 La racine de la préproduction reste le point d’accès à la vitrine précédente. Pour retirer l’aperçu, désactiver le seul dossier `essai-vitrine` sur WHC. Un déploiement suivant conserve l’édition précédente de ce dossier en sauvegarde.
+
+## Candidate de production
+
+`codex/vitrine-production-candidate` part de `5a4d9e8`. Le build local `node node_modules/vite/bin/vite.js build --config vitrine-production.config.ts` lit l’API publique de production. Il utilise les tarifs enregistrés, relus avant la remise à WhatsApp. Le lien WhatsApp ouvre un nouvel onglet et conserve le panier. Les devis utilisent le même contact. L’offre Black Friday s’affiche du 26 au 30 novembre 2026 inclus, heure du Cameroun. La personnalisation offerte s’applique aux trois modèles marqués d’un astérisque sur la grille du brief.
+
+La règle émise dans `routes-apache.txt` cible uniquement les routes de la vitrine. L’Admin, les trois pages légales et ADN continuent d’être traités par la configuration existante. La répétition préalable consiste à tester cette sélection puis le retour au bundle existant dans un navigateur isolé. Pour une éventuelle bascule WHC, sauvegarder et identifier le fichier de routage original avant d’activer la règle, conserver l’ancien bundle et ses médias, puis rétablir atomiquement le fichier original au moindre échec. Contrôler la racine et les quatre routes historiques après restauration.
+
+La production conserve les quatre montants qui diffèrent des montants affichés par la vitrine actuelle. Son chemin `/dna/` sert le bundle générique au lieu du questionnaire. La validation d’une session membre réelle reste ouverte. Ces contrôles sont des conditions d’autorisation de la bascule.

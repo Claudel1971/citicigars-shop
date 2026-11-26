@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { formatPrice } from "@/utils/priceCalculator";
+import { whatsappMessageLink } from "@/utils/whatsappGenerator";
 import { content } from "./content";
 import { purchaseOptions } from "./catalogue";
 import { confirmed, useCatalogue } from "./resources";
+import { blackFridayOpen, dnaUrl, productionRelease } from "./release";
 import ProductCard from "./ProductCard";
 import salon from "./salon-accueil.webp";
 import closed from "./coffret-cuivre-ferme.webp";
@@ -33,7 +35,7 @@ export function HomePage() {
         <p className="hero-intro">Explorez notre sélection de cigares en packs, boîtes et assortiments.</p>
         <div className="hero-actions">
           <Link className="button button-gold" href="/catalogue">Explorer le catalogue</Link>
-          <a className="text-link hero-dna-link" href="/dna/">Découvrir ton ADN Cigare</a>
+          <a className="text-link hero-dna-link" href={dnaUrl}>Découvrir ton ADN Cigare</a>
         </div>
       </div></div>
       <figure className="hero-photo"><img src={salon} alt={content.hero.alt} width="1200" height="655" /></figure>
@@ -74,6 +76,7 @@ export function GiftsPage() {
   const player = useRef();
   const dialog = useRef();
   const [current, setCurrent] = useState(null);
+  const blackFriday = productionRelease && blackFridayOpen();
   const showVideo = (gift) => {
     setCurrent(gift);
     player.current.src = gift.media.video;
@@ -93,24 +96,35 @@ export function GiftsPage() {
         <p className="eyebrow">Coffrets cadeaux</p><h1>L’art d’offrir.</h1><p>{content.occasions.coffrets.intro}</p>
       </div>
     </div>
+    {blackFriday && <section className="empty-state gift-offer" aria-labelledby="black-friday">
+      <h2 id="black-friday">Black Friday · 26 au 30 novembre</h2>
+      <p>10 % de rabais sur les coffrets. Personnalisation offerte sur Silver, Gold et Diamond.</p>
+    </section>}
     <div className="gift-grid">
       {content.gifts.map((gift) => <article key={gift.id} className="gift-card" data-gift-card={gift.id}>
         <figure className="gift-picture"><img src={gift.media.photo} alt={gift.media.alt} loading="lazy" /></figure>
         <div className="gift-card-copy">
           <div className="gift-card-heading">
-            <div className="gift-card-name"><h2>{gift.name}</h2><strong className="gift-price">{formatPrice(gift.price)}</strong></div>
+            <div className="gift-card-name"><h2>{gift.name}</h2>
+              {blackFriday && <del className="gift-price gift-price-reference">{formatPrice(gift.price)}</del>}
+              <strong className="gift-price">{formatPrice(blackFriday ? gift.price * .9 : gift.price)}</strong></div>
             <button type="button" className="gift-video-button" onClick={() => showVideo(gift)}>
               <span className="gift-play" aria-hidden="true" /> Voir la vidéo
             </button>
           </div>
+          {blackFriday && gift.personnalisable && <p className="fine-print">Personnalisation offerte</p>}
           <div className="gift-actions">
-            <Link className="button button-primary" href={`/devis?coffret=${gift.id}`}>Préparer un devis</Link>
+            {productionRelease ?
+              <a className="button button-primary" target="_blank" rel="noopener noreferrer"
+                href={whatsappMessageLink(`Bonjour CitiCigars, je souhaiterais un devis pour le coffret ${gift.name}${blackFriday ? " dans le cadre de l’offre Black Friday" : ""}.`)}>Demander un devis</a>
+              : <Link className="button button-primary" href={`/devis?coffret=${gift.id}`}>Préparer un devis</Link>}
             <Link className="button button-outline" href={`/entreprises?coffret=${gift.id}`}>Tarifs entreprises</Link>
           </div>
         </div>
       </article>)}
     </div>
-    <p className="fine-print">Coffrets sur devis. Les demandes préparées ici restent des brouillons.</p>
+    <p className="fine-print">{productionRelease ? "Coffrets sur devis via WhatsApp."
+      : "Coffrets sur devis. Les demandes préparées ici restent des brouillons."}</p>
     <dialog ref={dialog} className="gift-dialog" onClose={clearVideo}>
       <div className="dialog-head"><h2>{current?.name}</h2>
         <button type="button" className="dialog-close" aria-label="Fermer la vidéo" onClick={() => dialog.current.close()}>×</button></div>
@@ -167,12 +181,23 @@ export function QuotePage() {
   const params = new URLSearchParams(useSearch());
   const gift = content.gifts.find((item) => item.id === params.get("coffret"));
   const [draft, setDraft] = useState("");
+  const requestTitle = params.has("evenement") ? "un événement" : params.has("entreprise") ? "une commande d’entreprise" : "un coffret cadeau";
+  const quoteText = [
+    `Bonjour CitiCigars, je souhaiterais un devis pour ${requestTitle}.`,
+    gift && `Coffret ${gift.name}`,
+    /^[1-9]\d*$/.test(params.get("quantite") || "") && `Quantité ${params.get("quantite")}`,
+  ].filter(Boolean).join("\n");
   const submit = (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setDraft(["Demande de devis CitiCigars", ...data.entries()].map((entry) =>
       Array.isArray(entry) ? entry.filter(Boolean).join(" · ") : entry).join("\n"));
   };
+  if (productionRelease) return <section className="shell occasion-page">
+    <div className="page-heading"><h1>Demander un devis</h1><p>Échange avec CitiCigars sur WhatsApp.</p></div>
+    <a className="button button-primary" href={whatsappMessageLink(quoteText)}
+      target="_blank" rel="noopener noreferrer">Continuer sur WhatsApp</a>
+  </section>;
   return <section className="shell occasion-page">
     <div className="page-heading"><h1>Préparer un devis</h1><p>Brouillon local, sans envoi ni commande.</p></div>
     <form className="quote-form" onSubmit={submit}>

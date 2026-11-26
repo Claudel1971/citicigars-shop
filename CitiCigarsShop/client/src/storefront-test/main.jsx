@@ -13,6 +13,7 @@ import CheckoutPage from "./CheckoutPage";
 import { BusinessPage, EventsPage, GiftsPage, HomePage, QuotePage } from "./Occasions";
 import ProductDetail from "./ProductDetail";
 import ProductGrid from "./ProductGrid";
+import { dnaUrl, productionRelease } from "./release";
 import logo from "./logo.webp";
 import "../index.css";
 import "./storefront.css";
@@ -33,7 +34,7 @@ function Header() {
           onClick={() => setMenu(false)}>Catalogue</Link>
         <nav id="navigation-vitrine" className={`main-nav${menu ? " is-open" : ""}`} aria-label="Navigation principale">
           <Link href="/catalogue" aria-current={path === "/catalogue" ? "page" : undefined} onClick={() => setMenu(false)}>Catalogue</Link>
-          <a className="dna-nav-link" href="/dna/">Ton ADN Cigare</a>
+          <a className="dna-nav-link" href={dnaUrl}>Ton ADN Cigare</a>
           {[["/coffrets", "Coffrets cadeaux"], ["/entreprises", "Entreprises"], ["/evenements", "Événements"]].map(([href, label]) =>
             <Link key={href} href={href} aria-current={path === href ? "page" : undefined}
               onClick={() => setMenu(false)}>{label}</Link>)}
@@ -77,7 +78,10 @@ function Storefront() {
         </Switch>
       </main>
       <footer className="site-footer"><div className="shell footer-inner">
-        <strong className="footer-brand">CitiCigars</strong><span>Aperçu de préproduction</span>
+        <strong className="footer-brand">CitiCigars</strong>
+        {productionRelease ? <nav aria-label="Informations légales" className="legal-links">
+          <a href="/cgv">CGV</a><a href="/privacy">Confidentialité</a><a href="/mentions">Mentions légales</a>
+        </nav> : <span>Aperçu de préproduction</span>}
       </div></footer>
       <Toaster />
     </>
@@ -88,7 +92,7 @@ createRoot(document.getElementById("root")).render(
   <QueryClientProvider client={queryClient}>
     <ConfigProvider>
       <WishlistProvider>
-        <CartProvider><Router base={import.meta.env.BASE_URL.replace(/\/$/, "")}><Storefront /></Router></CartProvider>
+        <CartProvider><Router base={productionRelease ? "" : import.meta.env.BASE_URL.replace(/\/$/, "")}><Storefront /></Router></CartProvider>
       </WishlistProvider>
     </ConfigProvider>
   </QueryClientProvider>,

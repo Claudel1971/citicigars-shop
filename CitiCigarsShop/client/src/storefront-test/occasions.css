@@ -434,11 +434,16 @@ dialog:has(.gift-video) { width: min(100% - 2rem, 55rem); }
 }
 .occasion-page { padding-bottom: 3.4rem; }
 .event-quote, .draft { margin-block: 1.2rem; }
+.gift-offer { margin-bottom: 1rem; }
+.gift-price-reference { color: var(--muted); font-weight: 400; }
 .draft pre { margin-top: .65rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.draft .button { margin-top: .75rem; }
 .checkout-preview { padding-bottom: 2.25rem; }
 .gift-dialog { margin: auto; width: min(92vw, 58rem); padding: 1rem; border: 1px solid var(--line); background: var(--paper); }
 .gift-dialog::backdrop { background: #172c26b3; }
 .gift-dialog video { display: block; width: 100%; max-height: 72vh; }
+.legal-links { display: flex; flex-wrap: wrap; gap: .7rem; }
+.legal-links a { text-decoration: underline; }
 @media (min-width: 55rem) { .menu-toggle { display: none; } }
 @media (max-width: 23rem) { .catalogue-shortcut { display: none; } }
 @media (prefers-reduced-motion: reduce) { .gift-story-reveal { transition: none; } }
