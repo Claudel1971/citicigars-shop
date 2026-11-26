@@ -3,7 +3,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { useCart } from "@/context/CartContext";
 import { useConfig } from "@/context/ConfigContext";
 import { formatPrice } from "@/utils/priceCalculator";
-import { isBundle, productName, productPhotos, purchaseOptions, stockLabel } from "./catalogue";
+import { cigarDimensions, cigarFormat, isBundle, productName, productPhotos, purchaseOptions, stockLabel } from "./catalogue";
 import { LoadState } from "./ProductGrid";
 import { Distinctions, Photo, ProductActions, Strength } from "./ProductCard";
 import { confirmed, useProduct } from "./resources";
@@ -129,8 +129,8 @@ export default function ProductDetail({ sku }) {
               <p className="product-origin">{isBundle(product) ? "Assortiment" : product.pays} · {product.sku}</p>
               {!isBundle(product) && <section className="product-specs">
                 <h2>Le cigare</h2>
-                <Facts entries={[["Vitole", product.vitole], ["Format du cigare", product.format],
-                  ["Dimensions", [product.dimensions, product.dimensionsMM].filter(Boolean).join(" · ")],
+                <Facts entries={[["Vitole", product.vitole !== cigarFormat(product) && product.vitole], ["Format du cigare", cigarFormat(product)],
+                  ["Dimensions", [cigarDimensions(product), product.dimensionsMM].filter(Boolean).join(" · ")],
                   ["Puissance", strengthsExist(product.puissance) && <Strength value={product.puissance} />]]} />
               </section>}
             </div>

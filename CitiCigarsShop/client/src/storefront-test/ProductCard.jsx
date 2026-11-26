@@ -1,10 +1,10 @@
 import React from "react";
 import { Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "wouter";
+import { Link, useRouter } from "wouter";
 import { useWishlist } from "@/context/WishlistContext";
 import { formatPrice } from "@/utils/priceCalculator";
-import { isBundle, productName, productPath, productPhotos, purchaseOptions, stockLabel, strengths } from "./catalogue";
+import { cigarDimensions, cigarFormat, isBundle, productName, productPath, productPhotos, purchaseOptions, stockLabel, strengths } from "./catalogue";
 
 export function productLink(sku, returnQuery, section) {
   const query = new URLSearchParams();
@@ -60,7 +60,8 @@ export function Favorite({ product }) {
 }
 
 export function ProductActions({ product, detail = false }) {
-  const shareUrl = `https://citicigars.com${productPath(product.sku)}`;
+  const { base } = useRouter();
+  const shareUrl = `${base ? window.location.origin + base : "https://citicigars.com"}${productPath(product.sku)}`;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -86,8 +87,9 @@ export default function ProductCard({ product, returnQuery }) {
   const hasPrice = Number.isFinite(amount);
   const url = productLink(product.sku, returnQuery);
   const name = productName(product);
-  const dimensions = String(product.dimensions ?? "").replace(/\s+[×x]\s+/i, "″ × ");
-  const specs = [product.vitole !== product.format && product.vitole, product.format, dimensions].filter(Boolean);
+  const format = cigarFormat(product);
+  const dimensions = cigarDimensions(product).replace(/\s+[×x]\s+/i, "″ × ");
+  const specs = [product.vitole !== format && product.vitole, format, dimensions].filter(Boolean);
   return (
     <article className="product-card" data-product-sku={product.sku}>
       <div className="card-photo">

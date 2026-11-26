@@ -74,7 +74,7 @@ export default function CartPage() {
               <h2>Récapitulatif</h2>
               {total !== null ? <p className="summary-total"><span>Sous-total</span><strong>{formatPrice(total)}</strong></p>
                 : <p className="fine-print">Sous-total à confirmer</p>}
-              <p className="fine-print">Fin du parcours de test.</p>
+              {total !== null && <Link className="button button-primary" href="/checkout">Préparer la commande</Link>}
             </aside>
           </div>
         </>

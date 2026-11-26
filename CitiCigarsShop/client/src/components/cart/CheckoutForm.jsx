@@ -25,29 +25,35 @@ const formSchema = z.object({
   nom: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   telephone: z.string().min(10, "Numéro de téléphone invalide"),
   ville: z.string().min(2, "La ville est requise"),
+  email: z.string().email("Adresse email invalide").optional(),
   notes: z.string().optional(),
   cgv: z.boolean().refine((val) => val === true, "Vous devez accepter les CGV"),
 });
 
-const CheckoutForm = () => {
-  const { items, total, clearCart } = useCart();
+const previewSchema = formSchema.extend({ email: z.string().email("Adresse email invalide") });
+
+const CheckoutForm = ({ previewQuote, onPreview }) => {
+  const cart = useCart();
+  const { items, total } = previewQuote || cart;
   const [, setLocation] = useLocation();
 
   const form = useForm({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(onPreview ? previewSchema : formSchema),
     defaultValues: {
       nom: "",
       telephone: "",
       ville: "",
+      ...(onPreview ? { email: "" } : {}),
       notes: "",
       cgv: false,
     },
   });
 
   const onSubmit = (data) => {
+    if (onPreview) return onPreview(data);
     const link = generateWhatsAppLink(items, total, data);
     window.open(link, "_blank");
-    clearCart();
+    cart.clearCart();
     setLocation("/"); // Redirect home after checkout
   };
 
@@ -121,6 +127,16 @@ const CheckoutForm = () => {
                 )}
               />
 
+              {onPreview && <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => <FormItem>
+                  <FormLabel>Adresse e-mail</FormLabel>
+                  <FormControl><Input type="email" autoComplete="email" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>}
+              />}
+
               <FormField
                 control={form.control}
                 name="notes"
@@ -166,9 +182,10 @@ const CheckoutForm = () => {
               <Button
                 type="submit"
                 size="lg"
+                disabled={form.formState.isSubmitting}
                 className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2"
               >
-                <MessageCircle /> Commander via WhatsApp
+                <MessageCircle /> {onPreview ? "Voir le brouillon WhatsApp" : "Commander via WhatsApp"}
               </Button>
             </form>
           </Form>

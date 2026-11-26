@@ -1,7 +1,7 @@
-export const generateWhatsAppLink = (cartItems, total, customerData) => {
+export const generateWhatsAppLink = (cartItems, total, customerData, formatMoney = (amount) => `${amount.toFixed(2)} $`) => {
   const itemsList = cartItems
     .map((item) => {
-      return `• ${item.marque} ${item.modele} - ${item.format} x${item.quantite} = ${item.prixTotal.toFixed(2)} $
+      return `• ${item.marque} ${item.modele} - ${item.format} x${item.quantite} = ${formatMoney(item.prixTotal)}
 *SKU:* ${item.sku}`;
     })
     .join("\n\n");
@@ -9,12 +9,12 @@ export const generateWhatsAppLink = (cartItems, total, customerData) => {
   const message = `🛒 *NOUVELLE COMMANDE CitiCigars*
 
 Client: ${customerData.nom}
-Téléphone: ${customerData.telephone} - Ville: ${customerData.ville}
+Téléphone: ${customerData.telephone} - Ville: ${customerData.ville}${customerData.email ? `\nEmail: ${customerData.email}` : ""}
 
 Commande:
 ${itemsList}
 
-TOTAL: ${total.toFixed(2)} $
+TOTAL: ${formatMoney(total)}
 
 Commande générée depuis CitiCigars.com`;
 

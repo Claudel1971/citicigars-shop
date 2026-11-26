@@ -37,3 +37,11 @@ Définir `CHROME_PATH` si Chrome est installé ailleurs. Le scénario vérifie l
 - **Membres**. La vue applique le statut membre existant et les mêmes restrictions de champs de dégustation côté interface. La copie démarre en mode visiteur. L’API publique renvoie encore des champs de fiche technique dans sa réponse et le dépôt ne fournit pas de session membre serveur pour ce parcours. Le test vérifie la vue visiteur. La vérification d’une session membre réelle et le filtrage de ces champs côté serveur restent à traiter séparément.
 
 L’intégration de l’accueil, des coffrets, de l’ADN Cigare, du CMS et de la commande est en dehors de cette copie. Pour revenir au point de départ, relancer la configuration Vite ordinaire de `origin/main` à l’identifiant ci-dessus.
+
+## Aperçu HTTPS sur la préproduction
+
+La branche `codex/vitrine-preprod` compile la vitrine complète avec `vitrine-preprod.config.ts`. Le workflow WHC de cette branche sert exclusivement `/essai-vitrine/`. Le build utilise l’API de préproduction et le panier navigateur du même domaine. La configuration locale des quatre corrections tarifaires ne fait pas partie de ce build.
+
+Le checkout réutilise le formulaire existant avec les tarifs relus. Sur l’aperçu, le résultat est un brouillon WhatsApp affiché à l’écran. Les devis Cadeaux, Entreprises et Événements sont également des brouillons. ADN renvoie au parcours existant `/dna/`.
+
+La racine de la préproduction reste le point d’accès à la vitrine précédente. Pour retirer l’aperçu, désactiver le seul dossier `essai-vitrine` sur WHC. Un déploiement suivant conserve l’édition précédente de ce dossier en sauvegarde.

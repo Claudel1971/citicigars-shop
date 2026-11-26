@@ -20,6 +20,10 @@ const clean = (value) => String(value ?? "").trim();
 const searchText = (value) => clean(value).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 const positive = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 const count = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0;
+const hasDimensions = (value) => /\d\s*[×x]\s*\d/i.test(value || "");
+export const cigarFormat = (product) => clean(hasDimensions(product.format) || !product.format
+  ? product.vitole : product.format);
+export const cigarDimensions = (product) => clean(product.dimensions || (hasDimensions(product.format) ? product.format : ""));
 
 export function productName(product) {
   const line = clean(product.ligne);
@@ -111,7 +115,7 @@ export function filterChoices(products) {
   const distinct = (values) => [...new Set(values.map(clean).filter(Boolean))].sort(fr)
     .map((value) => [value, value]);
   return [
-    ["format", "Format du cigare", distinct(products.filter((p) => !isBundle(p)).map((p) => p.format))],
+    ["format", "Format du cigare", distinct(products.filter((p) => !isBundle(p)).map(cigarFormat))],
     ["calibre", "Calibre", calibres],
     ["force", "Puissance", strengths.map((label, index) => [String(index + 1), label])],
     ["budget", "Budget par cigare", budgets],
@@ -127,11 +131,17 @@ export function filterProducts(products, params) {
     positive(value) && matches(key, bands.find((band) => Number(value) <= band[2])?.[0]);
   return products.filter((p) => {
     if (params.get("filtre") === "assortiments" && !isBundle(p)) return false;
-    if (!matches("format", isBundle(p) ? "" : clean(p.format))) return false;
+    if (!matches("format", isBundle(p) ? "" : cigarFormat(p))) return false;
     if (!matches("force", p.puissance) || !matches("pays", clean(p.pays || p.origine))) return false;
     if (!matches("marque", clean(p.marque)[0]?.toUpperCase())) return false;
     const ring = p.ringGauge || p.format?.match(/[×x]\s*(\d+)$/i)?.[1] || p.vitole?.match(/[×x]\s*(\d+)\)/i)?.[1];
-    if (!matchesBand("calibre", ring, calibres) || !matchesBand("budget", p.prixUnitaire, budgets)) return false;
+    if (!matchesBand("calibre", ring, calibres)) return false;
+    if (params.has("budget")) {
+      const options = purchaseOptions(p).filter((option) => count(option.pieces));
+      const unitPrice = positive(p.prixUnitaire) ? Number(p.prixUnitaire)
+        : Math.min(...options.map((option) => option.price / option.pieces));
+      if (!matchesBand("budget", unitPrice, budgets)) return false;
+    }
     const text = searchText([p.sku, p.marque, p.ligne, p.modele, p.origine, p.pays,
       p.vitole, p.format, p.dimensions, p.dimensionsMM].join(" "));
     return terms.every((term) => text.includes(term));
