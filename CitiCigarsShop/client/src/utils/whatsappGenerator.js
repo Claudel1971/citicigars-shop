@@ -8,7 +8,10 @@ export function whatsappMessageLink(message) {
 export const generateWhatsAppLink = (cartItems, total, customerData, formatMoney = amountFCFA) => {
   const itemsList = cartItems
     .map((item) => {
-      const name = [item.marque, item.modele || item.ligne].filter(Boolean).join(" ");
+      const nameParts = [item.marque, item.ligne, item.modele]
+        .map((part) => typeof part === "string" ? part.trim() : "")
+        .filter((part) => part && !/^(null|undefined)$/i.test(part));
+      const name = [...new Set(nameParts)].join(" ") || item.sku;
       return `• ${name} - ${item.format} x${item.quantite} = ${formatMoney(item.prixTotal)}
 *SKU:* ${item.sku}`;
     })

@@ -1,5 +1,5 @@
 export const productionRelease = import.meta.env.VITE_STOREFRONT_RELEASE === "1";
-export const dnaUrl = import.meta.env.VITE_STOREFRONT_DNA_URL || "/dna/";
+export const dnaUrl = productionRelease ? "" : "/dna/";
 
 export function blackFridayOpen(now = new Date()) {
   const date = new Intl.DateTimeFormat("sv-SE", {

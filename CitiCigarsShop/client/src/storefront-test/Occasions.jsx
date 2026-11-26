@@ -35,7 +35,7 @@ export function HomePage() {
         <p className="hero-intro">Explorez notre sélection de cigares en packs, boîtes et assortiments.</p>
         <div className="hero-actions">
           <Link className="button button-gold" href="/catalogue">Explorer le catalogue</Link>
-          <a className="text-link hero-dna-link" href={dnaUrl}>Découvrir ton ADN Cigare</a>
+          {dnaUrl && <a className="text-link hero-dna-link" href={dnaUrl}>Découvrir ton ADN Cigare</a>}
         </div>
       </div></div>
       <figure className="hero-photo"><img src={salon} alt={content.hero.alt} width="1200" height="655" /></figure>

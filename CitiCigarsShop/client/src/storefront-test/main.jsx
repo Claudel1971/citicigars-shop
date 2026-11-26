@@ -34,7 +34,7 @@ function Header() {
           onClick={() => setMenu(false)}>Catalogue</Link>
         <nav id="navigation-vitrine" className={`main-nav${menu ? " is-open" : ""}`} aria-label="Navigation principale">
           <Link href="/catalogue" aria-current={path === "/catalogue" ? "page" : undefined} onClick={() => setMenu(false)}>Catalogue</Link>
-          <a className="dna-nav-link" href={dnaUrl}>Ton ADN Cigare</a>
+          {dnaUrl && <a className="dna-nav-link" href={dnaUrl}>Ton ADN Cigare</a>}
           {[["/coffrets", "Coffrets cadeaux"], ["/entreprises", "Entreprises"], ["/evenements", "Événements"]].map(([href, label]) =>
             <Link key={href} href={href} aria-current={path === href ? "page" : undefined}
               onClick={() => setMenu(false)}>{label}</Link>)}
