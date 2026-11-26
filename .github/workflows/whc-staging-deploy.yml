@@ -33,46 +33,11 @@ jobs:
           node node_modules/vite/bin/vite.js build --config vitrine-production.config.ts --emptyOutDir
           dir=dist/vitrine-production-candidate
           test -f "$dir/vitrine-test.html"
-          test -f "$dir/routes-apache.txt"
+          test -f "$dir/storefront-routes.json"
           grep -Fq '/_vitrine-release/assets/' "$dir/vitrine-test.html"
           grep -Fq 'https://citicigars-api.onrender.com' "$dir"/assets/*.js
           if grep -Fq 'staging.citicigars.com' "$dir"/assets/*.js; then exit 1; fi
           printf '%s\n' "$GITHUB_SHA" > "$dir/revision.txt"
-      - name: Examiner le routage WHC sans écriture
-        if: "!inputs.publish && !inputs.archive_preview"
-        env:
-          WHC_HOST: ${{ vars.WHC_HOST }}
-          WHC_PORT: ${{ vars.WHC_PORT }}
-          WHC_USER: ${{ vars.WHC_USER }}
-          WHC_KNOWN_HOSTS: ${{ vars.WHC_KNOWN_HOSTS }}
-          WHC_SSH_KEY: ${{ secrets.WHC_SSH_KEY }}
-        run: |
-          set -euo pipefail
-          umask 077
-          d="$(mktemp -d "$RUNNER_TEMP/vitrine-inspection.XXXXXXXX")"
-          trap 'rm -f -- "$d/key"' EXIT
-          printf '%s\n' "$WHC_SSH_KEY" > "$d/key"
-          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$d/known_hosts"
-          auth=(-p "$WHC_PORT" -i "$d/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$d/known_hosts")
-          remote="$WHC_USER@$WHC_HOST"
-          ssh "${auth[@]}" "$remote" 'uapi --output=json DomainInfo single_domain_data domain=citicigars.com' > "$d/domain.json"
-          root="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d=d.get("result",d); print((d.get("data") or {}).get("documentroot") or "")' "$d/domain.json")"
-          [[ "$root" =~ ^/home/bwljrj22/[a-zA-Z0-9_/-]+$ ]]
-          [[ "$(ssh "${auth[@]}" "$remote" "cd '$root' && pwd -P")" == "$root" ]]
-          ssh "${auth[@]}" "$remote" "cd '$root' && ls -ld catalogue catalogue/ .htaccess 2>/dev/null; cat '$root/.htaccess'" > "$d/route"
-          python3 - "$d/route" <<'PY'
-          import re, sys
-          for line in open(sys.argv[1]):
-              line = line.strip()
-              if re.match(r'(?i)^(RewriteEngine|RewriteBase|DirectoryIndex)\s',line):
-                  print(line)
-              elif re.match(r'(?i)^Rewrite(Cond|Rule)\s',line):
-                  print(line if re.match(r'^[A-Za-z0-9\s\\/._^$()!{}%=?+\[\]*|,:-]+$',line) and len(line)<160 else line.split()[0]+' (hors diagnostic)')
-              elif line.startswith(('ErrorDocument 404', '<IfModule mod_rewrite', '<IfModule LiteSpeed')):
-                  print(line if len(line)<110 else line.split()[0])
-              elif re.match(r'^d[rwx-]',line) and ' catalogue' in line:
-                  print('Répertoire catalogue existant.')
-          PY
       - name: Activer les routes de la vitrine et contrôler le site public
         if: inputs.publish
         env:
@@ -102,26 +67,26 @@ jobs:
           ssh "${auth[@]}" "$remote" "cd '$root' && test -f .htaccess && test ! -L .htaccess && test -w . && printf '%s  %s\n' '$legacy' index.html | sha256sum --check --status"
           ssh "${auth[@]}" "$remote" "cat '$root/.htaccess'" > "$tmp/routes.original"
           test -s "$tmp/routes.original"
-          { cat "$dir/routes-apache.txt"; printf '\n'; cat "$tmp/routes.original"; } > "$tmp/routes.active"
-          original="$(sha256sum "$tmp/routes.original" | cut -d ' ' -f1)"
-          active="$(sha256sum "$tmp/routes.active" | cut -d ' ' -f1)"
+          node CitiCigarsShop/script/prepare-storefront-entry.mjs "$tmp/legacy-index" "$dir" "$tmp/index.active"
+          original="$legacy"
+          active="$(sha256sum "$tmp/index.active" | cut -d ' ' -f1)"
           save="$(ssh "${auth[@]}" "$remote" "mktemp -d /home/bwljrj22/.citicigars-vitrine.XXXXXXXX")"
           [[ "$save" =~ ^/home/bwljrj22/\.citicigars-vitrine\.[A-Za-z0-9]+$ ]]
-          ssh "${auth[@]}" "$remote" "cp -p -- '$root/.htaccess' '$save/routes.original'; cmp -s -- '$root/.htaccess' '$save/routes.original'"
-          ssh "${auth[@]}" "$remote" "cat > '$save/routes.active'" < "$tmp/routes.active"
-          ssh "${auth[@]}" "$remote" "printf '%s  %s\n' '$original' '$save/routes.original' '$active' '$save/routes.active' | sha256sum --check --status"
+          ssh "${auth[@]}" "$remote" "cp -p -- '$root/index.html' '$save/index.original'; cmp -s -- '$root/index.html' '$save/index.original'"
+          ssh "${auth[@]}" "$remote" "cat > '$save/index.active'" < "$tmp/index.active"
+          ssh "${auth[@]}" "$remote" "printf '%s  %s\n' '$original' '$save/index.original' '$active' '$save/index.active' | sha256sum --check --status"
           mkdir "$tmp/restore-check"
-          cp "$tmp/routes.active" "$tmp/restore-check/.htaccess"
-          cp "$tmp/routes.original" "$tmp/restore-check/routes.restore"
-          mv -T -- "$tmp/restore-check/routes.restore" "$tmp/restore-check/.htaccess"
-          cmp -s "$tmp/routes.original" "$tmp/restore-check/.htaccess"
-          echo "Sauvegarde vérifiée et restauration répétée. Copie WHC : $save/routes.original"
+          cp "$tmp/index.active" "$tmp/restore-check/index.html"
+          cp "$tmp/legacy-index" "$tmp/restore-check/index.restore"
+          mv -T -- "$tmp/restore-check/index.restore" "$tmp/restore-check/index.html"
+          cmp -s "$tmp/legacy-index" "$tmp/restore-check/index.html"
+          echo "Sauvegarde vérifiée et restauration répétée. Copie WHC : $save/index.original"
           incoming="$(ssh "${auth[@]}" "$remote" "mktemp -d '$root/.vitrine-incoming.XXXXXXXX'")"
           [[ "$incoming" == "$root"/.vitrine-incoming.* && "${incoming#"$root"/}" =~ ^\.vitrine-incoming\.[A-Za-z0-9]+$ ]]
-          rsync -rz --chmod=D755,F644 --exclude=routes-apache.txt \
+          rsync -rz --chmod=D755,F644 --exclude=storefront-routes.json \
             -e "ssh -p $WHC_PORT -i $tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$tmp/known_hosts" \
             "$dir/" "$remote:$incoming/"
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L _vitrine-release; test -f '$incoming/vitrine-test.html'; chmod 755 '$incoming'; if test -e _vitrine-release; then test -d _vitrine-release; grep -Fxq '3352776cc46e8b52d9477853727124ce1b402eeb' _vitrine-release/revision.txt; mv -T -- _vitrine-release '$save/release-previous'; fi; if ! mv -T -- '$incoming' _vitrine-release; then if test -d '$save/release-previous'; then mv -T -- '$save/release-previous' _vitrine-release; fi; exit 1; fi"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L _vitrine-release; test -f '$incoming/vitrine-test.html'; chmod 755 '$incoming'; if test -e _vitrine-release; then test -d _vitrine-release; grep -Fxq 'be9fc45e9afa81afd540be9d31ca7960d797a5de' _vitrine-release/revision.txt; mv -T -- _vitrine-release '$save/release-previous'; fi; if ! mv -T -- '$incoming' _vitrine-release; then if test -d '$save/release-previous'; then mv -T -- '$save/release-previous' _vitrine-release; fi; exit 1; fi"
           test_asset_routes() {
             local asset
             for asset in "$dir"/assets/*; do
@@ -131,18 +96,14 @@ jobs:
           }
           test_asset_routes
           restore_routes() {
-            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$active' .htaccess '$original' '$save/routes.original' | sha256sum --check --status; restore=\$(mktemp .vitrine-restore.XXXXXXXX); cp -p -- '$save/routes.original' \"\$restore\"; mv -T -- \"\$restore\" .htaccess; cmp -s -- '$save/routes.original' .htaccess"
+            ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$active' index.html '$original' '$save/index.original' | sha256sum --check --status; restore=\$(mktemp .vitrine-restore.XXXXXXXX); cp -p -- '$save/index.original' \"\$restore\"; mv -T -- \"\$restore\" index.html; cmp -s -- '$save/index.original' index.html"
           }
-          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; printf '%s  %s\n' '$original' .htaccess '$active' '$save/routes.active' | sha256sum --check --status; next=\$(mktemp .vitrine-routes.XXXXXXXX); cat '$save/routes.active' > \"\$next\"; chmod --reference=.htaccess \"\$next\"; mv -T -- \"\$next\" .htaccess"
+          ssh "${auth[@]}" "$remote" "set -eu; cd '$root'; test ! -L index.html; printf '%s  %s\n' '$original' index.html '$active' '$save/index.active' | sha256sum --check --status; next=\$(mktemp .vitrine-index.XXXXXXXX); cat '$save/index.active' > \"\$next\"; chmod --reference=index.html \"\$next\"; mv -T -- \"\$next\" index.html"
           check_public() {
             local path
-            for path in '' catalogue produit/CTGNI0013 p/CTGNI0013 panier wishlist checkout coffrets entreprises evenements devis; do
+            for path in '' catalogue produit/CTGNI0013 p/CTGNI0013 panier wishlist checkout coffrets entreprises evenements devis admin cgv privacy mentions; do
               curl -fsSL -H 'Cache-Control: no-cache' --max-time 12 "https://citicigars.com/$path?vitrine_verification=$GITHUB_RUN_ID" -o "$tmp/http" || return 1
-              cmp -s "$tmp/http" "$dir/vitrine-test.html" || { echo "Route vitrine inattendue : /$path" >&2; grep -Eo '<script[^>]+src="[^"]+"' "$tmp/http" >&2 || true; return 1; }
-            done
-            for path in admin cgv privacy mentions; do
-              curl -fsSL --max-time 12 "https://citicigars.com/$path?vitrine_verification=$GITHUB_RUN_ID" -o "$tmp/http" || return 1
-              cmp -s "$tmp/http" "$tmp/legacy-index" || { echo "Route historique modifiée : /$path" >&2; return 1; }
+              cmp -s "$tmp/http" "$tmp/index.active" || { echo "Page d’entrée inattendue : /$path" >&2; return 1; }
             done
           }
           if ! check_public; then

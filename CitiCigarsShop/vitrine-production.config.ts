@@ -4,8 +4,7 @@ import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
 const assetsBase = "/_vitrine-release/";
-// Per-directory Apache rules receive paths without their initial slash.
-const storefront = "^(?:(?:catalogue|panier|wishlist|checkout|coffrets|entreprises|evenements|devis)/?|(?:produit|p)/[A-Za-z0-9-]+/?)?$";
+const storefront = "^/(?:(?:catalogue|panier|wishlist|checkout|coffrets|entreprises|evenements|devis)/?|(?:produit|p)/[A-Za-z0-9-]+/?)?$";
 
 export default defineConfig(({ command }) => {
   if (command !== "build") throw new Error("La version de production est compilée pour une vérification isolée.");
@@ -26,8 +25,8 @@ export default defineConfig(({ command }) => {
       name: "production-route-allowlist",
       generateBundle() {
         this.emitFile({
-          type: "asset", fileName: "routes-apache.txt",
-          source: `RewriteEngine On\nRewriteRule ${storefront} ${assetsBase.slice(1)}vitrine-test.html [L]\n`,
+          type: "asset", fileName: "storefront-routes.json",
+          source: JSON.stringify({ storefront }),
         });
       },
     }],
