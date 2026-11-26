@@ -1,4 +1,4 @@
-name: WHC Staging - Aperçu vitrine
+name: WHC Vitrine - Contrôle en lecture seule
 
 on:
   workflow_dispatch:
@@ -6,80 +6,44 @@ on:
 permissions:
   contents: read
 
-concurrency: citicigars-essai-vitrine
-
 jobs:
-  essai:
-    if: github.ref == 'refs/heads/codex/vitrine-preprod'
+  lire:
+    if: github.ref == 'refs/heads/codex/vitrine-retour-audit'
     runs-on: ubuntu-latest
     environment: staging
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: Compiler le dossier d’essai
-        working-directory: CitiCigarsShop
-        run: |
-          set -euo pipefail
-          npm install --no-audit --no-fund --ignore-scripts
-          node node_modules/vite/bin/vite.js build --config vitrine-preprod.config.ts
-          test -f dist/essai-vitrine/vitrine-test.html
-          test -f dist/essai-vitrine/.htaccess
-          grep -Fq '/essai-vitrine/assets/' dist/essai-vitrine/vitrine-test.html
-          grep -Fq 'https://citicigars-api-staging.onrender.com' dist/essai-vitrine/assets/*.js
-          if grep -Fq 'https://citicigars-api.onrender.com' dist/essai-vitrine/assets/*.js; then
-            exit 1
-          fi
-          printf '%s\n' "$GITHUB_SHA" > dist/essai-vitrine/.vitrine-preview
-
-      - name: Transférer le seul sous-dossier de préproduction
+      - name: Vérifier la source du retour arrière sans écrire sur WHC
         env:
           WHC_HOST: ${{ vars.WHC_HOST }}
           WHC_PORT: ${{ vars.WHC_PORT }}
           WHC_USER: ${{ vars.WHC_USER }}
-          WHC_STAGING_PATH: ${{ vars.WHC_STAGING_PATH }}
           WHC_KNOWN_HOSTS: ${{ vars.WHC_KNOWN_HOSTS }}
           WHC_SSH_KEY: ${{ secrets.WHC_SSH_KEY }}
         run: |
           set -euo pipefail
-          test "$WHC_STAGING_PATH" = /home/bwljrj22/citicigars_staging
-          key="$RUNNER_TEMP/essai-vitrine-key"
-          known="$RUNNER_TEMP/essai-vitrine-known-hosts"
           umask 077
-          printf '%s\n' "$WHC_SSH_KEY" > "$key"
-          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$known"
-          trap 'rm -f -- "$key" "$known"' EXIT
-          auth=(-p "$WHC_PORT" -i "$key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known")
+          tmp="$(mktemp -d "$RUNNER_TEMP/vitrine-retour.XXXXXXXX")"
+          trap 'rm -rf -- "$tmp"' EXIT
+          printf '%s\n' "$WHC_SSH_KEY" > "$tmp/key"
+          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$tmp/known_hosts"
+          auth=(-p "$WHC_PORT" -i "$tmp/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$tmp/known_hosts")
           remote="$WHC_USER@$WHC_HOST"
-          destination="$WHC_STAGING_PATH/essai-vitrine"
-          incoming="$(ssh "${auth[@]}" "$remote" "test -d '$WHC_STAGING_PATH' && test ! -L '$WHC_STAGING_PATH' && mktemp -d '$WHC_STAGING_PATH/.essai-vitrine.XXXXXXXX'")"
-          [[ "$incoming" == "$WHC_STAGING_PATH"/.essai-vitrine.* && "${incoming#"$WHC_STAGING_PATH"/}" =~ ^\.essai-vitrine\.[A-Za-z0-9]+$ ]]
-          rsync -rz --chmod=D755,F644 \
-            -e "ssh -p $WHC_PORT -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$known" \
-            CitiCigarsShop/dist/essai-vitrine/ "$remote:$incoming/"
-          ssh "${auth[@]}" "$remote" "set -eu
-            test -f '$incoming/.vitrine-preview'
-            test -f '$incoming/vitrine-test.html'
-            test ! -L '$destination'
-            chmod 755 '$incoming'
-            if [ -e '$destination' ]; then
-              test -f '$destination/.vitrine-preview'
-              backup=\$(mktemp -d '$WHC_STAGING_PATH/.essai-vitrine-retour.XXXXXXXX')
-              mv -- '$destination' \"\$backup/site\"
-              if ! mv -- '$incoming' '$destination'; then
-                mv -- \"\$backup/site\" '$destination'
-                exit 1
-              fi
-            else
-              mv -- '$incoming' '$destination'
-            fi"
-
-      - name: Vérifier la réponse HTTPS
-        run: |
-          set -euo pipefail
-          for path in '' catalogue produit/CTCG-HO-000001 checkout coffrets entreprises evenements; do
-            curl -fsSL --max-time 15 "https://staging.citicigars.com/essai-vitrine/$path" > "$RUNNER_TEMP/essai.html"
-            grep -Fq '/essai-vitrine/assets/' "$RUNNER_TEMP/essai.html"
-          done
+          ssh "${auth[@]}" "$remote" 'uapi --output=json DomainInfo single_domain_data domain=citicigars.com' > "$tmp/domain.json"
+          root="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d=d.get("result",d); print((d.get("data") or {}).get("documentroot") or "")' "$tmp/domain.json")"
+          [[ "$root" =~ ^/home/bwljrj22/[a-zA-Z0-9_/-]+$ ]]
+          real="$(ssh "${auth[@]}" "$remote" "cd '$root' && pwd -P")"
+          [[ "$real" == "$root" && "$real" != /home/bwljrj22/citicigars_staging* ]]
+          ssh "${auth[@]}" "$remote" "cd '$root' && test -f .htaccess && test ! -L .htaccess && test -r index.html && test -r bundle.js && test -w . && test -w .htaccess && sha256sum index.html bundle.js"
+          ssh "${auth[@]}" "$remote" "cd '$root' && cat .htaccess" > "$tmp/routing.original"
+          test -s "$tmp/routing.original"
+          curl -fsSL --max-time 15 'https://citicigars.com/bundle.js?v=1767441426628' > "$tmp/bundle"
+          expected="$(sha256sum "$tmp/bundle" | cut -d ' ' -f1)"
+          actual="$(ssh "${auth[@]}" "$remote" "cd '$root' && sha256sum bundle.js" | cut -d ' ' -f1)"
+          test "$actual" = "$expected"
+          cp "$tmp/routing.original" "$tmp/routing.backup"
+          printf 'RewriteEngine On\nRewriteRule ^catalogue/?$ /_vitrine-release/vitrine-test.html [END]\n' > "$tmp/routing.active"
+          cat "$tmp/routing.original" >> "$tmp/routing.active"
+          mv -- "$tmp/routing.backup" "$tmp/routing.active"
+          cmp -s "$tmp/routing.original" "$tmp/routing.active"
+          echo "WHC public bundle matches the live HTTP asset. Route backup restored byte for byte on the runner. No remote writes."
