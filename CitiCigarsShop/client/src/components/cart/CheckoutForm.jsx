@@ -234,8 +234,9 @@ const CheckoutForm = ({ previewQuote, onPreview }) => {
             <span>{formatPrice(total)}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            * Le paiement et la livraison seront arrangés directement via
-            WhatsApp avec notre service commercial.
+            {onPreview
+              ? "Les coordonnées et les articles servent à préparer le brouillon affiché sur cette page."
+              : "Le paiement et la livraison seront arrangés directement via WhatsApp avec notre service commercial."}
           </p>
         </div>
       </div>

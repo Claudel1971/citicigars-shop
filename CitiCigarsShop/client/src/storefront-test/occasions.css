@@ -34,8 +34,8 @@
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .65rem; margin-top: .95rem; }
 .hero-actions .button { padding-inline: .85rem; }
 .hero-actions .text-link { font-size: .83rem; }
-.hero-dna-link { color: var(--ivory); text-decoration-color: var(--gold); }
-.hero-dna-link:hover { color: var(--gold); }
+.hero-actions .hero-dna-link { color: var(--ivory); text-decoration-color: var(--gold); }
+.hero-actions .hero-dna-link:hover { color: var(--gold); }
 .hero-photo { position: relative; min-width: 0; aspect-ratio: 1200 / 655; overflow: hidden; background: #211711; }
 .hero-photo img {
   position: absolute;
