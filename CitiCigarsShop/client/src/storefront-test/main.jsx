@@ -28,7 +28,7 @@ function Header() {
       <div className="header-inner">
         <Link className="brand" href="/" aria-label="CitiCigars, accueil" onClick={() => setMenu(false)}>
           <img src={logo} width="52" height="50" alt="" />
-          <span className="brand-text">CitiCigars<small>CAMEROUN</small></span>
+          <span className="brand-text" style={{ color: "var(--bronze)" }}>CitiCigars</span>
         </Link>
         <Link className="catalogue-shortcut" href="/catalogue" aria-current={path === "/catalogue" ? "page" : undefined}
           onClick={() => setMenu(false)}>Catalogue</Link>
