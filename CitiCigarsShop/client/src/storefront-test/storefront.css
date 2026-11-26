@@ -359,7 +359,12 @@ main { min-height: 62vh; }
 .member-note { margin-top: .7rem; color: var(--muted); font-size: .9rem; }
 .empty-state + .cart-layout { margin-top: 1rem; }
 .empty-state .button { margin-top: .65rem; }
-.detail-utilities { justify-content: flex-end; margin-top: 1rem; }
+.gallery-frame .detail-utilities {
+  position: absolute;
+  right: .7rem;
+  bottom: .7rem;
+  z-index: 2;
+}
 .detail-utilities .product-action[data-share-sku] {
   border-radius: 2px;
   padding-inline: .62rem;

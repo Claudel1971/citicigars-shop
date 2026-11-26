@@ -21,6 +21,7 @@ function Gallery({ product, name }) {
       <figure className="gallery-frame gallery-main">
         <Photo src={photos[id]} alt={`${name}${caption ? " · " + caption : ""}`} />
         <Distinctions product={product} />
+        <ProductActions product={product} detail />
       </figure>
       {views.length > 1 && <div className="gallery-controls">
         <div className="gallery-thumbs">
@@ -144,7 +145,6 @@ export default function ProductDetail({ sku }) {
             <Purchase key={id} product={product} resource={resource} scrollToPurchase={params.get("section") === "achat"} />
           </div>
           {!isBundle(product) && <TastingSheet key={id} sheet={sheet} member={member} />}
-          <ProductActions product={product} detail />
         </>
       )}
     </section>
