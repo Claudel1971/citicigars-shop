@@ -38,6 +38,41 @@ jobs:
           grep -Fq 'https://citicigars-api.onrender.com' "$dir"/assets/*.js
           if grep -Fq 'staging.citicigars.com' "$dir"/assets/*.js; then exit 1; fi
           printf '%s\n' "$GITHUB_SHA" > "$dir/revision.txt"
+      - name: Examiner le routage WHC sans écriture
+        if: "!inputs.publish && !inputs.archive_preview"
+        env:
+          WHC_HOST: ${{ vars.WHC_HOST }}
+          WHC_PORT: ${{ vars.WHC_PORT }}
+          WHC_USER: ${{ vars.WHC_USER }}
+          WHC_KNOWN_HOSTS: ${{ vars.WHC_KNOWN_HOSTS }}
+          WHC_SSH_KEY: ${{ secrets.WHC_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          d="$(mktemp -d "$RUNNER_TEMP/vitrine-inspection.XXXXXXXX")"
+          trap 'rm -f -- "$d/key"' EXIT
+          printf '%s\n' "$WHC_SSH_KEY" > "$d/key"
+          printf '%s\n' "$WHC_KNOWN_HOSTS" > "$d/known_hosts"
+          auth=(-p "$WHC_PORT" -i "$d/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$d/known_hosts")
+          remote="$WHC_USER@$WHC_HOST"
+          ssh "${auth[@]}" "$remote" 'uapi --output=json DomainInfo single_domain_data domain=citicigars.com' > "$d/domain.json"
+          root="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d=d.get("result",d); print((d.get("data") or {}).get("documentroot") or "")' "$d/domain.json")"
+          [[ "$root" =~ ^/home/bwljrj22/[a-zA-Z0-9_/-]+$ ]]
+          [[ "$(ssh "${auth[@]}" "$remote" "cd '$root' && pwd -P")" == "$root" ]]
+          ssh "${auth[@]}" "$remote" "cd '$root' && ls -ld catalogue catalogue/ .htaccess 2>/dev/null; cat '$root/.htaccess'" > "$d/route"
+          python3 - "$d/route" <<'PY'
+          import re, sys
+          for line in open(sys.argv[1]):
+              line = line.strip()
+              if re.match(r'(?i)^(RewriteEngine|RewriteBase|DirectoryIndex)\s',line):
+                  print(line)
+              elif re.match(r'(?i)^Rewrite(Cond|Rule)\s',line):
+                  print(line if re.match(r'^[A-Za-z0-9\s\\/._^$()!{}%=?+\[\]*|,:-]+$',line) and len(line)<160 else line.split()[0]+' (hors diagnostic)')
+              elif line.startswith(('ErrorDocument 404', '<IfModule mod_rewrite', '<IfModule LiteSpeed')):
+                  print(line if len(line)<110 else line.split()[0])
+              elif re.match(r'^d[rwx-]',line) and ' catalogue' in line:
+                  print('Répertoire catalogue existant.')
+          PY
       - name: Activer les routes de la vitrine et contrôler le site public
         if: inputs.publish
         env:
